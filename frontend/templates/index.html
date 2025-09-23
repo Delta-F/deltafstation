@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeltaFStation - 量化交易系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-chart-line me-2"></i>DeltaFStation
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/strategy">
+                            <i class="fas fa-cogs me-1"></i>策略分析
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/trading">
+                            <i class="fas fa-exchange-alt me-1"></i>仿真交易
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-tachometer-alt me-2"></i>系统概览</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="metric-card">
+                                    <h4 class="text-primary" id="totalStrategies">0</h4>
+                                    <small class="text-muted">策略数量</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="metric-card">
+                                    <h4 class="text-success" id="activeSimulations">0</h4>
+                                    <small class="text-muted">活跃仿真</small>
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="metric-card">
+                                    <h4 class="text-info" id="totalTrades">0</h4>
+                                    <small class="text-muted">总交易数</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="metric-card">
+                                    <h4 class="text-warning" id="totalReturn">0%</h4>
+                                    <small class="text-muted">总收益率</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 快速操作 -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5><i class="fas fa-bolt me-2"></i>快速操作</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary" onclick="showDataUpload()">
+                                <i class="fas fa-upload me-2"></i>上传数据
+                            </button>
+                            <button class="btn btn-outline-success" onclick="showStrategyCreate()">
+                                <i class="fas fa-plus me-2"></i>创建策略
+                            </button>
+                            <button class="btn btn-outline-info" onclick="showBacktestRun()">
+                                <i class="fas fa-play me-2"></i>运行回测
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="showSimulationStart()">
+                                <i class="fas fa-rocket me-2"></i>启动仿真
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主内容区 -->
+            <div class="col-md-9">
+                <!-- 欢迎区域 -->
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-chart-line fa-4x text-primary mb-4"></i>
+                        <h2 class="card-title">欢迎使用 DeltaFStation 量化交易系统</h2>
+                        <p class="card-text text-muted mb-4">
+                            一个简洁明了的量化交易平台，帮助个人投资者进行策略分析、回测和仿真交易
+                        </p>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="feature-card">
+                                    <i class="fas fa-database fa-2x text-primary mb-3"></i>
+                                    <h5>数据管理</h5>
+                                    <p class="text-muted">支持CSV数据导入和Yahoo Finance数据下载</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="feature-card">
+                                    <i class="fas fa-chart-bar fa-2x text-success mb-3"></i>
+                                    <h5>策略回测</h5>
+                                    <p class="text-muted">技术分析、基本面分析和机器学习策略</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="feature-card">
+                                    <i class="fas fa-exchange-alt fa-2x text-info mb-3"></i>
+                                    <h5>仿真交易</h5>
+                                    <p class="text-muted">实时仿真交易和风险控制</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最近活动 -->
+                <div class="card mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-history me-2"></i>最近活动</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshActivities()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="activitiesList">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-spinner fa-spin"></i> 加载中...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据上传模态框 -->
+    <div class="modal fade" id="dataUploadModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">上传数据文件</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="dataUploadForm">
+                        <div class="mb-3">
+                            <label for="dataFile" class="form-label">选择CSV文件</label>
+                            <input type="file" class="form-control" id="dataFile" accept=".csv" required>
+                            <div class="form-text">文件应包含Date, Open, High, Low, Close, Volume列</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="uploadData()">上传</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 策略创建模态框 -->
+    <div class="modal fade" id="strategyCreateModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">创建新策略</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="strategyCreateForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="strategyName" class="form-label">策略名称</label>
+                                    <input type="text" class="form-control" id="strategyName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="strategyType" class="form-label">策略类型</label>
+                                    <select class="form-select" id="strategyType" required>
+                                        <option value="technical">技术分析</option>
+                                        <option value="fundamental">基本面分析</option>
+                                        <option value="ml">机器学习</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="strategyDescription" class="form-label">策略描述</label>
+                            <textarea class="form-control" id="strategyDescription" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createStrategy()">创建</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 回测运行模态框 -->
+    <div class="modal fade" id="backtestRunModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">运行回测</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="backtestRunForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="backtestStrategy" class="form-label">选择策略</label>
+                                    <select class="form-select" id="backtestStrategy" required>
+                                        <option value="">请选择策略</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="backtestData" class="form-label">选择数据</label>
+                                    <select class="form-select" id="backtestData" required>
+                                        <option value="">请选择数据文件</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="startDate" class="form-label">开始日期</label>
+                                    <input type="date" class="form-control" id="startDate" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="endDate" class="form-label">结束日期</label>
+                                    <input type="date" class="form-control" id="endDate" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="initialCapital" class="form-label">初始资金</label>
+                                    <input type="number" class="form-control" id="initialCapital" value="100000" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="commission" class="form-label">手续费率</label>
+                                    <input type="number" class="form-control" id="commission" value="0.001" step="0.0001">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="slippage" class="form-label">滑点</label>
+                                    <input type="number" class="form-control" id="slippage" value="0.0005" step="0.0001">
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="runBacktest()">运行回测</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 仿真启动模态框 -->
+    <div class="modal fade" id="simulationStartModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">启动仿真交易</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="simulationStartForm">
+                        <div class="mb-3">
+                            <label for="simulationStrategy" class="form-label">选择策略</label>
+                            <select class="form-select" id="simulationStrategy" required>
+                                <option value="">请选择策略</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="simulationCapital" class="form-label">初始资金</label>
+                            <input type="number" class="form-control" id="simulationCapital" value="100000" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="startSimulation()">启动仿真</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
