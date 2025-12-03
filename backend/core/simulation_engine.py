@@ -16,11 +16,11 @@ class SimulationEngine:
         self.simulations = {}
         self.running = False
     
-    def start_simulation(self, simulation_id, strategy, initial_capital, commission=0.001, slippage=0.0005):
-        """启动仿真交易"""
+    def start_simulation(self, simulation_id, strategy=None, initial_capital=100000, commission=0.001, slippage=0.0005):
+        """启动仿真交易（strategy为None时表示纯手动交易）"""
         simulation = {
             'id': simulation_id,
-            'strategy': strategy,
+            'strategy': strategy,  # 可以为None
             'initial_capital': initial_capital,
             'current_capital': initial_capital,
             'commission': commission,
@@ -34,7 +34,7 @@ class SimulationEngine:
         
         self.simulations[simulation_id] = simulation
         
-        # 启动仿真线程
+        # 启动仿真线程（无论是否有策略都启动，用于维护账户状态）
         thread = threading.Thread(target=self._run_simulation, args=(simulation_id,))
         thread.daemon = True
         thread.start()
@@ -73,9 +73,25 @@ class SimulationEngine:
     def _run_simulation(self, simulation_id):
         """运行仿真主循环"""
         simulation = self.simulations[simulation_id]
-        strategy = simulation['strategy']
+        strategy = simulation.get('strategy')
         
-        # 创建策略实例
+        # 如果没有策略，只维护账户状态，不自动交易
+        if not strategy:
+            while simulation['status'] == 'running':
+                try:
+                    # 只更新组合价值和保存状态
+                    current_data = self._get_current_market_data()
+                    if current_data:
+                        simulation['current_capital'] = self._calculate_portfolio_value(simulation, current_data)
+                    simulation['last_update'] = datetime.now()
+                    self._save_simulation_state(simulation)
+                    time.sleep(60)  # 每分钟更新一次
+                except Exception as e:
+                    print(f"Simulation error: {e}")
+                    time.sleep(10)
+            return
+        
+        # 有策略时，执行策略自动交易
         strategy_instance = self._create_strategy_instance(strategy)
         
         while simulation['status'] == 'running':

@@ -7,6 +7,12 @@ import pandas as pd
 from datetime import datetime, timedelta
 import yfinance as yf
 
+try:
+    # 优先使用 deltafq 提供的数据获取功能
+    from deltafq.data import DataFetcher
+except ImportError:  # pragma: no cover - 运行环境可能没有安装 deltafq
+    DataFetcher = None
+
 data_bp = Blueprint('data', __name__)
 
 @data_bp.route('/upload', methods=['POST'])
@@ -49,7 +55,7 @@ def upload_data():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@data_bp.route('/download/<symbol>', methods=['POST'])
+@data_bp.route('/download', methods=['POST'])
 def download_data():
     """从Yahoo Finance下载数据"""
     try:
@@ -60,16 +66,21 @@ def download_data():
         if not symbol:
             return jsonify({'error': 'Symbol is required'}), 400
         
-        # 下载数据
-        ticker = yf.Ticker(symbol)
-        df = ticker.history(period=period)
+        # 下载数据（兼容：若安装了 deltafq 优先使用，否则退回 yfinance）
+        if DataFetcher is not None:
+            fetcher = DataFetcher()
+            df = fetcher.fetch_data(symbol=symbol, period=period)
+        else:
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(period=period)
         
         if df.empty:
             return jsonify({'error': f'No data found for symbol {symbol}'}), 404
         
-        # 重置索引，将Date作为列
-        df = df.reset_index()
-        df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
+        # 标准化列名，确保包含所需字段
+        if 'Date' not in df.columns:
+            df = df.reset_index().rename(columns={df.index.name or 'index': 'Date'})
+        df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')
         
         # 保存到CSV
         data_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'raw')
@@ -116,7 +127,7 @@ def list_data():
         return jsonify({'error': str(e)}), 500
 
 @data_bp.route('/preview/<filename>', methods=['GET'])
-def preview_data():
+def preview_data(filename):
     """预览数据文件"""
     try:
         data_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'raw')
@@ -135,5 +146,86 @@ def preview_data():
             'shape': df.shape
         })
     
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@data_bp.route('/fetch_symbol', methods=['POST'])
+def fetch_symbol():
+    """
+    根据股票代码和时间区间获取数据：
+    - 若 data/raw 下已存在以代码开头的 CSV，则优先使用最新文件
+    - 否则使用 DataFetcher（若可用）或 yfinance 下载数据并保存为 CSV
+    """
+    try:
+        data = request.get_json()
+        symbol = data.get('symbol', '').upper()
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+
+        if not symbol:
+            return jsonify({'error': 'Symbol is required'}), 400
+
+        data_folder = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'raw'
+        )
+        os.makedirs(data_folder, exist_ok=True)
+
+        # 1. 优先查找本地已有文件（文件名以代码开头）
+        candidates = []
+        for filename in os.listdir(data_folder):
+            if filename.lower().endswith('.csv') and filename.upper().startswith(symbol):
+                filepath = os.path.join(data_folder, filename)
+                stat = os.stat(filepath)
+                candidates.append((stat.st_mtime, filename))
+
+        if candidates:
+            # 使用最新的一个文件
+            candidates.sort(reverse=True)
+            latest_filename = candidates[0][1]
+            return jsonify({
+                'message': 'Use existing local data file',
+                'filename': latest_filename,
+                'source': 'local'
+            })
+
+        # 2. 本地没有则从数据源下载
+        if not start_date or not end_date:
+            return jsonify({'error': 'start_date and end_date are required when downloading new data'}), 400
+
+        start_dt = datetime.fromisoformat(start_date)
+        end_dt = datetime.fromisoformat(end_date)
+
+        if DataFetcher is not None:
+            fetcher = DataFetcher()
+            df = fetcher.fetch_data(symbol=symbol, start_date=start_dt.date(), end_date=end_dt.date())
+        else:
+            # 回退到 yfinance
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(start=start_dt, end=end_dt + timedelta(days=1))
+
+        if df is None or df.empty:
+            return jsonify({'error': f'No data found for symbol {symbol} in given date range'}), 404
+
+        # 标准化列名
+        if 'Date' not in df.columns:
+            df = df.reset_index().rename(columns={df.index.name or 'index': 'Date'})
+        df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')
+
+        # 使用简单格式化，避免 f-string 表达式中的转义问题
+        filename = f"{symbol}_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.csv"
+        filepath = os.path.join(data_folder, filename)
+        df.to_csv(filepath, index=False)
+
+        return jsonify({
+            'message': 'Data fetched successfully',
+            'filename': filename,
+            'rows': len(df),
+            'symbol': symbol,
+            'source': 'deltafq' if DataFetcher is not None else 'yfinance'
+        })
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500

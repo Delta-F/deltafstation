@@ -1,0 +1,66 @@
+<!-- 公共导航栏 Banner -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
+    <div class="container-fluid" style="max-width: 1600px; margin: 0 auto; padding-left: 1rem; padding-right: 1rem;">
+        <a class="navbar-brand" href="/" style="margin-left: 0;">
+            <i class="fas fa-chart-line me-2"></i>DeltaFStation
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if active_page == 'home' else '' }}" href="/">
+                        <i class="fas fa-home me-1"></i>主页
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if active_page == 'strategy' else '' }}" href="/strategy">
+                        <i class="fas fa-cogs me-1"></i>回测
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if active_page == 'trading' else '' }}" href="/trading">
+                        <i class="fas fa-exchange-alt me-1"></i>交易
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if active_page == 'run' else '' }}" href="/run">
+                        <i class="fas fa-play-circle me-1"></i>启动策略
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<style>
+    .navbar {
+        font-size: 14px;
+        padding: 0.5rem 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    }
+    
+    .navbar-brand {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+    
+    .navbar-nav .nav-link {
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s;
+        border-radius: 4px;
+        margin: 0 0.25rem;
+    }
+    
+    .navbar-nav .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .navbar-nav .nav-link.active {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+</style>

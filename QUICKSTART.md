@@ -54,7 +54,7 @@ python3 run.py
 ## 📁 示例数据
 
 系统已包含示例数据文件：
-- `data/raw/sample_data.csv` - 示例股票数据
+- `data/raw/000001.csv` - 示例股票数据
 - `data/strategies/sample_strategy.json` - 示例策略配置
 
 ## 🔧 常用操作

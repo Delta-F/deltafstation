@@ -1,0 +1,13 @@
+{
+  "id": "sim_20251203_162429",
+  "strategy": null,
+  "initial_capital": 100000,
+  "current_capital": 100000,
+  "commission": 0.001,
+  "slippage": 0.0005,
+  "positions": {},
+  "trades": [],
+  "status": "running",
+  "start_time": "2025-12-03T16:24:29.121300",
+  "last_update": "2025-12-03T18:05:29.363412"
+}

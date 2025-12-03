@@ -12,33 +12,36 @@ simulation_bp = Blueprint('simulation', __name__)
 
 @simulation_bp.route('/start', methods=['POST'])
 def start_simulation():
-    """启动仿真交易"""
+    """启动仿真交易（支持手动交易和策略自动交易）"""
     try:
         data = request.get_json()
         
         # 验证必需字段
-        required_fields = ['strategy_id', 'initial_capital']
-        if not all(field in data for field in required_fields):
-            return jsonify({'error': f'Missing required fields: {required_fields}'}), 400
+        if 'initial_capital' not in data:
+            return jsonify({'error': 'Missing required field: initial_capital'}), 400
         
-        # 加载策略
-        strategies_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'strategies')
-        strategy_file = os.path.join(strategies_folder, f"{data['strategy_id']}.json")
+        strategy = None
+        strategy_id = data.get('strategy_id', '')
         
-        if not os.path.exists(strategy_file):
-            return jsonify({'error': 'Strategy not found'}), 404
-        
-        with open(strategy_file, 'r', encoding='utf-8') as f:
-            strategy = json.load(f)
+        # 如果提供了策略ID，加载策略
+        if strategy_id:
+            strategies_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'strategies')
+            strategy_file = os.path.join(strategies_folder, f"{strategy_id}.json")
+            
+            if not os.path.exists(strategy_file):
+                return jsonify({'error': 'Strategy not found'}), 404
+            
+            with open(strategy_file, 'r', encoding='utf-8') as f:
+                strategy = json.load(f)
         
         # 创建仿真引擎
         engine = SimulationEngine()
         simulation_id = f"sim_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        # 启动仿真
+        # 启动仿真（策略可以为None，表示纯手动交易）
         engine.start_simulation(
             simulation_id=simulation_id,
-            strategy=strategy,
+            strategy=strategy,  # 可以为None
             initial_capital=data['initial_capital'],
             commission=data.get('commission', 0.001),
             slippage=data.get('slippage', 0.0005)
@@ -50,7 +53,7 @@ def start_simulation():
         
         simulation_config = {
             'id': simulation_id,
-            'strategy_id': data['strategy_id'],
+            'strategy_id': strategy_id if strategy_id else None,
             'initial_capital': data['initial_capital'],
             'commission': data.get('commission', 0.001),
             'slippage': data.get('slippage', 0.0005),

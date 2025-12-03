@@ -44,6 +44,10 @@ def create_app():
     def trading():
         return render_template('trading.html')
     
+    @app.route('/run')
+    def run():
+        return render_template('run.html')
+    
     @app.errorhandler(404)
     def not_found(error):
         return jsonify({'error': 'Not found'}), 404
