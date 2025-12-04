@@ -56,34 +56,7 @@ body {
     padding: 1.5rem;
 }
 
-/* 指标卡片 */
-.metric-card {
-    padding: 1rem;
-    text-align: center;
-    border-radius: var(--border-radius);
-    background-color: #f8f9fa;
-    margin-bottom: 0.5rem;
-}
-
-.metric-card h4, .metric-card h5 {
-    margin-bottom: 0.5rem;
-    font-weight: bold;
-}
-
-/* 状态卡片 */
-.status-card {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    border-radius: var(--border-radius);
-    background-color: #f8f9fa;
-    margin-bottom: 0.5rem;
-}
-
-.status-card i {
-    font-size: 1.2rem;
-}
+/* 指标卡片和状态卡片未使用，已删除 */
 
 /* 功能卡片 */
 .feature-card {
@@ -173,31 +146,7 @@ body {
     padding: 1rem 1.5rem;
 }
 
-/* 加载动画 */
-.loading {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 2rem;
-}
-
-.loading i {
-    font-size: 2rem;
-    color: var(--primary-color);
-}
-
-/* 空状态 */
-.empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
-    color: #6c757d;
-}
-
-.empty-state i {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-}
+/* 加载动画和空状态未使用，已删除 */
 
 /* 成功/错误消息 */
 .alert {
@@ -265,10 +214,6 @@ body {
         padding: 1rem;
     }
     
-    .metric-card {
-        padding: 0.5rem;
-    }
-    
     .feature-card {
         padding: 1rem;
     }
@@ -278,35 +223,7 @@ body {
     }
 }
 
-/* 图表容器 */
-.chart-container {
-    position: relative;
-    height: 400px;
-    width: 100%;
-}
-
-/* 交易状态 */
-.trade-status {
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 500;
-}
-
-.trade-status.success {
-    background-color: #d4edda;
-    color: #155724;
-}
-
-.trade-status.danger {
-    background-color: #f8d7da;
-    color: #721c24;
-}
-
-.trade-status.warning {
-    background-color: #fff3cd;
-    color: #856404;
-}
+/* 图表容器和交易状态未使用，已删除 */
 
 /* 持仓信息 */
 .position-item {

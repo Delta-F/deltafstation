@@ -12,7 +12,7 @@ simulation_bp = Blueprint('simulation', __name__)
 
 @simulation_bp.route('/start', methods=['POST'])
 def start_simulation():
-    """启动仿真交易（支持手动交易和策略自动交易）"""
+    """启动仿真交易（支持手动交易和策略自动交易，使用模拟数据）"""
     try:
         data = request.get_json()
         
@@ -20,31 +20,25 @@ def start_simulation():
         if 'initial_capital' not in data:
             return jsonify({'error': 'Missing required field: initial_capital'}), 400
         
-        strategy = None
         strategy_id = data.get('strategy_id', '')
-        
-        # 如果提供了策略ID，加载策略
-        if strategy_id:
-            strategies_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'strategies')
-            strategy_file = os.path.join(strategies_folder, f"{strategy_id}.json")
-            
-            if not os.path.exists(strategy_file):
-                return jsonify({'error': 'Strategy not found'}), 404
-            
-            with open(strategy_file, 'r', encoding='utf-8') as f:
-                strategy = json.load(f)
+        symbol = data.get('symbol', '')
+        use_demo_data = data.get('use_demo_data', True)  # 默认使用演示数据
         
         # 创建仿真引擎
         engine = SimulationEngine()
         simulation_id = f"sim_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        # 启动仿真（策略可以为None，表示纯手动交易）
+        # 启动仿真（使用策略类名）
+        strategy_param = strategy_id if strategy_id else None
+        
         engine.start_simulation(
             simulation_id=simulation_id,
-            strategy=strategy,  # 可以为None
+            strategy=strategy_param,  # 策略类名或None
             initial_capital=data['initial_capital'],
             commission=data.get('commission', 0.001),
-            slippage=data.get('slippage', 0.0005)
+            slippage=data.get('slippage', 0.0005),
+            symbol=symbol if symbol else None,
+            use_demo_data=use_demo_data
         )
         
         # 保存仿真配置
@@ -61,7 +55,8 @@ def start_simulation():
             'created_at': datetime.now().isoformat(),
             'current_capital': data['initial_capital'],
             'positions': {},
-            'trades': []
+            'trades': [],
+            'symbol': symbol if symbol else None
         }
         
         config_file = os.path.join(simulation_folder, f"{simulation_id}.json")
@@ -74,10 +69,12 @@ def start_simulation():
         })
     
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @simulation_bp.route('/stop/<simulation_id>', methods=['POST'])
-def stop_simulation():
+def stop_simulation(simulation_id):
     """停止仿真交易"""
     try:
         simulation_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'simulations')
@@ -101,7 +98,7 @@ def stop_simulation():
         return jsonify({'error': str(e)}), 500
 
 @simulation_bp.route('/status/<simulation_id>', methods=['GET'])
-def get_simulation_status():
+def get_simulation_status(simulation_id):
     """获取仿真状态"""
     try:
         simulation_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'simulations')

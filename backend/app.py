@@ -38,15 +38,15 @@ def create_app():
     
     @app.route('/strategy')
     def strategy():
-        return render_template('strategy.html')
+        return render_template('backtest.html')
     
     @app.route('/trading')
     def trading():
-        return render_template('trading.html')
+        return render_template('trader.html')
     
     @app.route('/run')
     def run():
-        return render_template('run.html')
+        return render_template('gostrategy.html')
     
     @app.errorhandler(404)
     def not_found(error):

@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/common.css') }}" rel="stylesheet">
     <style>
         body {
             font-size: 13px;
@@ -15,56 +16,6 @@
             background-color: #f5f5f5;
         }
         
-        .account-overview {
-            background-color: #ffffff;
-            color: #343a40;
-            padding: 0.8rem 1rem;
-            border-radius: 8px;
-            margin-bottom: 0.75rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid #e9ecef;
-        }
-        
-        .account-overview .account-item {
-            text-align: center;
-            padding: 0.25rem 0.5rem;
-        }
-        
-        .account-overview .account-label {
-            font-size: 11px;
-            opacity: 0.9;
-            margin-bottom: 0.4rem;
-            font-weight: 400;
-        }
-        
-        .account-overview .account-value {
-            font-size: 16px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        
-        .trading-panel {
-            /* 允许根据内容自然撑开，整个页面可以滚动 */
-            height: auto;
-            overflow: visible;
-        }
-        
-        .trading-left-panel {
-            height: auto;
-            overflow-y: visible;
-            padding-right: 0.5rem;
-        }
-        
-        .trading-center-panel {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .trading-right-panel {
-            height: auto;
-            overflow-y: visible;
-            padding-left: 0.5rem;
-        }
         
         .trade-form-card {
             margin-bottom: 1rem;
@@ -110,14 +61,10 @@
             border-left: 2px solid #c3e6cb;
         }
         
-        .price-input-group {
-            position: relative;
-        }
-        
         .price-btn-group {
             display: flex;
-            gap: 0.25rem;
-            margin-top: 0.25rem;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
         }
         
         .price-btn {
@@ -147,7 +94,7 @@
         .quantity-btn-group {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 0.25rem;
+            gap: 0.5rem;
             margin-top: 0.5rem;
         }
         
@@ -198,165 +145,37 @@
             transform: translateY(0);
         }
         
-        .position-table {
-            font-size: 12px;
-        }
         
-        .position-table th {
-            font-size: 11px;
-            font-weight: 600;
-            background-color: #f8f9fa;
-            padding: 0.6rem;
-            border-bottom: 2px solid #dee2e6;
-        }
-        
-        .position-table td {
-            padding: 0.6rem;
-            vertical-align: middle;
-        }
-        
-        .position-table tbody tr:hover {
-            background-color: #f8f9fa;
-        }
-        
-        .position-profit {
-            font-weight: 600;
+        /* 优化输入框 placeholder 样式 */
+        .form-control::placeholder,
+        .form-select option:first-child {
+            color: #adb5bd;
             font-size: 13px;
+            opacity: 1;
         }
         
-        .position-profit.positive {
-            color: #dc3545;
-        }
-        
-        .position-profit.negative {
-            color: #28a745;
-        }
-        
-        .order-table, .trade-table {
+        /* 限价单标签样式 */
+        .limit-order-label {
             font-size: 11px;
+            color: #6c757d;
+            font-weight: 500;
+            margin-left: 0.25rem;
         }
         
-        .order-table th, .trade-table th {
-            font-size: 10px;
-            font-weight: 600;
-            background-color: #f8f9fa;
-            padding: 0.5rem;
-            border-bottom: 2px solid #dee2e6;
-        }
-        
-        .order-table td, .trade-table td {
-            padding: 0.5rem;
-            vertical-align: middle;
-        }
-        
-        .order-table tbody tr:hover, .trade-table tbody tr:hover {
-            background-color: #f8f9fa;
-        }
-        
-        .price-up {
-            color: #dc3545;
-            font-weight: 600;
-        }
-        
-        .price-down {
-            color: #28a745;
-            font-weight: 600;
-        }
-        
-        .market-price {
-            font-size: 22px;
-            font-weight: 700;
-            margin: 0.5rem 0;
-            letter-spacing: 0.5px;
-        }
-        
-        .table-container {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
-            max-height: 260px; /* 约 4 行数据的可视高度，超出部分滚动 */
-        }
-        
-        .card {
-            border: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        /* 优化表单间距 */
+        .trade-form-row {
             margin-bottom: 1rem;
-            border-radius: 8px;
         }
         
-        .card-header {
-            background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%);
-            border-bottom: 2px solid #e9ecef;
-            padding: 0.75rem 1rem;
-            font-weight: 600;
-            font-size: 13px;
-            border-radius: 8px 8px 0 0;
-        }
-        
-        .account-card {
-            background: white;
-            border-radius: 8px;
-            padding: 1rem;
-        }
-        
-        .account-card .account-info {
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .account-card .account-info:last-child {
-            border-bottom: none;
-        }
-        
-        .simulation-status {
-            display: inline-block;
-            padding: 0.35rem 0.7rem;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        
-        .simulation-status.running {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        
-        .simulation-status.stopped {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        
-        .badge {
-            font-size: 10px;
-            padding: 0.35rem 0.6rem;
-        }
-        
-        .form-row-inline {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .form-row-inline .form-label {
-            margin-bottom: 0;
-            white-space: nowrap;
-        }
-
-        .form-row-inline .form-control,
-        .form-row-inline .form-select {
-            flex: 1;
-        }
-
-        .form-control:focus, .form-select:focus {
-            border-color: #007bff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+        .trade-form-row:last-of-type {
+            margin-bottom: 1.25rem;
         }
         
         .btn-sm {
             padding: 0.35rem 0.7rem;
             font-size: 11px;
         }
+        
     </style>
 </head>
 <body>
@@ -418,35 +237,38 @@
                     <div class="card-body" style="padding: 0;">
                         <div class="tab-content">
                             <!-- 买入面板 -->
-                            <div class="tab-pane fade show active buy-panel" id="buy-panel" role="tabpanel" style="padding: 1.2rem;">
+                            <div class="tab-pane fade show active buy-panel" id="buy-panel" role="tabpanel" style="padding: 1.5rem;">
                                 <form id="buyForm">
-                                    <div class="mb-2 form-row-inline">
+                                    <div class="trade-form-row form-row-inline">
                                         <label class="form-label fw-bold">股票代码</label>
                                         <input type="text" class="form-control form-control-sm" id="buySymbol" 
-                                               placeholder="例如: AAPL, 000001" onblur="loadStockInfo('buy')">
+                                               placeholder="输入股票代码，如：AAPL、000001" onblur="loadStockInfo('buy')">
                                     </div>
-                                    <div class="mb-2 form-row-inline">
+                                    <div class="trade-form-row form-row-inline">
                                         <label class="form-label fw-bold">股票名称</label>
                                         <input type="text" class="form-control form-control-sm" id="buyName" readonly 
-                                               style="background-color: #f8f9fa;">
+                                               style="background-color: #f8f9fa;" placeholder="自动显示">
                                     </div>
-                                    <div class="mb-2">
-                                        <div class="form-row-inline">
-                                            <label class="form-label fw-bold">委托价格</label>
+                                    <div class="trade-form-row">
+                                        <div class="form-row-inline mb-1">
+                                            <label class="form-label fw-bold">
+                                                委托价格
+                                                <span class="limit-order-label">(限价单)</span>
+                                            </label>
                                             <input type="number" class="form-control form-control-sm" id="buyPrice" 
-                                                   step="0.01" placeholder="输入价格">
+                                                   step="0.01" placeholder="请输入限价价格" required>
                                         </div>
-                                        <div class="price-btn-group mt-1">
+                                        <div class="price-btn-group">
                                             <button type="button" class="price-btn buy" onclick="setPrice('buy', 'bid1')">买1</button>
                                             <button type="button" class="price-btn buy" onclick="setPrice('buy', 'current')">现价</button>
                                             <button type="button" class="price-btn buy" onclick="setPrice('buy', 'ask1')">卖1</button>
                                         </div>
                                     </div>
-                                    <div class="mb-2">
-                                        <div class="form-row-inline">
+                                    <div class="trade-form-row">
+                                        <div class="form-row-inline mb-1">
                                             <label class="form-label fw-bold">委托数量</label>
                                             <input type="number" class="form-control form-control-sm" id="buyQuantity" 
-                                                   min="100" step="100" placeholder="100股起">
+                                                   min="100" step="100" placeholder="请输入数量，100股起" required>
                                         </div>
                                         <div class="quantity-btn-group">
                                             <button type="button" class="quantity-btn" onclick="setQuantity('buy', 100)">100</button>
@@ -455,7 +277,7 @@
                                             <button type="button" class="quantity-btn" onclick="setQuantity('buy', 1000)">1000</button>
                                         </div>
                                     </div>
-                                    <div class="mb-3 p-2 bg-light rounded">
+                                    <div class="trade-form-row p-2 bg-light rounded">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <span class="text-muted fw-bold">预计金额:</span>
                                             <span class="fw-bold text-primary" style="font-size: 16px;" id="buyEstimatedAmount">¥0.00</span>
@@ -468,41 +290,44 @@
                             </div>
                             
                             <!-- 卖出面板 -->
-                            <div class="tab-pane fade sell-panel" id="sell-panel" role="tabpanel" style="padding: 1.2rem;">
+                            <div class="tab-pane fade sell-panel" id="sell-panel" role="tabpanel" style="padding: 1.5rem;">
                                 <form id="sellForm">
-                                    <div class="mb-2 form-row-inline">
+                                    <div class="trade-form-row form-row-inline">
                                         <label class="form-label fw-bold">选择持仓</label>
                                         <select class="form-select form-select-sm" id="sellPositionSelect" onchange="loadSellPosition()">
                                             <option value="">请选择持仓</option>
                                         </select>
                                     </div>
-                                    <div class="mb-2 form-row-inline">
+                                    <div class="trade-form-row form-row-inline">
                                         <label class="form-label fw-bold">股票代码</label>
                                         <input type="text" class="form-control form-control-sm" id="sellSymbol" readonly
-                                               style="background-color: #f8f9fa;">
+                                               style="background-color: #f8f9fa;" placeholder="自动显示">
                                     </div>
-                                    <div class="mb-2 form-row-inline">
+                                    <div class="trade-form-row form-row-inline">
                                         <label class="form-label fw-bold">可卖数量</label>
                                         <input type="text" class="form-control form-control-sm" id="sellAvailable" readonly
-                                               style="background-color: #f8f9fa;">
+                                               style="background-color: #f8f9fa;" placeholder="自动显示">
                                     </div>
-                                    <div class="mb-2">
-                                        <div class="form-row-inline">
-                                            <label class="form-label fw-bold">委托价格</label>
+                                    <div class="trade-form-row">
+                                        <div class="form-row-inline mb-1">
+                                            <label class="form-label fw-bold">
+                                                委托价格
+                                                <span class="limit-order-label">(限价单)</span>
+                                            </label>
                                             <input type="number" class="form-control form-control-sm" id="sellPrice" 
-                                                   step="0.01" placeholder="输入价格">
+                                                   step="0.01" placeholder="请输入限价价格" required>
                                         </div>
-                                        <div class="price-btn-group mt-1">
+                                        <div class="price-btn-group">
                                             <button type="button" class="price-btn sell" onclick="setPrice('sell', 'bid1')">买1</button>
                                             <button type="button" class="price-btn sell" onclick="setPrice('sell', 'current')">现价</button>
                                             <button type="button" class="price-btn sell" onclick="setPrice('sell', 'ask1')">卖1</button>
                                         </div>
                                     </div>
-                                    <div class="mb-2">
-                                        <div class="form-row-inline">
+                                    <div class="trade-form-row">
+                                        <div class="form-row-inline mb-1">
                                             <label class="form-label fw-bold">委托数量</label>
                                             <input type="number" class="form-control form-control-sm" id="sellQuantity" 
-                                                   min="100" step="100" placeholder="100股起">
+                                                   min="100" step="100" placeholder="请输入数量，100股起" required>
                                         </div>
                                         <div class="quantity-btn-group">
                                             <button type="button" class="quantity-btn" onclick="setQuantity('sell', 100)">100</button>
@@ -511,7 +336,7 @@
                                             <button type="button" class="quantity-btn" onclick="setQuantity('sell', 'all')">全部</button>
                                         </div>
                                     </div>
-                                    <div class="mb-3 p-2 bg-light rounded">
+                                    <div class="trade-form-row p-2 bg-light rounded">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <span class="text-muted fw-bold">预计金额:</span>
                                             <span class="fw-bold text-success" style="font-size: 16px;" id="sellEstimatedAmount">¥0.00</span>
@@ -528,69 +353,157 @@
             </div>
 
             <!-- 中间：行情 + 数据视图（持仓 / 委托 / 成交） -->
-            <div class="col-md-7 trading-center-panel">
+            <div class="col-md-6 trading-center-panel">
                 <!-- 行情卡片 -->
                 <div class="card mb-2" style="flex: 0 0 auto;">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span><i class="fas fa-chart-line me-2"></i>实时行情</span>
                         <small class="text-muted" id="quoteTime">--:--:--</small>
                     </div>
-                    <div class="card-body py-1">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <div>
-                                <div class="fw-bold" id="quoteSymbol">--</div>
+                    <div class="card-body" style="padding: 1rem;">
+                        <!-- 第一行：股票信息 + 基础数据 + 当前价格 -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <!-- 左侧：股票代码和名称 -->
+                            <div style="flex: 0 0 auto;">
+                                <div class="fw-bold fs-5" id="quoteSymbol" style="color: #1a1a1a;">--</div>
                                 <small class="text-muted" id="quoteName">请输入左侧股票代码查看行情</small>
                             </div>
-                            <div class="text-end">
-                                <div class="market-price" id="quotePrice">--</div>
-                                <div id="quoteChange" class="text-muted" style="font-size: 11px;">--</div>
+                            
+                            <!-- 中间：今开/最高/最低 -->
+                            <div class="d-flex gap-4 align-items-center" style="flex: 1; justify-content: center;">
+                                <div class="text-center">
+                                    <div class="text-muted" style="font-size: 10px; margin-bottom: 2px;">今开</div>
+                                    <div id="quoteOpen" style="font-size: 12px; font-weight: 500;">--</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-muted" style="font-size: 10px; margin-bottom: 2px;">最高</div>
+                                    <div id="quoteHigh" class="price-up" style="font-size: 12px; font-weight: 500;">--</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-muted" style="font-size: 10px; margin-bottom: 2px;">最低</div>
+                                    <div id="quoteLow" class="price-down" style="font-size: 12px; font-weight: 500;">--</div>
+                                </div>
+                            </div>
+                            
+                            <!-- 右侧：当前价格和涨跌幅 -->
+                            <div class="text-end" style="flex: 0 0 auto;">
+                                <div class="market-price" id="quotePrice" style="color: #1a1a1a;">--</div>
+                                <div id="quoteChange" class="text-muted" style="font-size: 12px;">--</div>
                             </div>
                         </div>
-                        <div class="row text-center" style="font-size: 11px;">
-                            <div class="col-4">
-                                <div class="text-muted">今开</div>
-                                <div id="quoteOpen">--</div>
+                        
+                        <!-- 分时图区域 + 买1卖1 -->
+                        <div class="d-flex gap-3" style="height: 180px;">
+                            <!-- 分时图 -->
+                            <div style="flex: 1; position: relative;">
+                                <canvas id="intradayChart"></canvas>
                             </div>
-                            <div class="col-4">
-                                <div class="text-muted">最高</div>
-                                <div id="quoteHigh">--</div>
+                            
+                            <!-- 分隔线 -->
+                            <div style="width: 1px; background-color: #e9ecef;"></div>
+                            
+                            <!-- 买1卖1垂直排列 -->
+                            <div class="d-flex flex-column justify-content-center" style="width: 120px;">
+                                <!-- 买1 -->
+                                <div class="mb-3 p-2" style="background: rgba(220, 53, 69, 0.08); border-radius: 4px; border-left: 3px solid #dc3545;">
+                                    <div class="text-muted mb-1" style="font-size: 10px; font-weight: 500;">买一</div>
+                                    <div class="d-flex align-items-baseline gap-1">
+                                        <span id="quoteBid1Price" class="price-up fw-bold" style="font-size: 12px;">--</span>
+                                        <span class="text-muted" style="font-size: 9px;">/</span>
+                                        <span id="quoteBid1Volume" class="text-muted" style="font-size: 10px;">--</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- 卖1 -->
+                                <div class="p-2" style="background: rgba(40, 167, 69, 0.08); border-radius: 4px; border-left: 3px solid #28a745;">
+                                    <div class="text-muted mb-1" style="font-size: 10px; font-weight: 500;">卖一</div>
+                                    <div class="d-flex align-items-baseline gap-1">
+                                        <span id="quoteAsk1Price" class="price-down fw-bold" style="font-size: 12px;">--</span>
+                                        <span class="text-muted" style="font-size: 9px;">/</span>
+                                        <span id="quoteAsk1Volume" class="text-muted" style="font-size: 10px;">--</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-4">
-                                <div class="text-muted">最低</div>
-                                <div id="quoteLow">--</div>
-                            </div>
-                        </div>
-                        <div class="row mt-1" style="font-size: 11px;">
-                            <div class="col-6 text-start">
-                                <div class="text-muted mb-1">买盘</div>
-                                <div>买一 <span id="quoteBid1Price">--</span> / <span id="quoteBid1Volume">--</span></div>
-                            </div>
-                            <div class="col-6 text-start">
-                                <div class="text-muted mb-1">卖盘</div>
-                                <div>卖一 <span id="quoteAsk1Price">--</span> / <span id="quoteAsk1Volume">--</span></div>
-                            </div>
-                        </div>
-                        <div class="mt-2" style="height: 120px;">
-                            <canvas id="intradayChart"></canvas>
                         </div>
                     </div>
                 </div>
 
                 <!-- 数据视图：持仓 / 委托 / 成交 -->
-                <div class="card" style="flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; min-height: 360px;">
+                <div class="card" style="height: 400px; display: flex; flex-direction: column; overflow: hidden;">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-table me-2"></i>持仓 / 委托 / 成交</span>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary btn-sm data-toggle-btn active" onclick="switchDataView('positions', this)">持仓</button>
-                            <button class="btn btn-outline-primary btn-sm data-toggle-btn" onclick="switchDataView('orders', this)">委托</button>
-                            <button class="btn btn-outline-primary btn-sm data-toggle-btn" onclick="switchDataView('trades', this)">成交</button>
+                        <span><i class="fas fa-table me-2"></i>委托 / 成交 / 持仓</span>
+                        <div>
+                            <button class="btn btn-sm btn-outline-success active" onclick="switchDataView('orders', this)">
+                                <i class="fas fa-list-alt me-1"></i>委托
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="switchDataView('trades', this)">
+                                <i class="fas fa-check-circle me-1"></i>成交
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="switchDataView('positions', this)">
+                                <i class="fas fa-chart-line me-1"></i>持仓
+                            </button>
                         </div>
                     </div>
                     <div class="card-body" style="flex: 1; overflow: hidden; padding: 0;">
+                        <!-- 委托视图 -->
+                        <div class="table-container data-view data-view-orders">
+                            <table class="table table-hover data-table mb-0">
+                                <thead class="table-header sticky-top">
+                                    <tr>
+                                        <th>委托号</th>
+                                        <th>代码</th>
+                                        <th>名称</th>
+                                        <th>方向</th>
+                                        <th>价格</th>
+                                        <th>数量</th>
+                                        <th>已成交</th>
+                                        <th>状态</th>
+                                        <th>时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ordersTableBody">
+                                    <tr>
+                                        <td colspan="10" class="text-center text-muted py-5">
+                                            <i class="fas fa-list-alt fa-2x mb-3" style="opacity: 0.3;"></i>
+                                            <div>暂无委托</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 成交视图 -->
+                        <div class="table-container data-view data-view-trades d-none">
+                            <table class="table table-hover data-table mb-0">
+                                <thead class="table-header sticky-top">
+                                    <tr>
+                                        <th>成交号</th>
+                                        <th>委托号</th>
+                                        <th>代码</th>
+                                        <th>名称</th>
+                                        <th>方向</th>
+                                        <th>价格</th>
+                                        <th>数量</th>
+                                        <th>金额</th>
+                                        <th>时间</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tradesTableBody">
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted py-5">
+                                            <i class="fas fa-check-circle fa-2x mb-3" style="opacity: 0.3;"></i>
+                                            <div>暂无成交</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
                         <!-- 持仓视图 -->
-                        <div class="table-container data-view data-view-positions">
-                            <table class="table table-hover position-table mb-0">
-                                <thead class="table-light sticky-top">
+                        <div class="table-container data-view data-view-positions d-none">
+                            <table class="table table-hover data-table mb-0">
+                                <thead class="table-header sticky-top">
                                     <tr>
                                         <th>代码</th>
                                         <th>名称</th>
@@ -613,62 +526,12 @@
                                 </tbody>
                             </table>
                         </div>
-
-                        <!-- 委托视图 -->
-                        <div class="table-container data-view data-view-orders d-none">
-                            <table class="table table-sm table-hover order-table mb-0">
-                                <thead class="table-light sticky-top">
-                                    <tr>
-                                        <th>代码</th>
-                                        <th>方向</th>
-                                        <th>价格</th>
-                                        <th>数量</th>
-                                        <th>已成交</th>
-                                        <th>状态</th>
-                                        <th>时间</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="ordersTableBody">
-                                    <tr>
-                                        <td colspan="8" class="text-center text-muted py-4">
-                                            <i class="fas fa-list-alt fa-2x mb-2" style="opacity: 0.3;"></i>
-                                            <div>暂无委托</div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- 成交视图 -->
-                        <div class="table-container data-view data-view-trades d-none">
-                            <table class="table table-sm table-hover trade-table mb-0">
-                                <thead class="table-light sticky-top">
-                                    <tr>
-                                        <th>代码</th>
-                                        <th>方向</th>
-                                        <th>价格</th>
-                                        <th>数量</th>
-                                        <th>金额</th>
-                                        <th>时间</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tradesTableBody">
-                                    <tr>
-                                        <td colspan="6" class="text-center text-muted py-4">
-                                            <i class="fas fa-check-circle fa-2x mb-2" style="opacity: 0.3;"></i>
-                                            <div>暂无成交</div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- 右侧：交易账户 -->
-            <div class="col-md-2 trading-right-panel">
+            <div class="col-md-3 trading-right-panel">
                 <!-- 账户设置 -->
                 <div class="card mb-2">
                     <div class="card-header">
@@ -680,34 +543,56 @@
                         </div>
                     </div>
                     <div class="card-body account-card">
-                        <!-- 初始资金行保留但隐藏，用于兼容现有JS逻辑 -->
-                        <div class="account-info d-none">
-                            <div class="d-flex justify-content-between mb-2">
-                                <small class="text-muted">初始资金:</small>
-                                <span class="fw-bold" id="initialCapitalDisplay">¥0</span>
+                        <div class="account-info">
+                            <div class="d-flex justify-content-between">
+                                <small>账号</small>
+                                <span class="fw-bold" id="accountId">--</span>
                             </div>
                         </div>
                         <div class="account-info">
-                            <div class="d-flex justify-content-between mb-2">
-                                <small class="text-muted">交易费率</small>
+                            <div class="d-flex justify-content-between">
+                                <small>券商</small>
+                                <span class="fw-bold" id="brokerName">DeltaFStation</span>
+                            </div>
+                        </div>
+                        <div class="account-info">
+                            <div class="d-flex justify-content-between">
+                                <small>费率</small>
                                 <span class="fw-bold" id="commissionDisplay">--</span>
-                            </div>
-                        </div>
-                        <div class="account-info">
-                            <div class="d-flex justify-content-between mb-2">
-                                <small class="text-muted">交易次数</small>
-                                <span class="fw-bold text-info" id="totalTrades">0</span>
-                            </div>
-                        </div>
-                        <div class="account-info">
-                            <div class="d-flex justify-content-between mb-0">
-                                <small class="text-muted">所属券商</small>
-                                <span class="fw-bold" id="brokerName">模拟券商</span>
                             </div>
                         </div>
                         <button class="btn btn-sm btn-danger w-100 mt-2" onclick="stopSimulation()" id="stopSimulationBtn" disabled>
                             <i class="fas fa-stop me-1"></i>关闭账户
                         </button>
+                    </div>
+                </div>
+
+                <!-- 日志区域 -->
+                <div class="card" style="height: 400px; display: flex; flex-direction: column; overflow: hidden;">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-list-alt me-2"></i>日志</span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="clearLogs()" title="清空日志">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body" style="padding: 0; flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+                        <div class="table-container" style="height: 100%; overflow: auto;">
+                            <table class="table table-hover data-table mb-0">
+                                <thead class="table-header sticky-top">
+                                    <tr>
+                                        <th style="width: 100px; min-width: 100px;">时间</th>
+                                        <th>信息</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logTableBody">
+                                    <tr>
+                                        <td colspan="2" class="text-center text-muted py-3" style="font-size: 11px;">
+                                            <i class="fas fa-info-circle me-1"></i>暂无日志
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -756,8 +641,12 @@
         </div>
     </div>
 
+    <!-- 引入页脚 -->
+    {% include '_footer.html' %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/chart.js@3.9.1/dist/chart.min.js"></script>
-    <script src="{{ url_for('static', filename='js/trading.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/trader.js') }}"></script>
 </body>
 </html>

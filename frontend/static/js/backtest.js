@@ -1,4 +1,5 @@
 // DeltaFStation 策略分析页面JavaScript
+// DOM 辅助函数 $ 已在 common.js 中定义
 let currentStrategy = null;
 
 function formatDateToMonth(dateStr) {
@@ -189,8 +190,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     const today = new Date();
     const halfYearAgo = new Date(today);
     halfYearAgo.setMonth(halfYearAgo.getMonth() - 6);
-    const startInput = document.getElementById('backtestStartDate');
-    const endInput = document.getElementById('backtestEndDate');
+    const startInput = $('backtestStartDate');
+    const endInput = $('backtestEndDate');
     if (startInput && endInput) {
         startInput.value = halfYearAgo.toISOString().split('T')[0];
         endInput.value = today.toISOString().split('T')[0];
@@ -211,7 +212,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 async function loadStrategies() {
     const { ok, data } = await apiRequest('/api/strategy/list');
-    const select = document.getElementById('backtestStrategySelect');
+    const select = $('backtestStrategySelect');
     if (!select) return;
 
     if (!ok || !data.strategies || data.strategies.length === 0) {
@@ -229,7 +230,7 @@ async function loadStrategies() {
 }
 
 function handleStrategySelectChange() {
-    const select = document.getElementById('backtestStrategySelect');
+    const select = $('backtestStrategySelect');
     if (!select || !select.value) {
         currentStrategy = null;
         return;
@@ -242,7 +243,7 @@ async function selectStrategy(strategyId) {
     
     if (ok && data.strategy) {
         currentStrategy = data.strategy;
-        const card = document.getElementById('backtestConfigCard');
+        const card = $('backtestConfigCard');
         if (card) card.style.display = 'block';
     } else {
         showAlert(data.error || '加载策略失败', 'danger');
@@ -251,7 +252,7 @@ async function selectStrategy(strategyId) {
 
 async function loadDataFiles() {
     const { ok, data } = await apiRequest('/api/data/list');
-    const list = document.getElementById('dataFilesList');
+    const list = $('dataFilesList');
     if (!list) return;
     
     if (!ok || !data.files || data.files.length === 0) {
@@ -277,7 +278,7 @@ async function loadDataFiles() {
 
 async function loadBacktestHistory() {
     const { ok, data } = await apiRequest('/api/backtest/results');
-    const list = document.getElementById('backtestHistoryList');
+    const list = $('backtestHistoryList');
     if (!list) return;
     
     if (!ok || !data.results || data.results.length === 0) {
@@ -314,11 +315,11 @@ async function runBacktest() {
         return;
     }
     
-    const symbol = document.getElementById('backtestSymbol')?.value.trim().toUpperCase() || '';
-    const startDate = document.getElementById('backtestStartDate')?.value || '';
-    const endDate = document.getElementById('backtestEndDate')?.value || '';
-    const initialCapital = parseFloat(document.getElementById('backtestInitialCapital')?.value || 100000);
-    const commission = parseFloat(document.getElementById('backtestCommission')?.value || 0.001);
+    const symbol = $('backtestSymbol')?.value.trim().toUpperCase() || '';
+    const startDate = $('backtestStartDate')?.value || '';
+    const endDate = $('backtestEndDate')?.value || '';
+    const initialCapital = parseFloat($('backtestInitialCapital')?.value || 100000);
+    const commission = parseFloat($('backtestCommission')?.value || 0.001);
     const slippage = 0.0005;
     
     if (!symbol || !startDate || !endDate) {
@@ -353,14 +354,14 @@ async function runBacktest() {
     
     if (!result.ok) {
         showAlert(result.data.error || '回测失败', 'danger');
-        const debugOutput = document.getElementById('debugOutput');
+        const debugOutput = $('debugOutput');
         if (debugOutput) debugOutput.textContent = JSON.stringify(result.data, null, 2);
         return;
     }
     
     showAlert('回测运行成功', 'success');
     
-    const debugOutput = document.getElementById('debugOutput');
+    const debugOutput = $('debugOutput');
     if (debugOutput) {
         const debugInfo = {
             message: result.data.message,
@@ -401,7 +402,7 @@ async function runBacktest() {
 function showBacktestResult(results) {
     const metrics = results.metrics || {};
     const initialCapital = metrics.start_capital || results.initial_capital || 
-        parseFloat(document.getElementById('backtestInitialCapital')?.value || 100000);
+        parseFloat($('backtestInitialCapital')?.value || 100000);
     
     const indicators = {
         resultTotalTradingDays: metrics.total_trading_days || 0,
@@ -450,7 +451,7 @@ function showBacktestResult(results) {
 }
 
 function setElementText(id, text, className = '') {
-    const element = document.getElementById(id);
+    const element = $(id);
     if (element) {
         element.textContent = text;
         if (className) element.className = className;
@@ -534,7 +535,7 @@ function calculateDailyReturns(portfolioValues) {
 }
 
 function drawEquityChart(dates, portfolioValues, initialCapital, rawDates = null) {
-    const canvas = document.getElementById('equityChart');
+    const canvas = $('equityChart');
     if (!canvas) return;
     
     if (charts.equity) charts.equity.destroy();
@@ -618,7 +619,7 @@ function drawEquityChart(dates, portfolioValues, initialCapital, rawDates = null
 }
 
 function drawDrawdownChart(dates, portfolioValues, rawDates = null) {
-    const canvas = document.getElementById('drawdownChart');
+    const canvas = $('drawdownChart');
     if (!canvas) return;
     
     if (charts.drawdown) charts.drawdown.destroy();
@@ -689,7 +690,7 @@ function drawDrawdownChart(dates, portfolioValues, rawDates = null) {
 }
 
 function drawDailyReturnChart(dates, portfolioValues, rawDates = null) {
-    const canvas = document.getElementById('dailyReturnChart');
+    const canvas = $('dailyReturnChart');
     if (!canvas) return;
     
     if (charts.dailyReturn) charts.dailyReturn.destroy();
@@ -753,7 +754,7 @@ function drawDailyReturnChart(dates, portfolioValues, rawDates = null) {
 }
 
 function drawPnlDistChart(portfolioValues) {
-    const canvas = document.getElementById('pnlDistChart');
+    const canvas = $('pnlDistChart');
     if (!canvas) return;
     
     if (charts.pnlDist) charts.pnlDist.destroy();
@@ -894,10 +895,10 @@ async function previewData(filename) {
 }
 
 async function createStrategy() {
-    const name = document.getElementById('strategyName')?.value;
-    const type = document.getElementById('strategyType')?.value;
-    const description = document.getElementById('strategyDescription')?.value;
-    const rules = document.getElementById('strategyRules')?.value;
+    const name = $('strategyName')?.value;
+    const type = $('strategyType')?.value;
+    const description = $('strategyDescription')?.value;
+    const rules = $('strategyRules')?.value;
     
     if (!name || !type) {
         showAlert('请填写必填字段', 'warning');
@@ -916,50 +917,22 @@ async function createStrategy() {
     
     if (result.ok) {
         showAlert('策略创建成功', 'success');
-        bootstrap.Modal.getInstance(document.getElementById('strategyCreateModal'))?.hide();
-        document.getElementById('strategyCreateForm')?.reset();
+        bootstrap.Modal.getInstance($('strategyCreateModal'))?.hide();
+        $('strategyCreateForm')?.reset();
         loadStrategies();
     } else {
         showAlert(result.data.error || '创建失败', 'danger');
     }
 }
 
-function editStrategy(strategyId) {
-    showAlert('编辑功能待实现', 'info');
-}
+// editStrategy 功能待实现，暂时删除
 
-async function deleteStrategy(strategyId) {
-    if (!confirm('确定要删除这个策略吗？')) return;
-    
-    const result = await apiRequest(`/api/strategy/${strategyId}`, { method: 'DELETE' });
-    
-    if (result.ok) {
-        showAlert('策略删除成功', 'success');
-        loadStrategies();
-    } else {
-        showAlert(result.data.error || '删除失败', 'danger');
-    }
-}
+// deleteStrategy 和 refreshBacktestHistory 函数未使用，已删除
 
-
-function refreshBacktestHistory() {
-    loadBacktestHistory();
-}
-
-function showAlert(message, type = 'info') {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-    
-    const container = document.querySelector('.container-fluid');
-    if (container) container.insertBefore(alertDiv, container.firstChild);
-    setTimeout(() => alertDiv.parentNode?.removeChild(alertDiv), 3000);
-}
-
+// showAlert 已在 common.js 中定义
+// formatDateTime 需要完整格式，使用 formatDateTimeFull
 function formatDateTime(dateString) {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    return formatDateTimeFull(dateString);
 }
 
 function formatFileSize(bytes) {

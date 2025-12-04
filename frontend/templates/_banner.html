@@ -29,6 +29,11 @@
                         <i class="fas fa-play-circle me-1"></i>启动策略
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link nav-link-github" href="https://github.com/delta-f/deltafstation" target="_blank" rel="noopener noreferrer" title="GitHub 开源代码">
+                        <i class="fab fa-github"></i>
+                    </a>
+                </li>
             </ul>
         </div>
     </div>
@@ -62,5 +67,38 @@
     
     .navbar-nav .nav-link.active {
         background-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    /* GitHub 链接特殊样式 */
+    .navbar-nav .nav-link-github {
+        padding: 0;
+        margin-left: 0.75rem;
+        font-size: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+        height: 44px;
+        background-color: rgba(255, 255, 255, 0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .navbar-nav .nav-link-github i {
+        font-size: 22px;
+        line-height: 1;
+    }
+    
+    .navbar-nav .nav-link-github:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.7);
+        transform: scale(1.08);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .navbar-nav .nav-link-github:active {
+        transform: scale(1.05);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
     }
 </style>

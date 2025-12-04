@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>主页 - DeltaFStation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        /* Hero 区域样式 */
+        .hero-section {
+            background: linear-gradient(135deg, #f0f4ff 0%, #e8efff 100%);
+            color: #495057;
+            padding: 1.25rem 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .hero-title {
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #343a40;
+        }
+        
+        .hero-subtitle {
+            font-size: 0.95rem;
+            color: #6c757d;
+            margin-bottom: 0;
+            line-height: 1.4;
+        }
+        
+        /* 功能卡片样式 */
+        .feature-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transition: all 0.3s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #f0f0f0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+            border-color: #e0e0e0;
+        }
+        
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .feature-card.strategy::before {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .feature-card.trading::before {
+            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .feature-card.run::before {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            margin-bottom: 0.9rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .feature-card.strategy .feature-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .feature-card.trading .feature-icon {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);
+        }
+        
+        .feature-card.run .feature-icon {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
+        }
+        
+        .feature-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.6rem;
+            color: #1a1a1a;
+            letter-spacing: -0.3px;
+        }
+        
+        .feature-description {
+            color: #666;
+            line-height: 1.5;
+            flex-grow: 1;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .feature-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+            padding: 0.35rem 0;
+        }
+        
+        .feature-link:hover {
+            color: #764ba2;
+            gap: 0.75rem;
+        }
+        
+        .feature-link i {
+            transition: transform 0.3s;
+        }
+        
+        .feature-link:hover i {
+            transform: translateX(3px);
+        }
+        
+        /* 学习资源区域样式 */
+        .learning-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        }
+        
+        .section-title {
+            font-size: 1.35rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #343a40;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .section-title i {
+            color: #667eea;
+        }
+        
+        .resource-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 0;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s;
+        }
+        
+        .resource-card:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        
+        .resource-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.65rem;
+            color: #343a40;
+        }
+        
+        .resource-description {
+            color: #6c757d;
+            line-height: 1.5;
+            margin-bottom: 0.9rem;
+            font-size: 0.85rem;
+        }
+        
+        .resource-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+        }
+        
+        .resource-link:hover {
+            color: #764ba2;
+            gap: 0.75rem;
+        }
+        
+        .resource-link i {
+            font-size: 0.8rem;
+        }
+        
+        .resource-link.disabled {
+            color: #adb5bd;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .resource-link.disabled:hover {
+            gap: 0.5rem;
+            color: #adb5bd;
+        }
+        
+        /* 响应式设计 */
+            @media (max-width: 768px) {
+            .hero-section {
+                padding: 1rem 0;
+                margin-bottom: 1rem;
+            }
+            
+            .hero-title {
+                font-size: 1.4rem;
+                margin-bottom: 0.4rem;
+            }
+            
+            .hero-subtitle {
+                font-size: 0.9rem;
+            }
+            
+            .feature-card {
+                padding: 1.25rem;
+            }
+            
+            .learning-section {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+            
+            .section-title {
+                font-size: 1.2rem;
+                margin-bottom: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% set active_page = 'home' %}
+    <!-- 引入导航栏 -->
+    {% include '_banner.html' %}
+    
+    <!-- Hero 区域 -->
+    <div class="hero-section">
+        <div class="container" style="max-width: 1200px;">
+            <div class="row align-items-center">
+                <div class="col-lg-8 mx-auto text-center">
+                    <h1 class="hero-title">
+                        <i class="fas fa-chart-line me-2"></i>
+                        欢迎使用 DeltaFStation
+                    </h1>
+                    <p class="hero-subtitle">
+                        一个简洁高效的量化交易平台，基于强大的 DeltaFQ 量化框架，让量化交易变得简单易用。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 主要内容区域 -->
+    <div class="container" style="max-width: 1200px; padding: 0 1rem; padding-bottom: 1.5rem;">
+        
+        <!-- 核心功能区域 -->
+        <div class="row mb-3">
+            <!-- 策略回测分析 -->
+            <div class="col-lg-4 col-md-6 mb-2">
+                <div class="feature-card strategy">
+                    <div class="feature-icon">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <h3 class="feature-title">策略回测分析</h3>
+                    <p class="feature-description">
+                        上传历史数据测试策略表现，系统自动计算收益率、夏普比率、最大回撤等关键指标，并提供直观的图表展示，帮助优化策略参数。
+                    </p>
+                    <a href="/strategy" class="feature-link">
+                        开始回测 <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 手动实盘交易 -->
+            <div class="col-lg-4 col-md-6 mb-2">
+                <div class="feature-card trading">
+                    <div class="feature-icon">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h3 class="feature-title">手动实盘交易</h3>
+                    <p class="feature-description">
+                        实时监控市场行情，执行手动买卖操作。查看持仓情况、交易记录和账户资金变化，灵活应对市场，实现精准的交易决策。
+                    </p>
+                    <a href="/trading" class="feature-link">
+                        进入交易 <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 启动策略交易 -->
+            <div class="col-lg-4 col-md-6 mb-2">
+                <div class="feature-card run">
+                    <div class="feature-icon">
+                        <i class="fas fa-play-circle"></i>
+                    </div>
+                    <h3 class="feature-title">启动策略交易</h3>
+                    <p class="feature-description">
+                        选择已验证的策略，启动自动化交易。实时监控策略运行状态，查看交易日志和性能指标，让策略自动为您执行交易决策。
+                    </p>
+                    <a href="/run" class="feature-link">
+                        启动策略 <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 学习资源区域 -->
+        <div class="learning-section">
+            <h2 class="section-title">
+                <i class="fas fa-graduation-cap"></i>
+                学习资源
+            </h2>
+            
+            <div class="row">
+                <!-- DeltaFQ 框架介绍 -->
+                <div class="col-md-6 mb-2">
+                    <div class="resource-card">
+                        <h4 class="resource-title">
+                            <i class="fab fa-github me-2"></i>
+                            DeltaFQ 量化框架
+                        </h4>
+                        <p class="resource-description">
+                            DeltaFQ 是一个开源的 Python 量化交易框架，专注于策略研究、回测执行与绩效可视化。DeltaFStation 基于此框架构建，提供完整的量化交易解决方案。
+                        </p>
+                        <a href="https://github.com/Delta-F/deltafq" target="_blank" class="resource-link" rel="noopener noreferrer">
+                            访问 GitHub 仓库 <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- 慕课网学习教程 -->
+                <div class="col-md-6 mb-2">
+                    <div class="resource-card">
+                        <h4 class="resource-title">
+                            <i class="fas fa-play-circle me-2"></i>
+                            程序员理财课，股票、基金 AI 量化从入门到实战
+                        </h4>
+                        <p class="resource-description">
+                            慕课网提供完整的量化交易系统课程，涵盖基础概念到高级策略开发。通过系统学习，掌握 DeltaFStation 的使用方法和量化交易的核心技能。
+                        </p>
+                        <a href="https://www.imooc.com" target="_blank" class="resource-link" rel="noopener noreferrer">
+                            访问课程 <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    
+    <!-- 引入页脚 -->
+    {% include '_footer.html' %}
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

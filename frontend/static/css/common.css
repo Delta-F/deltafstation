@@ -1,0 +1,380 @@
+/* DeltaFStation 公共样式 - 用于交易和运行策略页面 */
+
+/* 账户总览样式 */
+.account-overview {
+    background-color: #ffffff;
+    color: #343a40;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #e9ecef;
+}
+
+.account-overview .account-item {
+    text-align: center;
+    padding: 0.15rem 0.5rem;
+}
+
+.account-overview .account-label {
+    font-size: 11px;
+    opacity: 0.9;
+    margin-bottom: 0.2rem;
+    font-weight: 400;
+}
+
+.account-overview .account-value {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+}
+
+/* 交易面板布局 */
+.trading-panel {
+    height: auto;
+    overflow: visible;
+}
+
+.trading-left-panel {
+    height: auto;
+    overflow-y: visible;
+    padding-right: 0.5rem;
+}
+
+.trading-center-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.trading-right-panel {
+    height: auto;
+    overflow-y: visible;
+    padding-left: 0.5rem;
+}
+
+/* 卡片样式 */
+.card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 1rem;
+    border-radius: 8px;
+}
+
+.card-header {
+    background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%);
+    border-bottom: 2px solid #e9ecef;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    font-size: 13px;
+    border-radius: 8px 8px 0 0;
+}
+
+/* 账户卡片 */
+.account-card {
+    background: white;
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+
+.account-card .account-info {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.account-card .account-info small {
+    font-size: 13px;
+    color: #495057;
+    font-weight: 500;
+}
+
+.account-card .account-info .fw-bold {
+    font-size: 13px;
+    font-weight: 600;
+    color: #343a40;
+}
+
+.account-card .account-info:last-child {
+    border-bottom: none;
+}
+
+.account-card .account-info .d-flex {
+    margin-bottom: 0.35rem;
+}
+
+.account-card .account-info:last-child .d-flex {
+    margin-bottom: 0;
+}
+
+/* 数据表格样式 */
+.data-table {
+    font-size: 12px;
+}
+
+.table-header {
+    background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.table-header th {
+    background: transparent !important;
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    padding: 0.75rem 0.6rem;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.data-table th {
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    padding: 0.75rem 0.6rem;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.data-table td {
+    padding: 0.75rem 0.6rem;
+    vertical-align: middle;
+    color: #343a40;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.data-table tbody tr {
+    transition: background-color 0.2s ease;
+    height: auto;
+}
+
+.data-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.data-table td .direction-badge,
+.data-table td .order-status {
+    font-size: 11px;
+}
+
+/* 表格容器 */
+.table-container {
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 400px;
+}
+
+.table-container::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* 方向标签 */
+.direction-badge {
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.direction-badge.buy {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+}
+
+.direction-badge.sell {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+}
+
+/* 订单状态 */
+.order-status {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.order-status.pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.order-status.filled {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.order-status.partial {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.order-status.cancelled {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* 持仓盈亏 */
+.position-profit {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.position-profit.positive {
+    color: #dc3545;
+}
+
+.position-profit.negative {
+    color: #28a745;
+}
+
+/* 价格颜色 */
+.price-up {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.price-down {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.market-price {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0.5rem 0;
+    letter-spacing: 0.5px;
+}
+
+/* 表单行内布局 */
+.form-row-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.form-row-inline .form-label {
+    margin-bottom: 0;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.form-row-inline .form-control,
+.form-row-inline .form-select {
+    flex: 1;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+}
+
+/* 状态徽章 */
+.simulation-status {
+    display: inline-block;
+    padding: 0.35rem 0.7rem;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.simulation-status.running {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.simulation-status.stopped {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.35rem 0.7rem;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.running {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-badge.stopped {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-badge.waiting {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+/* 日志颜色样式 */
+.data-table td.log-buy {
+    color: #28a745 !important;
+    font-weight: 500;
+}
+
+.data-table td.log-sell {
+    color: #dc3545 !important;
+    font-weight: 500;
+}
+
+.data-table td.log-info {
+    color: #007bff !important;
+    font-weight: 500;
+}
+
+/* 视图切换按钮 */
+.btn-outline-success.active {
+    background-color: #d4edda;
+    border-color: #28a745;
+    color: #155724;
+}
+
+/* 操作按钮 */
+.btn-action {
+    background: none;
+    border: none;
+    color: #6c757d;
+    padding: 0.25rem 0.5rem;
+    font-size: 12px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.btn-action:hover {
+    color: #28a745;
+    background: none;
+}
+
+.btn-action:disabled {
+    color: #adb5bd;
+    cursor: not-allowed;
+}
+

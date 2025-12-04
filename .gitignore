@@ -1,0 +1,79 @@
+# DeltaFStation .gitignore
+
+# 数据文件夹
+data/
+data_cache/
+# 但保留策略文件（代码）
+!data/strategies/*.py
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 日志文件
+logs/
+*.log
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# Flask
+instance/
+.webassets-cache
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# 操作系统
+Thumbs.db
+.DS_Store
+
+# 测试覆盖率
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 其他
+*.bak
+*.orig
+
