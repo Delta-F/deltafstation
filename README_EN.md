@@ -33,7 +33,8 @@ Open your browser and visit: http://localhost:5000
 DeltaFStation/
 ├── Strategy Backtest    # Strategy creation, historical backtesting, performance analysis
 ├── Manual Trading       # Account management, manual buy/sell, position tracking
-└── Strategy Running     # Automated trading, real-time monitoring, signal execution
+├── Strategy Running     # Automated trading, real-time monitoring, signal execution
+└── AI Assistant         # Intelligent Q&A, usage guidance, context-aware help
 ```
 
 ## Usage Examples
@@ -57,6 +58,13 @@ DeltaFStation/
 - Monitor strategy status, asset changes, and trading signals in real-time
 - View real-time equity curves and trading logs
 
+### 4. AI Assistant
+
+- Intelligent Q&A: Answer questions about system usage, strategy development, backtest analysis, etc.
+- Context-aware: Provides targeted help and suggestions based on the current page
+- Quick actions: One-click access to answers for common questions
+- Real-time chat: Supports Markdown formatting for code examples and formatted text
+
 ## Tech Stack
 
 - **Backend**: Flask, Pandas, NumPy, yfinance, deltafq
@@ -72,7 +80,12 @@ deltafstation/
 │   └── core/         # Core modules
 ├── frontend/         # Frontend code
 │   ├── templates/    # HTML templates
+│   │   └── _ai_assistant.html  # AI Assistant component
 │   └── static/       # Static resources
+│       ├── css/      # Stylesheets
+│       │   └── ai-assistant.css  # AI Assistant styles
+│       └── js/        # JavaScript files
+│           └── ai-assistant.js   # AI Assistant logic
 ├── data/             # Data directory
 │   ├── raw/          # Raw data
 │   ├── results/      # Backtest results

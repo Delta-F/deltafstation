@@ -33,7 +33,8 @@ python run.py
 DeltaFStation/
 ├── 策略回测      # 策略创建、历史数据回测、绩效分析
 ├── 手动交易      # 账户管理、手动买卖、持仓跟踪
-└── 策略运行      # 自动交易、实时监控、信号执行
+├── 策略运行      # 自动交易、实时监控、信号执行
+└── AI 小助手     # 智能问答、使用指导、上下文感知帮助
 ```
 
 ## 使用示例
@@ -57,6 +58,13 @@ DeltaFStation/
 - 实时监控策略状态、资产变化和交易信号
 - 查看实时资产曲线和交易日志
 
+### 4. AI 小助手
+
+- 智能问答：解答系统使用、策略开发、回测分析等问题
+- 上下文感知：根据当前页面提供针对性的帮助和建议
+- 快捷操作：一键获取常用问题的答案
+- 实时对话：支持 Markdown 格式的代码示例和格式化文本
+
 ## 技术栈
 
 - **后端**: Flask, Pandas, NumPy, yfinance, deltafq
@@ -72,7 +80,12 @@ deltafstation/
 │   └── core/         # 核心模块
 ├── frontend/         # 前端代码
 │   ├── templates/    # HTML 模板
+│   │   └── _ai_assistant.html  # AI 小助手组件
 │   └── static/       # 静态资源
+│       ├── css/      # 样式文件
+│       │   └── ai-assistant.css  # AI 小助手样式
+│       └── js/       # JavaScript 文件
+│           └── ai-assistant.js   # AI 小助手逻辑
 ├── data/             # 数据目录
 │   ├── raw/          # 原始数据
 │   ├── results/      # 回测结果

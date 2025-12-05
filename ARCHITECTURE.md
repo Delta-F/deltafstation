@@ -7,7 +7,11 @@
   ├── 主页 index
   ├── 策略回测 strategy
   ├── 手动交易 trading
-  └── 策略运行 run
+  ├── 策略运行 run
+  └── AI 小助手 (全局组件)
+      ├── 浮标按钮
+      ├── 聊天窗口
+      └── 智能问答系统
 
            │  调用 REST API
            ▼
@@ -63,7 +67,12 @@ backend/
 
 frontend/
   ├── templates/  # index / strategy / trading / run + 公共组件
+  │   └── _ai_assistant.html  # AI 小助手组件
   └── static/     # css / js / 图标等静态资源
+      ├── css/
+      │   └── ai-assistant.css  # AI 小助手样式
+      └── js/
+          └── ai-assistant.js   # AI 小助手逻辑（前端模拟对话）
 
 data/             # 本地数据（已在 .gitignore 中忽略）
 data_cache/       # 本地缓存（已忽略）
@@ -77,3 +86,4 @@ requirements.txt  # 依赖
 - **强依赖 deltafq**：回测与策略体系完全复用 `deltafq`，本项目更像一套 Web 外壳。
 - **文件即数据库**：数据与结果全部以 CSV / JSON 落在 `data/` 目录，部署简单。
 - **易扩展**：新增策略 = 在 `data/strategies/` 写一个继承 `BaseStrategy` 的类，再通过前端选择即可。
+- **AI 小助手**：纯前端实现，基于关键词匹配的智能问答系统，支持上下文感知和快捷操作。
