@@ -1,5 +1,5 @@
 """
-回测API - 使用 deltafq 量化框架
+回测API - RESTful 风格，通过 Core 层调用回测引擎
 """
 from flask import Blueprint, request, jsonify
 import os
@@ -7,53 +7,9 @@ import json
 import pandas as pd
 from datetime import datetime
 from typing import Any
-import importlib.util
-import inspect
-from deltafq.backtest import BacktestEngine as DeltaFqBacktestEngine
-from deltafq.strategy.base import BaseStrategy
+from backend.core.backtest_engine import BacktestEngine
 
 backtest_bp = Blueprint("backtest", __name__)
-
-
-def _get_strategies_folder() -> str:
-    return os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-        "data",
-        "strategies",
-    )
-
-
-def _load_strategy_class(strategy_class_name: str):
-    """从 data/strategies 下找到给定类名的策略类，返回类对象。"""
-    strategies_folder = _get_strategies_folder()
-    if not os.path.exists(strategies_folder):
-        raise RuntimeError("Strategies folder not found")
-
-    for filename in os.listdir(strategies_folder):
-        if not filename.endswith(".py"):
-            continue
-
-        filepath = os.path.join(strategies_folder, filename)
-        module_name = f"deltafstation_backtest_strategy_{os.path.splitext(filename)[0]}"
-        spec = importlib.util.spec_from_file_location(module_name, filepath)
-        if spec is None or spec.loader is None:
-            continue
-
-        module = importlib.util.module_from_spec(spec)
-        try:
-            spec.loader.exec_module(module)  # type: ignore[arg-type]
-        except Exception:
-            continue
-
-        for name, obj in inspect.getmembers(module, inspect.isclass):
-            if name != strategy_class_name:
-                continue
-            if not issubclass(obj, BaseStrategy) or obj is BaseStrategy:
-                continue
-
-            return obj
-
-    raise RuntimeError(f"Strategy class {strategy_class_name} not found in data/strategies")
 
 
 def _convert_to_json_serializable(obj):
@@ -154,31 +110,35 @@ def run_backtest():
         # 提取 symbol
         symbol = payload.get("symbol", payload["data_file"].split("_")[0] if "_" in payload["data_file"] else "ASSET")
 
-        # 加载策略类
-        strategy_class = _load_strategy_class(payload["strategy_id"])
+        # 通过 Core 层加载策略类
+        strategy_class = BacktestEngine.load_strategy_class(payload["strategy_id"])
 
-        # 初始化 deltafq 回测引擎
+        # 实例化策略
+        strategy_instance = strategy_class()
+
+        # 初始化回测引擎（通过 Core 层）
         initial_capital = payload.get("initial_capital", 100000)
         commission = payload.get("commission", 0.001)
-        engine = DeltaFqBacktestEngine(initial_capital=initial_capital, commission=commission)  # type: ignore[call-arg]
-
-        # 设置数据
-        engine.data = df
-
-        # 实例化策略并添加到引擎
-        strategy_instance = strategy_class()
-        engine.add_strategy(strategy_instance)  # type: ignore[arg-type]
-
-        # 运行回测
-        trades_df, values_df = engine.run_backtest(
-            symbol=symbol,
-            signals=None,
-            price_series=df["Close"],
-            strategy_name=payload["strategy_id"],
+        slippage = payload.get("slippage", 0.0005)
+        engine = BacktestEngine(
+            initial_capital=initial_capital,
+            commission=commission,
+            slippage=slippage
         )
 
-        # 计算指标（原样返回，不做处理）
-        values_metrics, metrics = engine.calculate_metrics()  # type: ignore[call-arg]
+        # 运行回测（通过 Core 层统一接口）
+        engine.run_backtest(
+            strategy=strategy_instance,
+            data=df,
+            symbol=symbol,
+            strategy_name=payload["strategy_id"]
+        )
+
+        # 从引擎获取回测结果
+        trades_df = engine.get_trades_df()
+        values_df = engine.get_values_df()
+        metrics = engine.get_metrics()
+        values_metrics = engine.get_values_metrics()
 
         # 原样返回所有数据，不做格式化处理
         result = {

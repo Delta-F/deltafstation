@@ -1,8 +1,11 @@
 """
 回测引擎 - 基于 deltafq 量化框架实现
 """
+import os
+import importlib.util
+import inspect
 import pandas as pd
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Type
 from deltafq.backtest import BacktestEngine as DeltaFqBacktestEngine
 from deltafq.strategy.base import BaseStrategy
 
@@ -151,6 +154,55 @@ class BacktestEngine:
     def get_values_metrics(self) -> pd.DataFrame:
         """获取每日指标 DataFrame"""
         return self.values_metrics
+
+    @staticmethod
+    def load_strategy_class(strategy_class_name: str) -> Type[BaseStrategy]:
+        """
+        从 data/strategies 目录加载策略类
+        
+        Args:
+            strategy_class_name: 策略类名
+            
+        Returns:
+            策略类（继承自 BaseStrategy）
+            
+        Raises:
+            RuntimeError: 如果策略类未找到
+        """
+        strategies_folder = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "data",
+            "strategies",
+        )
+        
+        if not os.path.exists(strategies_folder):
+            raise RuntimeError("Strategies folder not found")
+
+        for filename in os.listdir(strategies_folder):
+            if not filename.endswith(".py"):
+                continue
+
+            filepath = os.path.join(strategies_folder, filename)
+            module_name = f"deltafstation_backtest_strategy_{os.path.splitext(filename)[0]}"
+            spec = importlib.util.spec_from_file_location(module_name, filepath)
+            if spec is None or spec.loader is None:
+                continue
+
+            module = importlib.util.module_from_spec(spec)
+            try:
+                spec.loader.exec_module(module)  # type: ignore[arg-type]
+            except Exception:
+                continue
+
+            for name, obj in inspect.getmembers(module, inspect.isclass):
+                if name != strategy_class_name:
+                    continue
+                if not issubclass(obj, BaseStrategy) or obj is BaseStrategy:
+                    continue
+
+                return obj  # type: ignore[return-value]
+
+        raise RuntimeError(f"Strategy class {strategy_class_name} not found in data/strategies")
 
 
 # 导出主要类
