@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // 加载策略列表
 async function loadStrategies() {
     try {
-        const response = await fetch('/api/strategy/list');
+        const response = await fetch('/api/strategies');
         const data = await response.json();
         
         const select = $('runStrategySelect');
@@ -195,7 +195,7 @@ async function createAccount() {
             // 不传 strategy_id，表示纯账户，不启动策略
         };
         
-        const response = await fetch('/api/simulation/start', {
+        const response = await fetch('/api/simulations', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -250,8 +250,12 @@ async function stopSimulation() {
     }
     
     try {
-        const response = await fetch(`/api/simulation/stop/${currentStrategyRun.id}`, {
-            method: 'POST'
+        const response = await fetch(`/api/simulations/${currentStrategyRun.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: 'stopped' })
         });
         
         const result = await response.json();
@@ -298,7 +302,7 @@ async function startRunStrategy() {
                 slippage: 0.0005  // 默认滑点
             };
             
-            const response = await fetch('/api/simulation/start', {
+            const response = await fetch('/api/simulations', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -351,7 +355,7 @@ async function startRunStrategy() {
     
     try {
         // 创建新账户并启动策略（基于历史数据回放）
-        const response = await fetch('/api/simulation/start', {
+        const response = await fetch('/api/simulations', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -418,8 +422,12 @@ async function stopRunStrategy() {
     addLog('正在停止策略运行...', 'warning');
     
     try {
-        const response = await fetch(`/api/simulation/stop/${currentStrategyRun.id}`, {
-            method: 'POST'
+        const response = await fetch(`/api/simulations/${currentStrategyRun.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: 'stopped' })
         });
         
         const result = await response.json();
@@ -447,7 +455,7 @@ async function refreshStrategyStatus() {
     if (!currentStrategyRun) return;
     
     try {
-        const response = await fetch(`/api/simulation/status/${currentStrategyRun.id}`);
+        const response = await fetch(`/api/simulations/${currentStrategyRun.id}`);
         const data = await response.json();
         
         if (response.ok && data.simulation) {

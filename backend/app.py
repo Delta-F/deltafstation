@@ -26,11 +26,11 @@ def create_app():
     app.config['SECRET_KEY'] = 'deltafstation_secret_key_2024'
     app.config['DATA_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
     
-    # 注册蓝图
+    # 注册蓝图（使用复数形式，符合RESTful规范）
     app.register_blueprint(data_bp, url_prefix='/api/data')
-    app.register_blueprint(strategy_bp, url_prefix='/api/strategy')
-    app.register_blueprint(backtest_bp, url_prefix='/api/backtest')
-    app.register_blueprint(simulation_bp, url_prefix='/api/simulation')
+    app.register_blueprint(strategy_bp, url_prefix='/api/strategies')
+    app.register_blueprint(backtest_bp, url_prefix='/api/backtests')
+    app.register_blueprint(simulation_bp, url_prefix='/api/simulations')
     
     @app.route('/')
     def index():

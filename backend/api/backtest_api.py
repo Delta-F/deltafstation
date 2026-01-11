@@ -116,9 +116,12 @@ def _convert_to_json_serializable(obj):
         return obj
 
 
-@backtest_bp.route("/run", methods=["POST"])
+@backtest_bp.route("", methods=["POST"])
 def run_backtest():
-    """运行回测 - 使用 deltafq 框架"""
+    """
+    创建并运行回测 - POST /api/backtests
+    原：POST /api/backtest/run
+    """
     try:
         payload: Any = request.get_json()
 
@@ -230,9 +233,12 @@ def run_backtest():
         print(f"Traceback: {error_trace}")
         return jsonify({"error": str(e), "traceback": error_trace}), 500
 
-@backtest_bp.route('/results', methods=['GET'])
+@backtest_bp.route('', methods=['GET'])
 def list_results():
-    """获取回测结果列表"""
+    """
+    获取回测结果列表 - GET /api/backtests
+    原：GET /api/backtest/results
+    """
     try:
         results_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'results')
         
@@ -271,9 +277,12 @@ def list_results():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@backtest_bp.route('/results/<result_id>', methods=['GET'])
+@backtest_bp.route('/<result_id>', methods=['GET'])
 def get_result(result_id: str):
-    """获取回测结果详情"""
+    """
+    获取回测结果详情 - GET /api/backtests/<result_id>
+    原：GET /api/backtest/results/<result_id>
+    """
     try:
         results_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'results')
         result_file = os.path.join(results_folder, f"{result_id}.json")

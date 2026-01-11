@@ -10,9 +10,12 @@ from backend.core.simulation_engine import SimulationEngine
 
 simulation_bp = Blueprint('simulation', __name__)
 
-@simulation_bp.route('/start', methods=['POST'])
+@simulation_bp.route('', methods=['POST'])
 def start_simulation():
-    """启动仿真交易（支持手动交易和策略自动交易，使用模拟数据）"""
+    """
+    创建并启动仿真交易 - POST /api/simulations
+    原：POST /api/simulation/start
+    """
     try:
         data = request.get_json()
         
@@ -73,10 +76,18 @@ def start_simulation():
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
-@simulation_bp.route('/stop/<simulation_id>', methods=['POST'])
+@simulation_bp.route('/<simulation_id>', methods=['PUT'])
 def stop_simulation(simulation_id):
-    """停止仿真交易"""
+    """
+    更新仿真状态（停止） - PUT /api/simulations/<simulation_id>
+    原：POST /api/simulation/stop/<simulation_id>
+    
+    通过 PUT 请求体中的 status 字段来更新状态
+    """
     try:
+        data = request.get_json() or {}
+        status = data.get('status', 'stopped')  # 默认停止
+        
         simulation_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'simulations')
         config_file = os.path.join(simulation_folder, f"{simulation_id}.json")
         
@@ -86,20 +97,24 @@ def stop_simulation(simulation_id):
         with open(config_file, 'r', encoding='utf-8') as f:
             config = json.load(f)
         
-        config['status'] = 'stopped'
-        config['stopped_at'] = datetime.now().isoformat()
+        config['status'] = status
+        if status == 'stopped':
+            config['stopped_at'] = datetime.now().isoformat()
         
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
         
-        return jsonify({'message': 'Simulation stopped successfully'})
+        return jsonify({'simulation': config})
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@simulation_bp.route('/status/<simulation_id>', methods=['GET'])
+@simulation_bp.route('/<simulation_id>', methods=['GET'])
 def get_simulation_status(simulation_id):
-    """获取仿真状态"""
+    """
+    获取仿真详情（包含状态） - GET /api/simulations/<simulation_id>
+    原：GET /api/simulation/status/<simulation_id>
+    """
     try:
         simulation_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'simulations')
         config_file = os.path.join(simulation_folder, f"{simulation_id}.json")
@@ -115,9 +130,12 @@ def get_simulation_status(simulation_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@simulation_bp.route('/list', methods=['GET'])
+@simulation_bp.route('', methods=['GET'])
 def list_simulations():
-    """获取仿真列表"""
+    """
+    获取仿真列表 - GET /api/simulations
+    原：GET /api/simulation/list
+    """
     try:
         simulation_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'simulations')
         
@@ -144,9 +162,12 @@ def list_simulations():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@simulation_bp.route('/trade/<simulation_id>', methods=['POST'])
-def execute_trade():
-    """执行交易"""
+@simulation_bp.route('/<simulation_id>/trades', methods=['POST'])
+def execute_trade(simulation_id):
+    """
+    在仿真中执行交易 - POST /api/simulations/<simulation_id>/trades
+    原：POST /api/simulation/trade/<simulation_id>
+    """
     try:
         data = request.get_json()
         

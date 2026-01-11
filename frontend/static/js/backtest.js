@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 async function loadStrategies() {
-    const { ok, data } = await apiRequest('/api/strategy/list');
+    const { ok, data } = await apiRequest('/api/strategies');
     const select = $('backtestStrategySelect');
     if (!select) return;
 
@@ -239,7 +239,7 @@ function handleStrategySelectChange() {
 }
 
 async function selectStrategy(strategyId) {
-    const { ok, data } = await apiRequest(`/api/strategy/${strategyId}`);
+    const { ok, data } = await apiRequest(`/api/strategies/${strategyId}`);
     
     if (ok && data.strategy) {
         currentStrategy = data.strategy;
@@ -251,7 +251,7 @@ async function selectStrategy(strategyId) {
 }
 
 async function loadDataFiles() {
-    const { ok, data } = await apiRequest('/api/data/list');
+    const { ok, data } = await apiRequest('/api/data/files');
     const list = $('dataFilesList');
     if (!list) return;
     
@@ -277,7 +277,7 @@ async function loadDataFiles() {
 }
 
 async function loadBacktestHistory() {
-    const { ok, data } = await apiRequest('/api/backtest/results');
+    const { ok, data } = await apiRequest('/api/backtests');
     const list = $('backtestHistoryList');
     if (!list) return;
     
@@ -327,10 +327,10 @@ async function runBacktest() {
         return;
     }
     
-    const fetchResult = await apiRequest('/api/data/fetch_symbol', {
+    const fetchResult = await apiRequest(`/api/data/symbols/${symbol}/fetch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol, start_date: startDate, end_date: endDate })
+        body: JSON.stringify({ start_date: startDate, end_date: endDate })
     });
     
     if (!fetchResult.ok) {
@@ -338,12 +338,15 @@ async function runBacktest() {
         return;
     }
     
-    const result = await apiRequest('/api/backtest/run', {
+    // 获取文件名（从file对象中）
+    const filename = fetchResult.data.file?.filename || fetchResult.data.filename;
+    
+    const result = await apiRequest('/api/backtests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             strategy_id: currentStrategy.id,
-            data_file: fetchResult.data.filename,
+            data_file: filename,
             start_date: startDate,
             end_date: endDate,
             initial_capital: initialCapital,
@@ -821,7 +824,7 @@ function drawPnlDistChart(portfolioValues) {
 }
 
 async function viewBacktestResult(resultId) {
-    const { ok, data } = await apiRequest(`/api/backtest/results/${resultId}`);
+    const { ok, data } = await apiRequest(`/api/backtests/${resultId}`);
     
     if (!ok || !data.result) {
         showAlert(data.error || '加载回测结果失败', 'danger');
@@ -847,7 +850,7 @@ async function viewBacktestResult(resultId) {
 }
 
 async function previewData(filename) {
-    const { ok, data } = await apiRequest(`/api/data/preview/${encodeURIComponent(filename)}`);
+    const { ok, data } = await apiRequest(`/api/data/files/${encodeURIComponent(filename)}`);
     
     if (!ok) {
         showAlert(data.error || '预览数据失败', 'danger');
@@ -905,7 +908,7 @@ async function createStrategy() {
         return;
     }
     
-    const result = await apiRequest('/api/strategy/create', {
+    const result = await apiRequest('/api/strategies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,6 +1,32 @@
 # DeltaFStation 更新记录 / Changelog
 
-## v0.4.0 （当前，2025-12-05）
+## v0.5.0 （2025-01-11）
+
+**定位**：API 架构优化，全面改造为 RESTful 风格。
+
+- **API 架构重构**
+  - 将所有 API 端点从动作导向改为资源导向，符合 RESTful 设计规范
+  - 资源路径统一使用复数形式：`/api/strategies`、`/api/backtests`、`/api/simulations`
+  - 移除 URL 中的动作动词（`create`、`upload`、`list`、`run` 等），使用 HTTP 方法表示操作
+
+- **API 端点变更**
+  - **策略 API**：`POST /api/strategy/create` → `POST /api/strategies`，`GET /api/strategy/list` → `GET /api/strategies`
+  - **回测 API**：`POST /api/backtest/run` → `POST /api/backtests`，`GET /api/backtest/results` → `GET /api/backtests`
+  - **仿真 API**：`POST /api/simulation/start` → `POST /api/simulations`，`POST /api/simulation/stop/<id>` → `PUT /api/simulations/<id>`
+  - **数据 API**：`POST /api/data/upload` → `POST /api/data/files`，`GET /api/data/list` → `GET /api/data/files`
+  - **交易 API**：`POST /api/simulation/trade/<id>` → `POST /api/simulations/<id>/trades`
+
+- **前端适配**
+  - 更新所有前端 JavaScript 文件（`backtest.js`、`gostrategy.js`、`trader.js`）以适配新的 RESTful API
+  - 优化 API 调用逻辑，确保与后端接口完全兼容
+
+- **代码质量提升**
+  - 统一 API 设计规范，提升代码可维护性和可扩展性
+  - 改进 API 的可发现性和语义化，便于开发者理解和使用
+
+---
+
+## v0.4.0 （2025-12-05）
 
 **定位**：AI 小助手功能上线，提升用户体验。
 

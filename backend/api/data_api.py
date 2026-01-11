@@ -15,9 +15,12 @@ except ImportError:  # pragma: no cover - 运行环境可能没有安装 deltafq
 
 data_bp = Blueprint('data', __name__)
 
-@data_bp.route('/upload', methods=['POST'])
-def upload_data():
-    """上传CSV数据文件"""
+@data_bp.route('/files', methods=['POST'])
+def create_file():
+    """
+    创建/上传CSV数据文件 - POST /api/data/files
+    原：POST /api/data/upload
+    """
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
@@ -44,20 +47,23 @@ def upload_data():
                 return jsonify({'error': f'CSV must contain columns: {required_columns}'}), 400
             
             return jsonify({
-                'message': 'File uploaded successfully',
+                'id': filename,
                 'filename': filename,
                 'rows': len(df),
                 'columns': list(df.columns)
-            })
+            }), 201
         
         return jsonify({'error': 'Invalid file type'}), 400
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@data_bp.route('/download', methods=['POST'])
-def download_data():
-    """从Yahoo Finance下载数据"""
+@data_bp.route('/fetch', methods=['POST'])
+def fetch_data():
+    """
+    从外部数据源获取数据并创建文件 - POST /api/data/fetch
+    原：POST /api/data/download
+    """
     try:
         data = request.get_json()
         symbol = data.get('symbol', '').upper()
@@ -91,19 +97,24 @@ def download_data():
         df.to_csv(filepath, index=False)
         
         return jsonify({
-            'message': 'Data downloaded successfully',
-            'filename': filename,
-            'rows': len(df),
-            'symbol': symbol,
-            'period': period
-        })
+            'file': {
+                'id': filename,
+                'filename': filename,
+                'rows': len(df),
+                'symbol': symbol,
+                'period': period
+            }
+        }), 201
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@data_bp.route('/list', methods=['GET'])
-def list_data():
-    """获取数据文件列表"""
+@data_bp.route('/files', methods=['GET'])
+def list_files():
+    """
+    获取数据文件列表 - GET /api/data/files
+    原：GET /api/data/list
+    """
     try:
         data_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'raw')
         
@@ -116,6 +127,7 @@ def list_data():
                 filepath = os.path.join(data_folder, filename)
                 file_stat = os.stat(filepath)
                 files.append({
+                    'id': filename,
                     'filename': filename,
                     'size': file_stat.st_size,
                     'modified': datetime.fromtimestamp(file_stat.st_mtime).isoformat()
@@ -126,9 +138,12 @@ def list_data():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@data_bp.route('/preview/<filename>', methods=['GET'])
-def preview_data(filename):
-    """预览数据文件"""
+@data_bp.route('/files/<filename>', methods=['GET'])
+def get_file(filename):
+    """
+    获取数据文件详情/预览 - GET /api/data/files/<filename>
+    原：GET /api/data/preview/<filename>
+    """
     try:
         data_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'raw')
         filepath = os.path.join(data_folder, filename)
@@ -140,6 +155,7 @@ def preview_data(filename):
         df = pd.read_csv(filepath, nrows=100)
         
         return jsonify({
+            'id': filename,
             'filename': filename,
             'columns': list(df.columns),
             'data': df.to_dict('records'),
@@ -152,21 +168,20 @@ def preview_data(filename):
         return jsonify({'error': str(e)}), 500
 
 
-@data_bp.route('/fetch_symbol', methods=['POST'])
-def fetch_symbol():
+@data_bp.route('/symbols/<symbol>/fetch', methods=['POST'])
+def fetch_symbol_data(symbol):
     """
-    根据股票代码和时间区间获取数据：
+    根据股票代码和时间区间获取数据 - POST /api/data/symbols/<symbol>/fetch
+    原：POST /api/data/fetch_symbol
+    
     - 若 data/raw 下已存在以代码开头的 CSV，则优先使用最新文件
     - 否则使用 DataFetcher（若可用）或 yfinance 下载数据并保存为 CSV
     """
     try:
-        data = request.get_json()
-        symbol = data.get('symbol', '').upper()
+        data = request.get_json() or {}
+        symbol = symbol.upper()
         start_date = data.get('start_date')
         end_date = data.get('end_date')
-
-        if not symbol:
-            return jsonify({'error': 'Symbol is required'}), 400
 
         data_folder = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'raw'
@@ -186,9 +201,11 @@ def fetch_symbol():
             candidates.sort(reverse=True)
             latest_filename = candidates[0][1]
             return jsonify({
-                'message': 'Use existing local data file',
-                'filename': latest_filename,
-                'source': 'local'
+                'file': {
+                    'id': latest_filename,
+                    'filename': latest_filename,
+                    'source': 'local'
+                }
             })
 
         # 2. 本地没有则从数据源下载
@@ -220,12 +237,14 @@ def fetch_symbol():
         df.to_csv(filepath, index=False)
 
         return jsonify({
-            'message': 'Data fetched successfully',
-            'filename': filename,
-            'rows': len(df),
-            'symbol': symbol,
-            'source': 'deltafq' if DataFetcher is not None else 'yfinance'
-        })
+            'file': {
+                'id': filename,
+                'filename': filename,
+                'rows': len(df),
+                'symbol': symbol,
+                'source': 'deltafq' if DataFetcher is not None else 'yfinance'
+            }
+        }), 201
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

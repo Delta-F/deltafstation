@@ -312,13 +312,13 @@ function initializeDemoData() {
     // 初始化模拟日志数据（多条）
     logs = [
         { time: new Date(baseTime - 900000).toLocaleTimeString(), message: '系统初始化完成', api: '--' },
-        { time: new Date(baseTime - 840000).toLocaleTimeString(), message: '创建交易账户: 初始资金 ¥100,000', api: '/api/simulation/start' },
-        { time: new Date(baseTime - 600000).toLocaleTimeString(), message: '买入成交: 601398.SH 1000股 @ ¥5.80', api: '/api/simulation/trade/demo' },
-        { time: new Date(baseTime - 480000).toLocaleTimeString(), message: '买入成交: 600036.SH 200股 @ ¥42.50', api: '/api/simulation/trade/demo' },
-        { time: new Date(baseTime - 360000).toLocaleTimeString(), message: '卖出成交: 601398.SH 500股 @ ¥5.85', api: '/api/simulation/trade/demo' },
-        { time: new Date(baseTime - 240000).toLocaleTimeString(), message: '买入成交: 601398.SH 800股 @ ¥5.82', api: '/api/simulation/trade/demo' },
-        { time: new Date(baseTime - 120000).toLocaleTimeString(), message: '买入成交: 600036.SH 100股 @ ¥42.55', api: '/api/simulation/trade/demo' },
-        { time: new Date(baseTime - 60000).toLocaleTimeString(), message: '账户状态更新成功', api: '/api/simulation/status/demo' }
+        { time: new Date(baseTime - 840000).toLocaleTimeString(), message: '创建交易账户: 初始资金 ¥100,000', api: '/api/simulations' },
+        { time: new Date(baseTime - 600000).toLocaleTimeString(), message: '买入成交: 601398.SH 1000股 @ ¥5.80', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 480000).toLocaleTimeString(), message: '买入成交: 600036.SH 200股 @ ¥42.50', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 360000).toLocaleTimeString(), message: '卖出成交: 601398.SH 500股 @ ¥5.85', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 240000).toLocaleTimeString(), message: '买入成交: 601398.SH 800股 @ ¥5.82', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 120000).toLocaleTimeString(), message: '买入成交: 600036.SH 100股 @ ¥42.55', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 60000).toLocaleTimeString(), message: '账户状态更新成功', api: '/api/simulations/demo' }
     ];
 
     // 更新界面展示
@@ -783,7 +783,7 @@ async function submitOrder(type) {
     // 更新显示
     showAlert(`${type === 'buy' ? '买入' : '卖出'}成交成功`, 'success');
     addLog(`${type === 'buy' ? '买入' : '卖出'}成交: ${symbol} ${quantity}股 @ ¥${price.toFixed(2)}`, 
-           `/api/simulation/trade/${currentSimulation.id}`);
+           `/api/simulations/${currentSimulation.id}/trades`);
     $(type === 'buy' ? 'buyForm' : 'sellForm').reset();
     updateSimulationDisplay();
 }
@@ -1022,7 +1022,7 @@ async function createAccount() {
             // 不传 strategy_id，表示纯手动交易
         };
         
-        const response = await fetch('/api/simulation/start', {
+        const response = await fetch('/api/simulations', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1034,13 +1034,13 @@ async function createAccount() {
         
         if (response.ok) {
             showAlert('交易账户创建成功', 'success');
-            addLog(`创建交易账户: 初始资金 ¥${parseFloat(initialCapital).toLocaleString()}`, '/api/simulation/start');
+            addLog(`创建交易账户: 初始资金 ¥${parseFloat(initialCapital).toLocaleString()}`, '/api/simulations');
             bootstrap.Modal.getInstance($('createAccountModal')).hide();
             currentSimulation = { id: result.simulation_id, status: 'running' };
             updateSimulationStatus();
         } else {
             showAlert(result.error || '创建失败', 'danger');
-            addLog(`创建账户失败: ${result.error || '未知错误'}`, '/api/simulation/start');
+            addLog(`创建账户失败: ${result.error || '未知错误'}`, '/api/simulations');
         }
     } catch (error) {
         console.error('Error creating account:', error);
@@ -1060,20 +1060,24 @@ async function stopSimulation() {
     }
     
     try {
-        const response = await fetch(`/api/simulation/stop/${currentSimulation.id}`, {
-            method: 'POST'
+        const response = await fetch(`/api/simulations/${currentSimulation.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: 'stopped' })
         });
         
         const result = await response.json();
         
         if (response.ok) {
             showAlert('账户已关闭', 'success');
-            addLog('关闭交易账户', `/api/simulation/stop/${currentSimulation.id}`);
+            addLog('关闭交易账户', `/api/simulations/${currentSimulation.id}`);
             currentSimulation.status = 'stopped';
             updateSimulationDisplay();
         } else {
             showAlert(result.error || '关闭失败', 'danger');
-            addLog(`关闭账户失败: ${result.error || '未知错误'}`, `/api/simulation/stop/${currentSimulation.id}`);
+            addLog(`关闭账户失败: ${result.error || '未知错误'}`, `/api/simulations/${currentSimulation.id}`);
         }
     } catch (error) {
         console.error('Error stopping account:', error);
@@ -1086,7 +1090,7 @@ async function updateSimulationStatus() {
     if (!currentSimulation || currentSimulation.id === 'demo') return;
     
     try {
-        const response = await fetch(`/api/simulation/status/${currentSimulation.id}`);
+        const response = await fetch(`/api/simulations/${currentSimulation.id}`);
         const data = await response.json();
         
         if (response.ok) {

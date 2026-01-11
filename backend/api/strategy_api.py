@@ -87,10 +87,11 @@ def _discover_strategy_classes() -> List[Dict[str, Any]]:
     return strategies
 
 
-@strategy_bp.route('/create', methods=['POST'])
+@strategy_bp.route('', methods=['POST'])
 def create_strategy():
     """
-    创建新策略（占位接口）
+    创建新策略 - POST /api/strategies
+    原：POST /api/strategy/create
 
     目前所有策略均通过手写 .py 文件维护，本接口仅返回错误提示，
     避免前端误以为可以在线创建 .json 策略。
@@ -104,9 +105,12 @@ def create_strategy():
         400,
     )
 
-@strategy_bp.route('/list', methods=['GET'])
+@strategy_bp.route('', methods=['GET'])
 def list_strategies():
-    """获取策略列表（基于 data/strategies 下的 .py 脚本）"""
+    """
+    获取策略列表 - GET /api/strategies
+    原：GET /api/strategy/list
+    """
     try:
         strategies = _discover_strategy_classes()
         return jsonify({"strategies": strategies})
@@ -115,7 +119,9 @@ def list_strategies():
 
 @strategy_bp.route('/<strategy_id>', methods=['GET'])
 def get_strategy(strategy_id: str):
-    """获取单个策略详情（根据类名）"""
+    """
+    获取单个策略详情 - GET /api/strategies/<strategy_id>
+    """
     try:
         strategies = _discover_strategy_classes()
         for s in strategies:
@@ -129,7 +135,7 @@ def get_strategy(strategy_id: str):
 @strategy_bp.route('/<strategy_id>', methods=['PUT'])
 def update_strategy(strategy_id: str):
     """
-    更新策略（占位接口）
+    更新策略 - PUT /api/strategies/<strategy_id>
 
     目前策略通过 .py 文件维护，不支持在线编辑。
     """
@@ -145,7 +151,7 @@ def update_strategy(strategy_id: str):
 @strategy_bp.route('/<strategy_id>', methods=['DELETE'])
 def delete_strategy(strategy_id: str):
     """
-    删除策略（占位接口）
+    删除策略 - DELETE /api/strategies/<strategy_id>
 
     为避免误删源码文件，暂不开放删除接口。
     """
