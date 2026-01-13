@@ -107,8 +107,14 @@ def run_backtest():
             end_date = pd.to_datetime(payload["end_date"])
             df = df[(df.index >= start_date) & (df.index <= end_date)]
 
-        # 提取 symbol
-        symbol = payload.get("symbol", payload["data_file"].split("_")[0] if "_" in payload["data_file"] else "ASSET")
+        # 提取 symbol：优先从 payload 获取，否则从文件名解析（去掉 .csv）
+        symbol = payload.get("symbol")
+        if not symbol:
+            symbol = payload["data_file"].replace(".csv", "").split("_")[0]
+        if not symbol or symbol.upper() == "ASSET":
+            symbol = "ASSET"
+        
+        symbol = symbol.upper()
 
         # 通过 Core 层加载策略类
         strategy_class = BacktestEngine.load_strategy_class(payload["strategy_id"])
@@ -156,12 +162,23 @@ def run_backtest():
         )
         os.makedirs(results_folder, exist_ok=True)
 
-        result_id = f"backtest_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        # 优化 result_id 命名：策略_标的_开始日期_结束日期_时间戳
+        # 移除日期中的横杠，保持文件名简洁
+        s_date = payload.get("start_date", "").replace("-", "")
+        e_date = payload.get("end_date", "").replace("-", "")
+        # 使用当前日期+时间戳，确保唯一性
+        date_tag = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # 提取标的代码
+        symbol_name = symbol.split(".")[0] if "." in symbol else symbol
+        
+        result_id = f"res_{payload['strategy_id']}_{symbol_name}_{s_date}_{e_date}_{date_tag}"
         result_file = os.path.join(results_folder, f"{result_id}.json")
 
         result_data = {
             "id": result_id,
             "strategy_id": payload["strategy_id"],
+            "symbol": symbol,
             "data_file": payload["data_file"],
             "start_date": payload.get("start_date"),
             "end_date": payload.get("end_date"),
@@ -220,6 +237,7 @@ def list_results():
                     results.append({
                         'id': result.get('id', ''),
                         'strategy_id': result.get('strategy_id', ''),
+                        'symbol': result.get('symbol', ''), # 新增标的字段
                         'data_file': result.get('data_file', ''),
                         'start_date': result.get('start_date'),
                         'end_date': result.get('end_date'),
@@ -233,6 +251,32 @@ def list_results():
         results.sort(key=lambda x: x.get('created_at', ''), reverse=True)
         
         return jsonify({'results': results})
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@backtest_bp.route('', methods=['DELETE'])
+def clear_results():
+    """
+    清空所有回测结果 - DELETE /api/backtests
+    """
+    try:
+        results_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'results')
+        
+        if not os.path.exists(results_folder):
+            return jsonify({'message': 'No results to clear'}), 200
+        
+        count = 0
+        for filename in os.listdir(results_folder):
+            if filename.endswith('.json'):
+                filepath = os.path.join(results_folder, filename)
+                try:
+                    os.remove(filepath)
+                    count += 1
+                except:
+                    pass
+        
+        return jsonify({'message': f'Successfully cleared {count} results'}), 200
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500

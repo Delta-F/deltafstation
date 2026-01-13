@@ -38,14 +38,33 @@ class AIAssistant {
             }
         });
         
-        // 最小化/关闭
+        // 最小化/关闭/历史/语音/表情
         const minimizeBtn = document.getElementById('aiMinimizeBtn');
         const closeBtn = document.getElementById('aiCloseBtn');
+        const historyBtn = document.getElementById('aiHistoryBtn');
+        const voiceBtn = document.getElementById('aiVoiceBtn');
+        const emojiBtn = document.getElementById('aiEmojiBtn');
+        
         if (minimizeBtn) {
             minimizeBtn.addEventListener('click', () => this.minimize());
         }
         if (closeBtn) {
             closeBtn.addEventListener('click', () => this.close());
+        }
+        if (historyBtn) {
+            historyBtn.addEventListener('click', () => {
+                this.showAlert('历史记录功能开发中...', 'info');
+            });
+        }
+        if (voiceBtn) {
+            voiceBtn.addEventListener('click', () => {
+                this.showAlert('语音输入功能开发中...', 'info');
+            });
+        }
+        if (emojiBtn) {
+            emojiBtn.addEventListener('click', () => {
+                this.showAlert('表情功能开发中...', 'info');
+            });
         }
     }
     
@@ -99,8 +118,10 @@ class AIAssistant {
     }
     
     showWelcomeMessage() {
-        const welcomeMsg = this.getWelcomeMessage();
-        this.addMessage(welcomeMsg, 'assistant');
+        // 欢迎消息现在通过欢迎卡片显示，不在消息列表中
+        // 如果需要在消息中显示，可以取消注释下面这行
+        // const welcomeMsg = this.getWelcomeMessage();
+        // this.addMessage(welcomeMsg, 'assistant');
     }
     
     getWelcomeMessage() {
@@ -255,6 +276,12 @@ class AIAssistant {
     }
     
     addMessage(content, type, actions = null) {
+        // 隐藏欢迎卡片（如果存在）
+        const welcomeCard = document.getElementById('aiWelcomeCard');
+        if (welcomeCard) {
+            welcomeCard.classList.add('hidden');
+        }
+        
         const messageDiv = document.createElement('div');
         messageDiv.className = `ai-message ai-${type}-msg`;
         
@@ -361,6 +388,48 @@ class AIAssistant {
         if (this.badge) {
             this.badge.classList.remove('hidden');
             this.badge.textContent = count > 99 ? '99+' : count.toString();
+        }
+    }
+    
+    showAlert(message, type = 'info') {
+        // 简单的提示功能（可以后续扩展为更精美的提示组件）
+        const alertDiv = document.createElement('div');
+        alertDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: ${type === 'info' ? '#667eea' : '#28a745'};
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            font-size: 14px;
+            animation: slideInRight 0.3s ease;
+        `;
+        alertDiv.textContent = message;
+        document.body.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            alertDiv.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => alertDiv.remove(), 300);
+        }, 2000);
+        
+        // 添加动画样式（如果不存在）
+        if (!document.getElementById('ai-alert-styles')) {
+            const style = document.createElement('style');
+            style.id = 'ai-alert-styles';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOutRight {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
         }
     }
 }

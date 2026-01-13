@@ -5,9 +5,10 @@
 ```
 前端 (Bootstrap 5 + JS + Chart.js)
   ├── 主页 index
-  ├── 策略回测 strategy
+  ├── 策略回测 strategy (支持长跨度数据聚合渲染)
   ├── 手动交易 trading
   ├── 策略运行 run
+  ├── 系统日志 Live Console (基于 SSE 实时同步)
   └── AI 小助手 (全局组件)
       ├── 浮标按钮
       ├── 聊天窗口
@@ -19,7 +20,8 @@
   ├── 数据 API        backend/api/data_api.py
   ├── 策略 API       backend/api/strategy_api.py
   ├── 回测 API       backend/api/backtest_api.py
-  └── 仿真 API       backend/api/simulation_api.py
+  ├── 仿真 API       backend/api/simulation_api.py
+  └── 日志流 (SSE)    backend/app.py (stdout pipe)
 
            │  业务调用
            ▼

@@ -7,9 +7,9 @@ function formatDateToMonth(dateStr) {
     try {
         const date = new Date(dateStr);
         if (isNaN(date.getTime())) return '';
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        return `${year}-${month}`;
+        const yearShort = String(date.getFullYear()).substring(2);
+        const month = date.getMonth() + 1;
+        return `${yearShort}/${month}`;
     } catch (e) {
         return '';
     }
@@ -137,23 +137,16 @@ function getStandardXAxisConfig() {
             callback: function(value) {
                 const label = this.getLabelForValue(value);
                 if (!label || label.trim() === '') return '';
-                // 如果已经是年月格式（YYYY-MM），直接返回
-                if (label.match(/^\d{4}-\d{2}$/)) {
-                    return label;
-                }
-                // 尝试解析日期并格式化为年月
+                // 尝试解析日期并格式化为 YY/M 格式 (例如 25/1)
                 try {
                     const date = new Date(label);
                     if (!isNaN(date.getTime())) {
-                        const year = date.getFullYear();
-                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                        return `${year}-${month}`;
+                        const yearShort = String(date.getFullYear()).substring(2);
+                        const month = date.getMonth() + 1;
+                        return `${yearShort}/${month}`;
                     }
                 } catch (e) {
-                    // 如果解析失败，尝试直接截取年月部分
-                    if (label.length >= 7 && label.includes('-')) {
-                        return label.substring(0, 7);
-                    }
+                    // 如果解析失败，返回原值
                 }
                 return label;
             },
@@ -186,14 +179,34 @@ function getStandardYAxisConfig(callback = null, beginAtZero = false) {
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
+    // 初始化 Flatpickr 日期选择器
+    const datePickerConfig = {
+        locale: 'zh',
+        dateFormat: 'Y-m-d',
+        allowInput: true,
+        monthSelectorType: 'static',
+        yearSelectorType: 'dropdown', // 关键优化：点击年份直接下拉选择
+        onReady: function(selectedDates, dateStr, instance) {
+            // 优化外观：让年份和月份更易点击
+            const calendar = instance.calendarContainer;
+            if (calendar) {
+                calendar.style.fontSize = '12px';
+            }
+        }
+    };
+    
+    flatpickr('.date-picker', datePickerConfig);
+
     // 先设置默认日期，避免阻塞 UI
     const today = new Date();
-    const halfYearAgo = new Date(today);
-    halfYearAgo.setMonth(halfYearAgo.getMonth() - 6);
+    const twoYearsAgo = new Date(today);
+    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+    
+    // 设置 input 初始值
     const startInput = $('backtestStartDate');
     const endInput = $('backtestEndDate');
     if (startInput && endInput) {
-        startInput.value = halfYearAgo.toISOString().split('T')[0];
+        startInput.value = twoYearsAgo.toISOString().split('T')[0];
         endInput.value = today.toISOString().split('T')[0];
     }
 
@@ -208,7 +221,63 @@ document.addEventListener('DOMContentLoaded', async function() {
     setTimeout(() => {
         loadDataFiles();
     }, 800);
+
+    // 初始化 SSE 日志监听
+    initLogStream();
 });
+
+function initLogStream() {
+    const consoleDiv = document.getElementById('liveConsole');
+    if (!consoleDiv) return;
+
+    // 使用 EventSource 连接后端 SSE 接口
+    const eventSource = new EventSource('/api/logs/stream');
+
+    eventSource.onmessage = function(event) {
+        const logLine = document.createElement('div');
+        logLine.style.marginBottom = '1px';
+        logLine.style.padding = '1px 5px';
+        
+        // 如果是系统或错误日志，标记颜色
+        if (event.data.includes('ERROR')) {
+            logLine.style.color = '#dc3545'; // Bootstrap danger color
+            logLine.style.fontWeight = 'bold';
+        } else if (event.data.includes('WARNING')) {
+            logLine.style.color = '#fd7e14'; // Bootstrap warning color
+        } else if (event.data.includes('[SYSTEM]')) {
+            logLine.style.color = '#0d6efd'; // Bootstrap primary color
+        }
+
+        logLine.textContent = event.data;
+        
+        // 如果是第一次接收，清空占位符
+        if (consoleDiv.querySelector('.italic')) {
+            consoleDiv.innerHTML = '';
+        }
+
+        consoleDiv.appendChild(logLine);
+
+        // 自动滚动到底部
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        
+        // 限制行数，避免内存占用过大
+        if (consoleDiv.childNodes.length > 200) {
+            consoleDiv.removeChild(consoleDiv.firstChild);
+        }
+    };
+
+    eventSource.onerror = function() {
+        console.error("SSE connection lost. Reconnecting...");
+        // 浏览器会自动尝试重新连接，这里仅作记录
+    };
+}
+
+function clearConsole() {
+    const consoleDiv = document.getElementById('liveConsole');
+    if (consoleDiv) {
+        consoleDiv.innerHTML = '<div class="text-muted italic">控制台已清空...</div>';
+    }
+}
 
 async function loadStrategies() {
     const { ok, data } = await apiRequest('/api/strategies');
@@ -260,6 +329,15 @@ async function loadDataFiles() {
         return;
     }
     
+    // 同时更新回测参数中的 datalist
+    const datalist = $('availableSymbols');
+    if (datalist) {
+        datalist.innerHTML = data.files.map(f => {
+            const symbol = f.filename.replace('.csv', '');
+            return `<option value="${symbol}">${f.filename}</option>`;
+        }).join('');
+    }
+    
     list.innerHTML = data.files.map(file => {
         const safeFilename = file.filename.replace(/'/g, "\\'");
         return `<div class="data-file-item">
@@ -268,12 +346,35 @@ async function loadDataFiles() {
                     <div class="text-truncate" style="font-size: 12px; font-weight: 500; margin-bottom: 0.2rem;" title="${file.filename}">${file.filename}</div>
                     <small class="text-muted" style="font-size: 10px;">${formatFileSize(file.size)} | ${formatDateTime(file.modified)}</small>
                 </div>
-                <button class="btn btn-sm btn-outline-primary ms-2" style="flex-shrink: 0; padding: 0.25rem 0.5rem; font-size: 11px;" onclick="event.stopPropagation(); previewData('${safeFilename}')" title="预览数据">
-                    <i class="fas fa-eye"></i>
-                </button>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-success" style="padding: 0.25rem 0.4rem; font-size: 10px;" onclick="event.stopPropagation(); selectDataFileForBacktest('${safeFilename}')" title="使用此数据进行回测">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" style="padding: 0.25rem 0.4rem; font-size: 10px;" onclick="event.stopPropagation(); previewData('${safeFilename}')" title="预览数据">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" style="padding: 0.25rem 0.4rem; font-size: 10px;" onclick="event.stopPropagation(); deleteDataFile('${safeFilename}')" title="删除文件">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
             </div>
         </div>`;
     }).join('');
+}
+
+function selectDataFileForBacktest(filename) {
+    const symbol = filename.replace('.csv', '');
+    const symbolInput = $('backtestSymbol');
+    if (symbolInput) {
+        symbolInput.value = symbol;
+        // 视觉反馈：闪烁一下表示已选中
+        symbolInput.classList.add('is-valid');
+        setTimeout(() => symbolInput.classList.remove('is-valid'), 1000);
+        
+        // 自动滚动到参数配置区域
+        $('backtestConfigCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        showAlert(`已选择数据文件: ${filename}`, 'info');
+    }
 }
 
 async function loadBacktestHistory() {
@@ -289,24 +390,67 @@ async function loadBacktestHistory() {
     list.innerHTML = data.results.map(result => {
         const totalReturn = typeof result.total_return === 'number' ? result.total_return : 0;
         const sharpeRatio = typeof result.sharpe_ratio === 'number' ? result.sharpe_ratio : 0;
+        
+        // 尝试从文件名提取标的（如果旧数据缺失 symbol 字段）
+        let symbol = result.symbol;
+        if (!symbol && result.data_file) {
+            // 兼容新旧格式：000001.SS.csv 或 000001_2025...csv
+            symbol = result.data_file.replace('.csv', '').split('_')[0];
+        }
+        symbol = (symbol || 'ASSET').toUpperCase();
+
+        // 格式化日期范围：YYMMDD-YYMMDD
+        const formatDateShort = (dateStr) => {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return `${String(d.getFullYear()).substring(2)}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+        };
+        
+        const dateRange = (result.start_date && result.end_date) 
+            ? `${formatDateShort(result.start_date)}-${formatDateShort(result.end_date)}`
+            : '';
+            
         return `
-            <div class="backtest-item" onclick="viewBacktestResult('${result.id}')">
+            <div class="backtest-item" onclick="viewBacktestResult('${result.id}')" title="${result.id}">
                 <div class="d-flex justify-content-between align-items-center">
                     <div style="flex: 1; min-width: 0;">
-                        <h6 class="mb-1">${result.strategy_id || '未知策略'}</h6>
-                        <small class="text-muted d-block" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${result.data_file || '未知文件'}</small>
-                        <small class="text-muted">${formatDateTime(result.created_at || '')}</small>
+                        <div class="d-flex align-items-center mb-1">
+                            <h6 class="mb-0 text-truncate" style="font-size: 13px; font-weight: 600;">
+                                <span class="text-primary">${result.strategy_id || '未知策略'}</span><span class="text-muted">_${symbol}</span>
+                            </h6>
+                        </div>
+                        <div class="d-flex align-items-center text-muted" style="font-size: 10px;">
+                            <span class="me-2"><i class="far fa-calendar-alt me-1"></i>${dateRange}</span>
+                            <span><i class="far fa-clock me-1"></i>${formatDateTime(result.created_at || '')}</span>
+                        </div>
                     </div>
                     <div class="text-end ms-2" style="flex-shrink: 0;">
-                        <div class="fw-bold ${totalReturn >= 0 ? 'text-danger' : 'text-success'}" style="font-size: 13px;">
-                            ${(totalReturn * 100).toFixed(2)}%
+                        <div class="fw-bold ${totalReturn >= 0 ? 'text-danger' : 'text-success'}" style="font-size: 14px; line-height: 1.2;">
+                            ${totalReturn >= 0 ? '+' : ''}${(totalReturn * 100).toFixed(1)}%
                         </div>
-                        <small class="text-muted">夏普: ${sharpeRatio.toFixed(2)}</small>
+                        <div class="text-muted" style="font-size: 10px;">夏普: ${sharpeRatio.toFixed(2)}</div>
                     </div>
                 </div>
             </div>
         `;
     }).join('');
+}
+
+async function clearBacktestHistory() {
+    if (!confirm('确定要清空所有回测历史记录吗？此操作不可撤销。')) {
+        return;
+    }
+    
+    const { ok, data } = await apiRequest('/api/backtests', {
+        method: 'DELETE'
+    });
+    
+    if (ok) {
+        showAlert(data.message || '回测历史已清空', 'success');
+        loadBacktestHistory();
+    } else {
+        showAlert(data.error || '清空失败', 'danger');
+    }
 }
 
 async function runBacktest() {
@@ -327,7 +471,7 @@ async function runBacktest() {
         return;
     }
     
-    const fetchResult = await apiRequest(`/api/data/symbols/${symbol}/fetch`, {
+    const fetchResult = await apiRequest(`/api/data/symbols/${symbol}/files`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ start_date: startDate, end_date: endDate })
@@ -338,14 +482,20 @@ async function runBacktest() {
         return;
     }
     
-    // 获取文件名（从file对象中）
-    const filename = fetchResult.data.file?.filename || fetchResult.data.filename;
+    // 提示下载/同步成功并刷新目录
+    const statusMsg = fetchResult.data.status === 'updated' ? '数据同步完成' : '全量数据下载完成';
+    showAlert(`${symbol} ${statusMsg}`, 'success');
+    loadDataFiles();
+    
+    // 获取文件名（新API直接返回filename或id）
+    const filename = fetchResult.data.filename || fetchResult.data.id;
     
     const result = await apiRequest('/api/backtests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             strategy_id: currentStrategy.id,
+            symbol: symbol, // 显式传递标的代码
             data_file: filename,
             start_date: startDate,
             end_date: endDate,
@@ -363,24 +513,6 @@ async function runBacktest() {
     }
     
     showAlert('回测运行成功', 'success');
-    
-    const debugOutput = $('debugOutput');
-    if (debugOutput) {
-        const debugInfo = {
-            message: result.data.message,
-            result_id: result.data.result_id,
-            metrics_keys: result.data.metrics ? Object.keys(result.data.metrics) : [],
-            values_df_length: result.data.values_df?.length || 0,
-            trades_df_length: result.data.trades_df?.length || 0,
-            metrics_summary: result.data.metrics ? {
-                total_return: result.data.metrics.total_return,
-                sharpe_ratio: result.data.metrics.sharpe_ratio,
-                max_drawdown: result.data.metrics.max_drawdown,
-                total_trade_count: result.data.metrics.total_trade_count
-            } : null
-        };
-        debugOutput.textContent = JSON.stringify(debugInfo, null, 2);
-    }
     
     try {
         const { portfolioValues, dates, rawDates } = parseValuesDf(result.data.values_df);
@@ -477,8 +609,8 @@ function drawBacktestCharts(results) {
     // 优先使用传入的原始日期数组
     if (results.rawDates && results.rawDates.length > 0) {
         rawDates = results.rawDates;
-        // 如果dates已经存在且是月份标签格式，直接使用；否则生成月份标签
-        if (results.dates && results.dates.length > 0 && results.dates.some(d => d && d.match(/^\d{4}-\d{2}$/))) {
+        // 如果dates已经存在且是月份标签格式 (YY/M)，直接使用；否则生成月份标签
+        if (results.dates && results.dates.length > 0 && results.dates.some(d => d && d.match(/^\d{2}\/\d{1,2}$/))) {
             dates = results.dates;
         } else {
             dates = generateMonthLabels(rawDates);
@@ -859,26 +991,52 @@ async function previewData(filename) {
     
     const modalDiv = document.createElement('div');
     modalDiv.className = 'modal fade';
+    
+    // 生成表格行
+    let tableRows = '';
+    const columns = data.columns || [];
+    const records = data.data || [];
+    
+    if (records.length > 0) {
+        records.forEach((row, index) => {
+            // 如果有截断，在第 50 条后插入一个分割行
+            if (data.is_truncated && index === 50) {
+                tableRows += `
+                    <tr class="table-light">
+                        <td colspan="${columns.length}" class="text-center text-muted" style="padding: 10px; background: #f8f9fa;">
+                            <i class="fas fa-ellipsis-h me-2"></i> 中间省略了 ${data.total_rows - 100} 条数据 <i class="fas fa-ellipsis-h ms-2"></i>
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            tableRows += `<tr>${columns.map(col => `<td>${row[col] !== null && row[col] !== undefined ? row[col] : '-'}</td>`).join('')}</tr>`;
+        });
+    } else {
+        tableRows = '<tr><td colspan="100%" class="text-center text-muted">暂无数据</td></tr>';
+    }
+
     modalDiv.innerHTML = `
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" style="font-size: 14px;">数据预览 - ${filename}</h5>
+                    <div>
+                        <h5 class="modal-title" style="font-size: 14px;">数据预览 - ${filename}</h5>
+                        <div class="mt-1">
+                            <span class="badge bg-primary me-2">数据区间: ${data.start_date} 至 ${data.end_date}</span>
+                            <span class="badge bg-secondary">共 ${data.total_rows} 行</span>
+                        </div>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                    <div class="mb-2">
-                        <small class="text-muted">共 ${data.shape?.[0] || 0} 行，${data.shape?.[1] || 0} 列（仅显示前100行）</small>
-                    </div>
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-top: 0;">
                     <div class="table-responsive">
                         <table class="table table-sm table-striped table-hover" style="font-size: 12px;">
-                            <thead class="table-light">
-                                <tr>${data.columns?.map(col => `<th style="font-size: 11px; font-weight: 500;">${col}</th>`).join('') || ''}</tr>
+                            <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                                <tr>${columns.map(col => `<th style="font-size: 11px; font-weight: 500;">${col}</th>`).join('')}</tr>
                             </thead>
                             <tbody>
-                                ${data.data?.length > 0 ? data.data.map(row => `
-                                    <tr>${data.columns?.map(col => `<td>${row[col] !== null && row[col] !== undefined ? row[col] : '-'}</td>`).join('') || ''}</tr>
-                                `).join('') : '<tr><td colspan="100%" class="text-center text-muted">暂无数据</td></tr>'}
+                                ${tableRows}
                             </tbody>
                         </table>
                     </div>
@@ -932,10 +1090,54 @@ async function createStrategy() {
 
 // deleteStrategy 和 refreshBacktestHistory 函数未使用，已删除
 
-// showAlert 已在 common.js 中定义
-// formatDateTime 需要完整格式，使用 formatDateTimeFull
-function formatDateTime(dateString) {
-    return formatDateTimeFull(dateString);
+// =========================
+// 数据管理辅助函数
+// =========================
+
+async function uploadDataFile(input) {
+    if (!input.files || input.files.length === 0) return;
+    
+    const file = input.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    showAlert('正在上传文件...', 'info');
+    
+    try {
+        const response = await fetch('/api/data/files', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showAlert('文件上传成功', 'success');
+            loadDataFiles();
+        } else {
+            showAlert(result.error || '上传失败', 'danger');
+        }
+    } catch (error) {
+        console.error('Upload failed:', error);
+        showAlert('上传请求失败', 'danger');
+    } finally {
+        input.value = ''; // 清空选择
+    }
+}
+
+async function deleteDataFile(filename) {
+    if (!confirm(`确定要删除数据文件 ${filename} 吗？`)) return;
+    
+    const { ok, data } = await apiRequest(`/api/data/files/${encodeURIComponent(filename)}`, {
+        method: 'DELETE'
+    });
+    
+    if (ok) {
+        showAlert('文件已删除', 'success');
+        loadDataFiles();
+    } else {
+        showAlert(data.error || '删除失败', 'danger');
+    }
 }
 
 function formatFileSize(bytes) {
@@ -944,4 +1146,10 @@ function formatFileSize(bytes) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+//showAlert 已在 common.js 中定义
+//formatDateTimeFull 已在 common.js 中定义
+function formatDateTime(dateString) {
+    return formatDateTimeFull(dateString);
 }

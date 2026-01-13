@@ -8,6 +8,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://unpkg.com/chart.js@3.9.1/dist/chart.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
         body {
             font-size: 13px;
@@ -164,17 +165,19 @@
                                 <input type="text"
                                        class="form-control form-control-sm"
                                        id="backtestSymbol"
+                                       list="availableSymbols"
                                        placeholder="例如：AAPL 或 000001.SS"
                                        value="000001.SS"
                                        required>
+                                <datalist id="availableSymbols"></datalist>
                             </div>
                             <div class="mb-3 d-flex align-items-center">
                                 <label for="backtestStartDate" class="form-label mb-0 me-2" style="min-width: 80px; font-size: 12px;">开始日期</label>
-                                <input type="date" class="form-control form-control-sm" id="backtestStartDate" required>
+                                <input type="text" class="form-control form-control-sm date-picker" id="backtestStartDate" placeholder="请选择开始日期" required>
                             </div>
                             <div class="mb-3 d-flex align-items-center">
                                 <label for="backtestEndDate" class="form-label mb-0 me-2" style="min-width: 80px; font-size: 12px;">结束日期</label>
-                                <input type="date" class="form-control form-control-sm" id="backtestEndDate" required>
+                                <input type="text" class="form-control form-control-sm date-picker" id="backtestEndDate" placeholder="请选择结束日期" required>
                             </div>
                             <div class="mb-3 d-flex align-items-center">
                                 <label for="backtestCommission" class="form-label mb-0 me-2" style="min-width: 80px; font-size: 12px;">交易费率</label>
@@ -194,8 +197,11 @@
                 </div>
 
                 <div class="card mb-2">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <h6 class="mb-0"><i class="fas fa-history me-2"></i>回测历史</h6>
+                        <button class="btn btn-xs btn-outline-danger py-0 px-1" onclick="clearBacktestHistory()" title="清空所有历史记录" style="font-size: 11px;">
+                            <i class="fas fa-trash-alt me-1"></i>清空
+                        </button>
                     </div>
                     <div class="card-body" style="padding: 0.75rem;">
                         <div id="backtestHistoryList" class="backtest-history-container">
@@ -207,8 +213,20 @@
                 </div>
 
                 <div class="card mb-2">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <h6 class="mb-0"><i class="fas fa-database me-2"></i>数据管理</h6>
+                        <div class="btn-group">
+                            <a href="/api/data/template" class="btn btn-sm btn-outline-secondary" title="下载CSV模板">
+                                <i class="fas fa-download"></i>
+                            </a>
+                            <button class="btn btn-sm btn-outline-primary" onclick="$('dataFileUpload').click()" title="上传CSV数据">
+                                <i class="fas fa-upload"></i>
+                            </button>
+                            <input type="file" id="dataFileUpload" style="display: none;" accept=".csv" onchange="uploadDataFile(this)">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="loadDataFiles()" title="刷新列表">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body" style="padding: 0.75rem;">
                         <div id="dataFilesList" class="data-files-container">
@@ -419,12 +437,15 @@
                     </div>
                 </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="fas fa-bug me-2"></i>调试信息（原始数据）</h6>
+                <div class="card mb-2">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-terminal me-2"></i>系统日志 (Live Console)</h6>
+                        <button class="btn btn-xs btn-outline-secondary py-0 px-1" onclick="clearConsole()" style="font-size: 11px;">清空</button>
                     </div>
-                    <div class="card-body">
-                        <pre id="debugOutput" style="max-height: 300px; overflow-y: auto; font-size: 12px; background-color: #f8f9fa; padding: 10px; border-radius: 4px;">暂无数据</pre>
+                    <div class="card-body p-0">
+                        <div id="liveConsole" style="height: 200px; background-color: #ffffff; color: #333; font-family: 'Consolas', 'Monaco', monospace; font-size: 11px; padding: 0.5rem; overflow-y: auto; line-height: 1.4; border-top: 1px solid #eee;">
+                            <div class="text-muted italic">等待日志输出...</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -480,6 +501,8 @@
     {% include '_footer.html' %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
     <script src="https://unpkg.com/chart.js@3.9.1/dist/chart.min.js"></script>
     <script src="{{ url_for('static', filename='js/common.js') }}"></script>
     <script src="{{ url_for('static', filename='js/backtest.js') }}"></script>

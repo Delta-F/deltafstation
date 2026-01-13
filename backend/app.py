@@ -1,10 +1,55 @@
 """
 DeltaFStation - 量化交易系统主应用
 """
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 from flask_cors import CORS
 import os
 import sys
+import time
+import threading
+from datetime import datetime
+
+# 全局日志队列，用于 SSE 推送
+class LogQueue:
+    def __init__(self, maxsize=100):
+        self.queue = []
+        self.maxsize = maxsize
+        self.lock = threading.Lock()
+
+    def put(self, msg):
+        with self.lock:
+            # 过滤掉一些无意义的换行或空白
+            clean_msg = msg.strip()
+            if not clean_msg:
+                return
+            # 不再重复添加时间戳，因为原始日志中通常已经包含了时间
+            self.queue.append(clean_msg)
+            if len(self.queue) > self.maxsize:
+                self.queue.pop(0)
+
+    def get_all(self):
+        with self.lock:
+            logs = list(self.queue)
+            self.queue.clear()
+            return logs
+
+global_log_queue = LogQueue()
+
+# 重定向 stdout 以捕获 print 语句
+class StdoutRedirector:
+    def __init__(self, original_stdout, log_queue):
+        self.original_stdout = original_stdout
+        self.log_queue = log_queue
+
+    def write(self, msg):
+        self.log_queue.put(msg)
+        self.original_stdout.write(msg)
+
+    def flush(self):
+        self.original_stdout.flush()
+
+if not isinstance(sys.stdout, StdoutRedirector):
+    sys.stdout = StdoutRedirector(sys.stdout, global_log_queue)
 
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -47,6 +92,20 @@ def create_app():
     @app.route('/run')
     def run():
         return render_template('gostrategy.html')
+    
+    @app.route('/api/logs/stream')
+    def stream_logs():
+        """日志实时流接口"""
+        def generate():
+            # 建立连接时先发送一个欢迎消息
+            yield "data: [SYSTEM] Log stream connected...\n\n"
+            while True:
+                logs = global_log_queue.get_all()
+                for log in logs:
+                    # SSE 格式必须以 data: 开头，并以 \n\n 结束
+                    yield f"data: {log}\n\n"
+                time.sleep(0.5)
+        return Response(generate(), mimetype='text/event-stream')
     
     @app.errorhandler(404)
     def not_found(error):

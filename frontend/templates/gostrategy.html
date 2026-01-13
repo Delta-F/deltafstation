@@ -16,77 +16,65 @@
             background-color: #f5f5f5;
         }
         
-        
-        .strategy-config-card {
-            margin-bottom: 1rem;
+        .container-fluid {
+            padding-top: 0.5rem;
+            max-width: 1600px;
+            margin: 0 auto;
         }
         
         .card {
             border: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 1rem;
-            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 0.5rem;
         }
         
         .card-header {
-            background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%);
-            border-bottom: 2px solid #e9ecef;
-            padding: 0.75rem 1rem;
-            font-weight: 600;
-            font-size: 13px;
-            border-radius: 8px 8px 0 0;
+            padding: 0.5rem 0.75rem;
+            background-color: #fff;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .card-header h5, .card-header h6 {
+            font-size: 14px;
+            font-weight: 500;
+            margin: 0;
         }
         
         .card-body {
-            font-size: 12px;
+            font-size: 13px;
+            padding: 0.75rem;
         }
         
         .form-label {
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 500;
             margin-bottom: 0.4rem;
         }
         
         .form-control, .form-select {
-            font-size: 12px;
-            padding: 0.4rem 0.6rem;
+            font-size: 13px;
+            padding: 0.4rem 0.75rem;
         }
         
         .btn {
+            font-size: 12px;
+            padding: 0.4rem 0.75rem;
+        }
+        
+        small, .text-muted {
             font-size: 11px;
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
         }
         
-        .btn-primary {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            border: none;
-            font-weight: 600;
-        }
-        
-        .btn-primary:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
-        
-        .btn-danger {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-            border: none;
-            font-weight: 600;
-        }
-        
-        .btn-danger:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
+        .strategy-config-card {
+            margin-bottom: 0.5rem;
         }
         
         .status-badge {
             display: inline-block;
             padding: 0.35rem 0.7rem;
-            border-radius: 6px;
+            border-radius: 4px;
             font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
+            font-weight: 500;
         }
         
         .status-badge.running {
@@ -104,58 +92,12 @@
             color: #856404;
         }
         
-        
-        .form-row-inline .form-label {
-            min-width: 80px;
-        }
-        
-        .strategy-config-card .card-body {
-            padding: 1.5rem;
-        }
-        
-        .strategy-config-card .form-label {
-            font-size: 13px;
-            font-weight: 600;
-        }
-        
-        .strategy-config-card small.text-muted {
-            font-size: 11px;
-            line-height: 1.4;
-            display: block;
-            margin-top: 0.25rem;
-            color: #6c757d;
-        }
-        
-        .strategy-config-card .form-control-sm,
-        .strategy-config-card .form-select-sm {
-            font-size: 13px;
-            padding: 0.5rem 0.75rem;
-        }
-
-        .form-row-inline .form-control,
-        .form-row-inline .form-select {
-            flex: 1;
-        }
-
-        .form-control:focus, .form-select:focus {
-            border-color: #007bff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
-        }
-        
         .trade-form-row {
             margin-bottom: 1rem;
         }
         
         .trade-form-row:last-of-type {
-            margin-bottom: 1.25rem;
-        }
-        
-        .strategy-config-card .trade-form-row {
-            margin-bottom: 1.25rem;
-        }
-        
-        .strategy-config-card .trade-form-row:last-of-type {
-            margin-bottom: 0;
+            margin-bottom: 0.75rem;
         }
         
         .btn-sm {
@@ -163,31 +105,91 @@
             font-size: 11px;
         }
         
-        .strategy-config-card .btn {
-            border-radius: 4px;
-            transition: all 0.3s;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        /* 两栏等高布局 */
+        .equal-height-row {
+            display: flex;
+            align-items: stretch;
         }
         
-        .strategy-config-card .btn:hover {
-            opacity: 0.9;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        .equal-height-row > [class*="col-"] {
+            display: flex;
+            flex-direction: column;
         }
         
-        .strategy-config-card .btn:active {
-            transform: translateY(0);
+        .trading-left-panel,
+        .trading-right-panel {
+            min-height: calc(100vh - 200px);
         }
         
-        .btn-outline-success.active {
-            background-color: #d4edda;
-            border-color: #28a745;
-            color: #155724;
+        /* 确保卡片等高 */
+        .trading-left-panel .card,
+        .trading-right-panel .card {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .trading-left-panel .card-body,
+        .trading-right-panel .card-body {
+            flex: 1;
+        }
+        
+        /* 简化表格列名样式 */
+        .data-table thead th,
+        .table-header th {
+            font-weight: 500 !important;
+            font-size: 11px !important;
+            padding: 0.5rem 0.5rem !important;
+            background-color: #f8f9fa !important;
+            border-bottom: 1px solid #dee2e6 !important;
+            color: #6c757d !important;
         }
         
         /* 策略监控卡片样式 */
-        #equityChart {
-            max-height: 200px;
+        #equityChart,
+        #monitorDailyChart {
+            max-height: none;
+        }
+        
+        .price-up {
+            color: #dc3545;
+        }
+        
+        .price-down {
+            color: #28a745;
+        }
+        
+        /* 盘口样式 */
+        .quote-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.15rem 0.25rem;
+            border-radius: 2px;
+        }
+        
+        .quote-ask {
+            background: rgba(40, 167, 69, 0.06);
+        }
+        
+        .quote-bid {
+            background: rgba(220, 53, 69, 0.06);
+        }
+        
+        .quote-price {
+            color: #495057;
+            font-weight: 500;
+        }
+        
+        .quote-volume {
+            color: #6c757d;
+            font-size: 10px;
+        }
+        
+        .quote-ask .quote-price {
+            color: #28a745;
+        }
+        
+        .quote-bid .quote-price {
+            color: #dc3545;
         }
     </style>
 </head>
@@ -229,10 +231,10 @@
         </div>
 
         <!-- 主要内容 -->
-        <div class="row trading-panel">
-            <!-- 左侧：策略配置 -->
-            <div class="col-md-3 trading-left-panel">
-                <div class="card strategy-config-card">
+        <div class="row trading-panel equal-height-row">
+            <!-- 左侧：策略配置 + 交易账户 -->
+            <div class="col-md-3 trading-left-panel d-flex flex-column">
+                <div class="card strategy-config-card flex-fill mb-2">
                     <div class="card-header">
                         <span><i class="fas fa-sliders-h me-2"></i>策略配置</span>
                     </div>
@@ -240,7 +242,7 @@
                         <form id="runStrategyForm">
                             <div class="trade-form-row">
                                 <div class="form-row-inline">
-                                    <label for="runStrategySelect" class="form-label fw-bold">交易策略<span class="text-danger">*</span></label>
+                                    <label for="runStrategySelect" class="form-label fw-bold">交易策略</label>
                                     <select class="form-select form-select-sm" id="runStrategySelect" required>
                                         <option value="">请选择策略</option>
                                     </select>
@@ -249,7 +251,7 @@
 
                             <div class="trade-form-row">
                                 <div class="form-row-inline">
-                                    <label for="runSymbol" class="form-label fw-bold">投资标的<span class="text-danger">*</span></label>
+                                    <label for="runSymbol" class="form-label fw-bold">投资标的</label>
                                     <input type="text" class="form-control form-control-sm" id="runSymbol"
                                            placeholder="例如：601398.SH 或 600036.SH" value="601398.SH" required>
                                 </div>
@@ -279,28 +281,78 @@
                                 </div>
                             </div>
 
-                            <div class="d-grid gap-2" style="margin-top: 1.5rem;">
-                                <button type="button" class="btn btn-primary" onclick="startRunStrategy()" id="startStrategyBtn" style="padding: 0.55rem 0.75rem; font-size: 13px; font-weight: 600;">
-                                    <i class="fas fa-play me-2"></i>启动策略
+                            <div class="d-grid gap-2" style="margin-top: 0.5rem;">
+                                <button type="button" class="btn btn-primary" onclick="startRunStrategy()" id="startStrategyBtn">
+                                    <i class="fas fa-play me-1"></i>启动策略
                                 </button>
-                                <button type="button" class="btn btn-danger" onclick="stopRunStrategy()" id="stopStrategyBtn" disabled style="padding: 0.55rem 0.75rem; font-size: 13px; font-weight: 600;">
-                                    <i class="fas fa-stop me-2"></i>停止策略
+                                <button type="button" class="btn btn-danger" onclick="stopRunStrategy()" id="stopStrategyBtn" disabled>
+                                    <i class="fas fa-stop me-1"></i>停止策略
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
+
+                <!-- 交易账户模块 -->
+                <div class="card flex-fill">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-wallet me-2"></i>交易账户</span>
+                            <button class="btn btn-sm btn-success" onclick="showCreateAccount()" id="createAccountBtn">
+                                <i class="fas fa-plus me-1"></i>创建账户
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body account-card">
+                        <div class="account-info">
+                            <div class="d-flex justify-content-between">
+                                <small>账号</small>
+                                <span class="fw-bold" id="accountId">--</span>
+                            </div>
+                        </div>
+                        <div class="account-info">
+                            <div class="d-flex justify-content-between">
+                                <small>券商</small>
+                                <span class="fw-bold" id="brokerName">DeltaFStation</span>
+                            </div>
+                        </div>
+                        <div class="account-info">
+                            <div class="d-flex justify-content-between">
+                                <small>费率</small>
+                                <span class="fw-bold" id="commissionDisplay">--</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-danger w-100 mt-2" onclick="stopSimulation()" id="stopSimulationBtn" disabled>
+                            <i class="fas fa-stop me-1"></i>关闭账户
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- 中间：策略运行监控 + 数据视图（委托 / 成交 / 持仓） -->
-            <div class="col-md-6 trading-center-panel">
+            <!-- 右侧：策略运行监控 + 数据视图（委托 / 成交 / 持仓） -->
+            <div class="col-md-9 trading-right-panel d-flex flex-column">
                 <!-- 策略运行监控卡片 -->
-                <div class="card mb-2" style="flex: 0 0 auto;">
+                <div class="card flex-fill mb-2" style="display: flex; flex-direction: column; min-height: 0;">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-chart-area me-2"></i>策略运行监控</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span><i class="fas fa-chart-area me-2"></i>策略运行监控</span>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-success" id="monitorChartTypeEquity" onclick="switchMonitorChartType('equity')">
+                                    <i class="fas fa-chart-line me-1"></i>资产
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-success active" id="monitorChartTypeDaily" onclick="switchMonitorChartType('daily')">
+                                    <i class="fas fa-chart-bar me-1"></i>日K
+                                </button>
+                            </div>
+                            <!-- 指标选择按钮（仅在日K图显示） -->
+                            <div id="monitorIndicatorButtons" style="display: inline-flex; margin-left: 0.5rem;">
+                                <button type="button" class="btn btn-sm btn-outline-success active" data-indicator="ma" onclick="switchMonitorIndicator('ma', this)" title="MA均线">MA</button>
+                                <button type="button" class="btn btn-sm btn-outline-success" data-indicator="boll" onclick="switchMonitorIndicator('boll', this)" title="BOLL布林带">BOLL</button>
+                            </div>
+                        </div>
                         <small class="text-muted" id="monitorUpdateTime">--:--:--</small>
                     </div>
-                    <div class="card-body" style="padding: 1rem;">
+                    <div class="card-body" style="padding: 0.75rem; flex: 1; display: flex; flex-direction: column; min-height: 0;">
                         <!-- 关键指标（紧凑显示） -->
                         <div class="d-flex justify-content-between align-items-center mb-2" style="flex-wrap: wrap; gap: 0.75rem;">
                             <div class="d-flex align-items-center" style="gap: 0.5rem;">
@@ -325,13 +377,66 @@
                             </div>
                         </div>
                         
-                        <!-- 资产曲线图 -->
-                        <div style="height: 200px; margin-bottom: 1rem; position: relative;">
-                            <canvas id="equityChart"></canvas>
+                        <!-- 图表区域 + 盘口 -->
+                        <div class="d-flex gap-3" style="flex: 1; min-height: 0;">
+                            <!-- 图表 -->
+                            <div style="flex: 1; position: relative; min-height: 250px;">
+                                <canvas id="equityChart" style="width: 100%; height: 100%;"></canvas>
+                                <canvas id="monitorDailyChart" style="display: none; width: 100%; height: 100%;"></canvas>
+                            </div>
+                            
+                            <!-- 分隔线 -->
+                            <div style="width: 1px; background-color: #e9ecef;"></div>
+                            
+                            <!-- 买5卖5盘口 -->
+                            <div style="width: 140px; display: flex; flex-direction: column; gap: 0.25rem;">
+                                <!-- 卖盘（卖5到卖1） -->
+                                <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-start; gap: 0.15rem;">
+                                    <div class="text-muted mb-1" style="font-size: 10px; font-weight: 500;">卖盘</div>
+                                    <div id="monitorQuoteAsk5" class="quote-item quote-ask" style="font-size: 11px;">
+                                        <span class="quote-price">--</span><span class="quote-volume">--</span>
+                                    </div>
+                                    <div id="monitorQuoteAsk4" class="quote-item quote-ask" style="font-size: 11px;">
+                                        <span class="quote-price">--</span><span class="quote-volume">--</span>
+                                    </div>
+                                    <div id="monitorQuoteAsk3" class="quote-item quote-ask" style="font-size: 11px;">
+                                        <span class="quote-price">--</span><span class="quote-volume">--</span>
+                                    </div>
+                                    <div id="monitorQuoteAsk2" class="quote-item quote-ask" style="font-size: 11px;">
+                                        <span class="quote-price">--</span><span class="quote-volume">--</span>
+                                    </div>
+                                    <div id="monitorQuoteAsk1" class="quote-item quote-ask" style="font-size: 11px; font-weight: 600;">
+                                        <span class="quote-price">--</span><span class="quote-volume">--</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- 分隔线 -->
+                                <div style="height: 1px; background-color: #dee2e6; margin: 0.25rem 0;"></div>
+                                
+                                <!-- 买盘（买1到买5） -->
+                                <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 0.15rem;">
+                                    <div class="text-muted mb-1" style="font-size: 10px; font-weight: 500;">买盘</div>
+                                    <div id="monitorQuoteBid1" class="quote-item quote-bid" style="font-size: 11px; font-weight: 600;">
+                                        <span class="quote-price">--</span><span class="quote-volume">--</span>
+                                    </div>
+                                    <div id="monitorQuoteBid2" class="quote-item quote-bid" style="font-size: 11px;">
+                                        <span class="quote-price">--</span><span class="quote-volume">--</span>
+                                    </div>
+                                    <div id="monitorQuoteBid3" class="quote-item quote-bid" style="font-size: 11px;">
+                                        <span class="quote-price">--</span><span class="quote-volume">--</span>
+                                    </div>
+                                    <div id="monitorQuoteBid4" class="quote-item quote-bid" style="font-size: 11px;">
+                                        <span class="quote-price">--</span><span class="quote-volume">--</span>
+                                    </div>
+                                    <div id="monitorQuoteBid5" class="quote-item quote-bid" style="font-size: 11px;">
+                                        <span class="quote-price">--</span><span class="quote-volume">--</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- 最近信号 -->
-                        <div class="p-2" style="background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef;">
+                        <div class="p-2 mt-2" style="background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef;">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
                                     <span class="text-muted" style="font-size: 10px;">最近信号: </span>
@@ -347,7 +452,7 @@
                 </div>
 
                 <!-- 数据视图：持仓 / 委托 / 成交 -->
-                <div class="card" style="height: 400px; display: flex; flex-direction: column; overflow: hidden;">
+                <div class="card" style="height: 280px; display: flex; flex-direction: column; overflow: hidden;">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span><i class="fas fa-table me-2"></i>委托 / 成交 / 持仓</span>
                         <div>
@@ -448,72 +553,6 @@
                 </div>
             </div>
 
-            <!-- 右侧：交易账户 + 日志 -->
-            <div class="col-md-3 trading-right-panel">
-                <!-- 交易账户 -->
-                <div class="card mb-2">
-                    <div class="card-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-wallet me-2"></i>交易账户</span>
-                            <button class="btn btn-sm btn-success" onclick="showCreateAccount()" id="createAccountBtn">
-                                <i class="fas fa-plus me-1"></i>创建账户
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body account-card">
-                        <div class="account-info">
-                            <div class="d-flex justify-content-between">
-                                <small>账号</small>
-                                <span class="fw-bold" id="accountId">--</span>
-                            </div>
-                        </div>
-                        <div class="account-info">
-                            <div class="d-flex justify-content-between">
-                                <small>券商</small>
-                                <span class="fw-bold" id="brokerName">DeltaFStation</span>
-                            </div>
-                        </div>
-                        <div class="account-info">
-                            <div class="d-flex justify-content-between">
-                                <small>费率</small>
-                                <span class="fw-bold" id="commissionDisplay">--</span>
-                            </div>
-                        </div>
-                        <button class="btn btn-sm btn-danger w-100 mt-2" onclick="stopSimulation()" id="stopSimulationBtn" disabled>
-                            <i class="fas fa-stop me-1"></i>关闭账户
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 日志区域 -->
-                <div class="card" style="height: 400px; display: flex; flex-direction: column; overflow: hidden;">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-list-alt me-2"></i>日志</span>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="clearLogs()" title="清空日志">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
-                    <div class="card-body" style="padding: 0; flex: 1; overflow: hidden; display: flex; flex-direction: column;">
-                        <div class="table-container" style="height: 100%; overflow: auto;">
-                            <table class="table table-hover data-table mb-0">
-                                <thead class="table-header sticky-top">
-                                    <tr>
-                                        <th style="width: 100px; min-width: 100px;">时间</th>
-                                        <th>信息</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="logTableBody">
-                                    <tr>
-                                        <td colspan="2" class="text-center text-muted py-3" style="font-size: 11px;">
-                                            <i class="fas fa-info-circle me-1"></i>暂无日志
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 

@@ -7,11 +7,16 @@ let orders = [];
 let trades = [];
 let marketData = {};
 let intradayChart = null;
+let dailyChartCanvas = null;
+let dailyChartCtx = null;
 let intradayData = { times: [], prices: [] };
+let dailyData = { dates: [], candles: [] }; // candles: [{date, open, high, low, close}]
+let currentChartType = 'intraday'; // 'intraday' 或 'daily'
 let logs = []; // 日志数组
 let orderIdCounter = 10000000; // 委托号计数器
 let tradeIdCounter = 10000000; // 成交号计数器
 let marketUpdateInterval = null; // 行情更新定时器
+let currentIndicator = 'ma'; // 当前选中的技术指标：'ma' 或 'boll'
 
 // DOM 辅助函数已在 common.js 中定义
 
@@ -141,6 +146,13 @@ function initializeIntradayChart() {
             }
         }
     });
+    
+    // 初始化日K图（K线图，使用Canvas手动绘制）
+    const dailyCanvas = $('dailyChart');
+    if (dailyCanvas) {
+        dailyChartCanvas = dailyCanvas;
+        dailyChartCtx = dailyCanvas.getContext('2d');
+    }
 }
 
 function addIntradayPoint(price) {
@@ -207,13 +219,13 @@ function initializeDemoData() {
     const baseTime = now.getTime();
     const demoTrades = [];
     
-    // 买入工商银行
+    // 买入工商银行（放大10倍以适应100万初始资金）
     demoTrades.push({
         id: `trade_${tradeIdCounter++}`,
         order_id: `order_${orderIdCounter++}`,
         symbol: '601398.SH',
         action: 'buy',
-        quantity: 1000,
+        quantity: 10000,
         price: 5.80,
         date: new Date(baseTime - 600000).toISOString(),
         timestamp: new Date(baseTime - 600000).toISOString()
@@ -225,7 +237,7 @@ function initializeDemoData() {
         order_id: `order_${orderIdCounter++}`,
         symbol: '600036.SH',
         action: 'buy',
-        quantity: 200,
+        quantity: 2000,
         price: 42.50,
         date: new Date(baseTime - 480000).toISOString(),
         timestamp: new Date(baseTime - 480000).toISOString()
@@ -237,7 +249,7 @@ function initializeDemoData() {
         order_id: `order_${orderIdCounter++}`,
         symbol: '601398.SH',
         action: 'sell',
-        quantity: 500,
+        quantity: 5000,
         price: 5.85,
         date: new Date(baseTime - 360000).toISOString(),
         timestamp: new Date(baseTime - 360000).toISOString()
@@ -249,7 +261,7 @@ function initializeDemoData() {
         order_id: `order_${orderIdCounter++}`,
         symbol: '601398.SH',
         action: 'buy',
-        quantity: 800,
+        quantity: 8000,
         price: 5.82,
         date: new Date(baseTime - 240000).toISOString(),
         timestamp: new Date(baseTime - 240000).toISOString()
@@ -261,7 +273,7 @@ function initializeDemoData() {
         order_id: `order_${orderIdCounter++}`,
         symbol: '600036.SH',
         action: 'buy',
-        quantity: 100,
+        quantity: 1000,
         price: 42.55,
         date: new Date(baseTime - 120000).toISOString(),
         timestamp: new Date(baseTime - 120000).toISOString()
@@ -297,11 +309,46 @@ function initializeDemoData() {
         }
     });
     
+    // 调整价格以实现约18%的收益率
+    // 计算所需的价格调整以达到约18%的收益率
+    const initialCapital = 1000000;
+    // 计算目标总资产（18%收益率）
+    const targetReturn = 0.182; // 18.2%的收益率
+    const targetTotalAssets = initialCapital * (1 + targetReturn); // 1,182,000
+    
+    // 估算当前持仓市值（基于平均成本价）
+    let estimatedPositionValue = 0;
+    Object.entries(positions).forEach(([symbol, position]) => {
+        const quantity = Math.abs(position.quantity || 0);
+        const avgPrice = position.avg_price || 0;
+        estimatedPositionValue += quantity * avgPrice;
+    });
+    
+    // 计算所需的价格涨幅倍数
+    const availableCapital = initialCapital - totalCost;
+    const targetPositionValue = targetTotalAssets - availableCapital;
+    const priceMultiplier = estimatedPositionValue > 0 ? targetPositionValue / estimatedPositionValue : 1.18;
+    
+    // 调整市场价格
+    if (marketData['601398.SH'] && positions['601398.SH']) {
+        const avgPrice = positions['601398.SH'].avg_price || 5.81;
+        marketData['601398.SH'].latest_price = parseFloat((avgPrice * priceMultiplier).toFixed(2));
+        // 同时更新其他价格字段以保持一致性
+        marketData['601398.SH'].bid1_price = parseFloat((marketData['601398.SH'].latest_price - 0.01).toFixed(2));
+        marketData['601398.SH'].ask1_price = parseFloat((marketData['601398.SH'].latest_price + 0.01).toFixed(2));
+    }
+    if (marketData['600036.SH'] && positions['600036.SH']) {
+        const avgPrice = positions['600036.SH'].avg_price || 42.52;
+        marketData['600036.SH'].latest_price = parseFloat((avgPrice * priceMultiplier).toFixed(2));
+        marketData['600036.SH'].bid1_price = parseFloat((marketData['600036.SH'].latest_price - 0.04).toFixed(2));
+        marketData['600036.SH'].ask1_price = parseFloat((marketData['600036.SH'].latest_price + 0.04).toFixed(2));
+    }
+    
     currentSimulation = {
         id: 'demo',
         status: 'running',
-        initial_capital: 100000,
-        current_capital: 100000 - totalCost,
+        initial_capital: initialCapital,
+        current_capital: initialCapital - totalCost,
         frozen_capital: 0,
         commission: 0.001,
         slippage: 0.0005,
@@ -312,12 +359,12 @@ function initializeDemoData() {
     // 初始化模拟日志数据（多条）
     logs = [
         { time: new Date(baseTime - 900000).toLocaleTimeString(), message: '系统初始化完成', api: '--' },
-        { time: new Date(baseTime - 840000).toLocaleTimeString(), message: '创建交易账户: 初始资金 ¥100,000', api: '/api/simulations' },
-        { time: new Date(baseTime - 600000).toLocaleTimeString(), message: '买入成交: 601398.SH 1000股 @ ¥5.80', api: '/api/simulations/demo/trades' },
-        { time: new Date(baseTime - 480000).toLocaleTimeString(), message: '买入成交: 600036.SH 200股 @ ¥42.50', api: '/api/simulations/demo/trades' },
-        { time: new Date(baseTime - 360000).toLocaleTimeString(), message: '卖出成交: 601398.SH 500股 @ ¥5.85', api: '/api/simulations/demo/trades' },
-        { time: new Date(baseTime - 240000).toLocaleTimeString(), message: '买入成交: 601398.SH 800股 @ ¥5.82', api: '/api/simulations/demo/trades' },
-        { time: new Date(baseTime - 120000).toLocaleTimeString(), message: '买入成交: 600036.SH 100股 @ ¥42.55', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 840000).toLocaleTimeString(), message: '创建交易账户: 初始资金 ¥1,000,000', api: '/api/simulations' },
+        { time: new Date(baseTime - 600000).toLocaleTimeString(), message: '买入成交: 601398.SH 10000股 @ ¥5.80', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 480000).toLocaleTimeString(), message: '买入成交: 600036.SH 2000股 @ ¥42.50', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 360000).toLocaleTimeString(), message: '卖出成交: 601398.SH 5000股 @ ¥5.85', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 240000).toLocaleTimeString(), message: '买入成交: 601398.SH 8000股 @ ¥5.82', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 120000).toLocaleTimeString(), message: '买入成交: 600036.SH 1000股 @ ¥42.55', api: '/api/simulations/demo/trades' },
         { time: new Date(baseTime - 60000).toLocaleTimeString(), message: '账户状态更新成功', api: '/api/simulations/demo' }
     ];
 
@@ -357,13 +404,7 @@ function updateMarketData() {
         stock.latest_price = Math.max(0.01, stock.latest_price + priceChange);
         stock.latest_price = parseFloat(stock.latest_price.toFixed(2));
         
-        // 更新买卖盘
-        stock.bid1_price = parseFloat((stock.latest_price - 0.01).toFixed(2));
-        stock.ask1_price = parseFloat((stock.latest_price + 0.01).toFixed(2));
-        
-        // 买卖盘量小幅变化
-        stock.bid1_quantity = Math.max(100, stock.bid1_quantity + Math.floor((Math.random() - 0.5) * 2000));
-        stock.ask1_quantity = Math.max(100, stock.ask1_quantity + Math.floor((Math.random() - 0.5) * 2000));
+        // 买卖盘数据在updateQuoteBoard中动态生成
         
         // 更新涨跌
         const basePrice = symbol === '601398.SH' ? 5.80 : 42.30;
@@ -388,11 +429,7 @@ function updateQuoteUI(stock) {
         open: $('quoteOpen'),
         high: $('quoteHigh'),
         low: $('quoteLow'),
-        change: $('quoteChange'),
-        bid1Price: $('quoteBid1Price'),
-        bid1Vol: $('quoteBid1Volume'),
-        ask1Price: $('quoteAsk1Price'),
-        ask1Vol: $('quoteAsk1Volume')
+        change: $('quoteChange')
     };
     
     if (els.symbol) els.symbol.textContent = stock.symbol;
@@ -417,12 +454,43 @@ function updateQuoteUI(stock) {
         els.change.textContent = changeStr;
         els.change.className = stock.change >= 0 ? 'price-up' : 'price-down';
     }
-    if (els.bid1Price) els.bid1Price.textContent = stock.bid1_price ? stock.bid1_price.toFixed(2) : '--';
-    if (els.bid1Vol) els.bid1Vol.textContent = stock.bid1_quantity || '--';
-    if (els.ask1Price) els.ask1Price.textContent = stock.ask1_price ? stock.ask1_price.toFixed(2) : '--';
-    if (els.ask1Vol) els.ask1Vol.textContent = stock.ask1_quantity || '--';
+    
+    // 更新买5卖5盘口
+    updateQuoteBoard(stock);
     
     addIntradayPoint(stock.latest_price);
+}
+
+// 更新盘口（买5卖5）
+function updateQuoteBoard(stock) {
+    const currentPrice = stock.latest_price || 0;
+    const spread = 0.01; // 最小价差
+    
+    // 生成买盘数据（买1到买5）
+    for (let i = 1; i <= 5; i++) {
+        const bidEl = $('quoteBid' + i);
+        if (bidEl) {
+            const price = currentPrice - spread * i;
+            const volume = Math.floor(Math.random() * 5000 + 5000); // 模拟成交量
+            const priceEl = bidEl.querySelector('.quote-price');
+            const volEl = bidEl.querySelector('.quote-volume');
+            if (priceEl) priceEl.textContent = price.toFixed(2);
+            if (volEl) volEl.textContent = volume.toLocaleString();
+        }
+    }
+    
+    // 生成卖盘数据（卖1到卖5）
+    for (let i = 1; i <= 5; i++) {
+        const askEl = $('quoteAsk' + i);
+        if (askEl) {
+            const price = currentPrice + spread * i;
+            const volume = Math.floor(Math.random() * 5000 + 5000); // 模拟成交量
+            const priceEl = askEl.querySelector('.quote-price');
+            const volEl = askEl.querySelector('.quote-volume');
+            if (priceEl) priceEl.textContent = price.toFixed(2);
+            if (volEl) volEl.textContent = volume.toLocaleString();
+        }
+    }
 }
 
 // 更新行情显示
@@ -443,7 +511,7 @@ function updateAccountOverview() {
         return;
     }
     
-    const initialCapital = currentSimulation.initial_capital || 100000;
+    const initialCapital = currentSimulation.initial_capital || 1000000;
     const currentCapital = currentSimulation.current_capital || initialCapital;
     const frozenCapital = currentSimulation.frozen_capital || 0;
     const available = currentCapital - frozenCapital;
@@ -687,9 +755,18 @@ function setPrice(type, priceType) {
     }
     
     let price = 0;
-    if (priceType === 'current') price = stock.latest_price || 0;
-    else if (priceType === 'bid1') price = stock.bid1_price || stock.latest_price || 0;
-    else if (priceType === 'ask1') price = stock.ask1_price || stock.latest_price || 0;
+    const currentPrice = stock.latest_price || 0;
+    const spread = 0.01;
+    
+    if (priceType === 'current') {
+        price = currentPrice;
+    } else if (priceType === 'bid1') {
+        // 买1价 = 现价 - 最小价差
+        price = currentPrice - spread;
+    } else if (priceType === 'ask1') {
+        // 卖1价 = 现价 + 最小价差
+        price = currentPrice + spread;
+    }
     
     $(type === 'buy' ? 'buyPrice' : 'sellPrice').value = price.toFixed(2);
     calculateEstimatedAmount(type);
@@ -1163,9 +1240,403 @@ function clearLogs() {
     updateLogDisplay();
 }
 
+// 切换图表类型（分时/日K）
+function switchChartType(type) {
+    currentChartType = type;
+    
+    const intradayBtn = $('chartTypeIntraday');
+    const dailyBtn = $('chartTypeDaily');
+    const intradayCanvas = $('intradayChart');
+    const dailyCanvas = $('dailyChart');
+    
+    const indicatorButtons = document.getElementById('indicatorButtons');
+    
+    if (type === 'intraday') {
+        if (intradayBtn) intradayBtn.classList.add('active');
+        if (dailyBtn) dailyBtn.classList.remove('active');
+        if (intradayCanvas) intradayCanvas.style.display = 'block';
+        if (dailyCanvas) dailyCanvas.style.display = 'none';
+        if (indicatorButtons) indicatorButtons.style.display = 'none';
+    } else if (type === 'daily') {
+        if (intradayBtn) intradayBtn.classList.remove('active');
+        if (dailyBtn) dailyBtn.classList.add('active');
+        if (intradayCanvas) intradayCanvas.style.display = 'none';
+        if (dailyCanvas) dailyCanvas.style.display = 'block';
+        if (indicatorButtons) indicatorButtons.style.display = 'inline-block';
+        
+        // 如果日K图还没有数据，生成模拟数据
+        if (dailyData.candles.length === 0) {
+            generateDemoDailyData();
+        } else {
+            // 重新绘制K线图
+            drawCandlestickChart();
+        }
+    }
+}
+
+// 窗口大小改变时重新绘制K线图
+window.addEventListener('resize', function() {
+    if (currentChartType === 'daily' && dailyData.candles.length > 0) {
+        drawCandlestickChart();
+    }
+});
+
+// 生成模拟日K数据（用于演示）
+function generateDemoDailyData() {
+    const symbol = $('quoteSymbol')?.textContent;
+    if (!symbol || symbol === '--') return;
+    
+    const stock = marketData[symbol];
+    if (!stock) return;
+    
+    // 生成最近3个月（约90天）的模拟K线数据（OHLC）
+    const basePrice = stock.latest_price || 5.85;
+    dailyData.dates = [];
+    dailyData.candles = [];
+    
+    let currentPrice = basePrice;
+    // 3个月约90个交易日
+    for (let i = 89; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+        dailyData.dates.push(dateStr);
+        
+        // 模拟K线数据：开盘、最高、最低、收盘
+        const change = (Math.random() - 0.5) * 0.08;
+        const open = currentPrice;
+        const close = Math.max(0.01, open * (1 + change));
+        const high = Math.max(open, close) * (1 + Math.random() * 0.03);
+        const low = Math.min(open, close) * (1 - Math.random() * 0.03);
+        
+        dailyData.candles.push({
+            date: dateStr,
+            open: parseFloat(open.toFixed(2)),
+            high: parseFloat(high.toFixed(2)),
+            low: parseFloat(low.toFixed(2)),
+            close: parseFloat(close.toFixed(2))
+        });
+        
+        currentPrice = close;
+    }
+    
+    drawCandlestickChart();
+}
+
+// 计算MA指标
+function calculateMA(candles, period) {
+    const ma = [];
+    for (let i = 0; i < candles.length; i++) {
+        if (i < period - 1) {
+            ma.push(null);
+        } else {
+            let sum = 0;
+            for (let j = i - period + 1; j <= i; j++) {
+                sum += candles[j].close;
+            }
+            ma.push(sum / period);
+        }
+    }
+    return ma;
+}
+
+// 计算BOLL指标（布林带）
+function calculateBOLL(candles, period = 20, stdDev = 2) {
+    const ma = calculateMA(candles, period); // 中轨
+    const upper = []; // 上轨
+    const lower = []; // 下轨
+    
+    for (let i = 0; i < candles.length; i++) {
+        if (i < period - 1 || ma[i] === null) {
+            upper.push(null);
+            lower.push(null);
+        } else {
+            // 计算标准差
+            let sumSquaredDiff = 0;
+            for (let j = i - period + 1; j <= i; j++) {
+                const diff = candles[j].close - ma[i];
+                sumSquaredDiff += diff * diff;
+            }
+            const std = Math.sqrt(sumSquaredDiff / period);
+            
+            upper.push(ma[i] + stdDev * std);
+            lower.push(ma[i] - stdDev * std);
+        }
+    }
+    
+    return { middle: ma, upper: upper, lower: lower };
+}
+
+// 切换技术指标
+function switchIndicator(indicator, btnElement) {
+    currentIndicator = indicator;
+    
+    // 更新按钮状态
+    const indicatorButtons = document.getElementById('indicatorButtons');
+    if (indicatorButtons) {
+        indicatorButtons.querySelectorAll('button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        if (btnElement) {
+            btnElement.classList.add('active');
+        }
+    }
+    
+    // 重新绘制K线图
+    if ($('dailyChart')?.style.display !== 'none') {
+        drawCandlestickChart();
+    }
+}
+
+// 绘制K线图（蜡烛图）
+function drawCandlestickChart() {
+    if (!dailyChartCanvas || !dailyChartCtx || dailyData.candles.length === 0) return;
+    
+    const canvas = dailyChartCanvas;
+    const ctx = dailyChartCtx;
+    const width = canvas.width = canvas.offsetWidth;
+    const height = canvas.height = canvas.offsetHeight;
+    
+    // 清空画布
+    ctx.clearRect(0, 0, width, height);
+    
+    const candles = dailyData.candles;
+    const padding = { top: 20, right: 30, bottom: 30, left: 50 };
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+    
+    // 根据选中的指标计算数据
+    let ma5 = [], ma10 = [], ma20 = [];
+    let bollData = null;
+    
+    if (currentIndicator === 'ma') {
+        ma5 = calculateMA(candles, 5);
+        ma10 = calculateMA(candles, 10);
+        ma20 = calculateMA(candles, 20);
+    } else if (currentIndicator === 'boll') {
+        bollData = calculateBOLL(candles, 20, 2);
+    }
+    
+    // 计算价格范围（包含指标）
+    let minPrice = Math.min(...candles.map(c => c.low));
+    let maxPrice = Math.max(...candles.map(c => c.high));
+    
+    if (currentIndicator === 'ma') {
+        const maValues = [...ma5, ...ma10, ...ma20].filter(v => v !== null);
+        if (maValues.length > 0) {
+            minPrice = Math.min(minPrice, ...maValues);
+            maxPrice = Math.max(maxPrice, ...maValues);
+        }
+    } else if (currentIndicator === 'boll' && bollData) {
+        const bollValues = [...bollData.upper, ...bollData.lower, ...bollData.middle].filter(v => v !== null);
+        if (bollValues.length > 0) {
+            minPrice = Math.min(minPrice, ...bollValues);
+            maxPrice = Math.max(maxPrice, ...bollValues);
+        }
+    }
+    const priceRange = maxPrice - minPrice;
+    const pricePadding = priceRange * 0.1; // 上下各留10%空间
+    minPrice -= pricePadding;
+    maxPrice += pricePadding;
+    
+    // 计算每根K线的宽度和间距
+    const candleCount = candles.length;
+    const candleWidth = Math.max(2, Math.min(8, chartWidth / candleCount * 0.6));
+    const candleSpacing = chartWidth / candleCount;
+    
+    // 价格转换为坐标的函数
+    const priceToY = (price) => {
+        return padding.top + chartHeight - ((price - minPrice) / (maxPrice - minPrice)) * chartHeight;
+    };
+    
+    // 绘制网格线
+    ctx.strokeStyle = '#e9ecef';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+        const y = padding.top + (chartHeight / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(padding.left + chartWidth, y);
+        ctx.stroke();
+        
+        // 绘制价格标签
+        const price = maxPrice - (priceRange / 4) * i;
+        ctx.fillStyle = '#6c757d';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(price.toFixed(2), padding.left - 5, y + 3);
+    }
+    
+    // 绘制MA指标线
+    if (currentIndicator === 'ma') {
+        const drawMALine = (maData, color, label) => {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            let firstPoint = true;
+            maData.forEach((value, index) => {
+                if (value !== null) {
+                    const x = padding.left + candleSpacing * (index + 0.5);
+                    const y = priceToY(value);
+                    if (firstPoint) {
+                        ctx.moveTo(x, y);
+                        firstPoint = false;
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+            });
+            ctx.stroke();
+            
+            // 绘制MA标签（在最后一点）
+            const lastValue = maData.filter(v => v !== null).pop();
+            if (lastValue !== undefined) {
+                const lastIndex = maData.lastIndexOf(lastValue);
+                const x = padding.left + candleSpacing * (lastIndex + 0.5);
+                const y = priceToY(lastValue);
+                ctx.fillStyle = color;
+                ctx.font = '9px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(label, x + 3, y - 3);
+            }
+        };
+        
+        // 绘制MA5、MA10、MA20
+        drawMALine(ma5, '#ff9800', 'MA5');   // 橙色
+        drawMALine(ma10, '#2196f3', 'MA10'); // 蓝色
+        drawMALine(ma20, '#9c27b0', 'MA20'); // 紫色
+    }
+    
+    // 绘制BOLL指标（布林带）
+    if (currentIndicator === 'boll' && bollData) {
+        const { middle, upper, lower } = bollData;
+        
+        // 绘制布林带区域（填充）
+        ctx.fillStyle = 'rgba(33, 150, 243, 0.1)';
+        ctx.beginPath();
+        let firstUpper = true, firstLower = true;
+        for (let i = 0; i < upper.length; i++) {
+            if (upper[i] !== null && lower[i] !== null) {
+                const x = padding.left + candleSpacing * (i + 0.5);
+                const upperY = priceToY(upper[i]);
+                const lowerY = priceToY(lower[i]);
+                if (firstUpper) {
+                    ctx.moveTo(x, upperY);
+                    firstUpper = false;
+                } else {
+                    ctx.lineTo(x, upperY);
+                }
+                if (i === upper.length - 1) {
+                    // 连接下轨
+                    for (let j = upper.length - 1; j >= 0; j--) {
+                        if (lower[j] !== null) {
+                            const x2 = padding.left + candleSpacing * (j + 0.5);
+                            const lowerY2 = priceToY(lower[j]);
+                            ctx.lineTo(x2, lowerY2);
+                        }
+                    }
+                    ctx.closePath();
+                }
+            }
+        }
+        ctx.fill();
+        
+        // 绘制上轨、中轨、下轨线
+        const drawBOLLLine = (data, color, label) => {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            let firstPoint = true;
+            data.forEach((value, index) => {
+                if (value !== null) {
+                    const x = padding.left + candleSpacing * (index + 0.5);
+                    const y = priceToY(value);
+                    if (firstPoint) {
+                        ctx.moveTo(x, y);
+                        firstPoint = false;
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+            });
+            ctx.stroke();
+            
+            // 绘制标签（在最后一点）
+            const lastValue = data.filter(v => v !== null).pop();
+            if (lastValue !== undefined) {
+                const lastIndex = data.lastIndexOf(lastValue);
+                const x = padding.left + candleSpacing * (lastIndex + 0.5);
+                const y = priceToY(lastValue);
+                ctx.fillStyle = color;
+                ctx.font = '9px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(label, x + 3, y - 3);
+            }
+        };
+        
+        drawBOLLLine(upper, '#2196f3', 'BOLL上'); // 蓝色
+        drawBOLLLine(middle, '#ff9800', 'BOLL中'); // 橙色
+        drawBOLLLine(lower, '#2196f3', 'BOLL下'); // 蓝色
+    }
+    
+    // 绘制K线
+    candles.forEach((candle, index) => {
+        const x = padding.left + candleSpacing * (index + 0.5);
+        const openY = priceToY(candle.open);
+        const closeY = priceToY(candle.close);
+        const highY = priceToY(candle.high);
+        const lowY = priceToY(candle.low);
+        
+        const isUp = candle.close >= candle.open;
+        const color = isUp ? '#dc3545' : '#28a745'; // 涨红跌绿
+        
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 1;
+        
+        // 绘制上影线
+        ctx.beginPath();
+        ctx.moveTo(x, highY);
+        ctx.lineTo(x, Math.min(openY, closeY));
+        ctx.stroke();
+        
+        // 绘制下影线
+        ctx.beginPath();
+        ctx.moveTo(x, lowY);
+        ctx.lineTo(x, Math.max(openY, closeY));
+        ctx.stroke();
+        
+        // 绘制实体（矩形）
+        const bodyTop = Math.min(openY, closeY);
+        const bodyBottom = Math.max(openY, closeY);
+        const bodyHeight = Math.max(1, bodyBottom - bodyTop);
+        
+        if (isUp) {
+            // 阳线：红色实心
+            ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+        } else {
+            // 阴线：绿色实心
+            ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+        }
+    });
+    
+    // 绘制日期标签
+    ctx.fillStyle = '#6c757d';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    const labelStep = Math.max(1, Math.floor(candleCount / 8));
+    for (let i = 0; i < candleCount; i += labelStep) {
+        const x = padding.left + candleSpacing * (i + 0.5);
+        ctx.fillText(candles[i].date, x, height - 10);
+    }
+}
+
 // 页面卸载时清理定时器
 window.addEventListener('beforeunload', function() {
     if (updateInterval) {
         clearInterval(updateInterval);
+    }
+    if (marketUpdateInterval) {
+        clearInterval(marketUpdateInterval);
     }
 });
