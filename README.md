@@ -4,6 +4,8 @@
 
 [中文](README.md) | [English](README_EN.md)
 
+</div>
+
 ![Version](https://img.shields.io/badge/version-0.6.2-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
@@ -11,6 +13,10 @@
 
 基于 Web 的量化交易系统，专注于策略回测、仿真交易与实时监控。
 
+<div align="center">
+  <img src="assets/backtest.png" width="32%" />
+  <img src="assets/trader.png" width="32%" />
+  <img src="assets/monitor.png" width="32%" />
 </div>
 
 ## 安装
