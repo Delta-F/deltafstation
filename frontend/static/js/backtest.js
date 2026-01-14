@@ -289,12 +289,13 @@ async function loadStrategies() {
         return;
     }
 
-    select.innerHTML = '<option value="">请选择策略（自动扫描 data/strategies 下的 .py 脚本）</option>' +
-        data.strategies.map(s => `<option value="${s.id}">${s.name} (${s.type})</option>`).join('');
+    select.innerHTML = '<option value="">请选择策略 (data/strategies)</option>' +
+        data.strategies.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
     
     if (data.strategies.length > 0) {
         select.value = data.strategies[0].id;
         await selectStrategy(data.strategies[0].id);
+        updateStrategyActionButtons(data.strategies[0].id);
     }
 }
 
@@ -302,9 +303,11 @@ function handleStrategySelectChange() {
     const select = $('backtestStrategySelect');
     if (!select || !select.value) {
         currentStrategy = null;
+        updateStrategyActionButtons(null);
         return;
     }
     selectStrategy(select.value);
+    updateStrategyActionButtons(select.value);
 }
 
 async function selectStrategy(strategyId) {
@@ -437,7 +440,7 @@ async function loadBacktestHistory() {
 }
 
 async function clearBacktestHistory() {
-    if (!confirm('确定要清空所有回测历史记录吗？此操作不可撤销。')) {
+    if (!confirm('确定要清空所有回测历史记录吗？')) {
         return;
     }
     

@@ -240,53 +240,63 @@
                     </div>
                     <div class="card-body">
                         <form id="runStrategyForm">
-                            <div class="trade-form-row">
-                                <div class="form-row-inline">
-                                    <label for="runStrategySelect" class="form-label fw-bold">交易策略</label>
-                                    <select class="form-select form-select-sm" id="runStrategySelect" required>
-                                        <option value="">请选择策略</option>
-                                    </select>
-                                </div>
+                            <div class="mb-3">
+                                <label class="form-label d-flex justify-content-between align-items-center" style="font-size: 12px;">
+                                    <span>交易策略</span>
+                                    <div class="strategy-actions">
+                                        <button type="button" class="btn btn-xs btn-link p-0 text-primary me-2" onclick="viewCurrentStrategy()" title="查看源码" id="btnViewStrategy" style="display:none; text-decoration:none;">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-link p-0 text-success me-2" onclick="downloadCurrentStrategy()" title="下载策略" id="btnDownloadStrategy" style="display:none; text-decoration:none;">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-link p-0 text-info me-2" onclick="$('strategyFileUpload').click()" title="上传策略" style="text-decoration:none;">
+                                            <i class="fas fa-upload"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-link p-0 text-danger" onclick="deleteCurrentStrategy()" title="删除策略" id="btnDeleteStrategy" style="display:none; text-decoration:none;">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                        <input type="file" id="strategyFileUpload" style="display: none;" accept=".py" onchange="uploadStrategyFile(this)">
+                                    </div>
+                                </label>
+                                <select class="form-select form-select-sm" id="runStrategySelect" onchange="handleStrategySelectChange()" required>
+                                    <option value="">请选择策略</option>
+                                </select>
                             </div>
 
-                            <div class="trade-form-row">
-                                <div class="form-row-inline">
-                                    <label for="runSymbol" class="form-label fw-bold">投资标的</label>
-                                    <input type="text" class="form-control form-control-sm" id="runSymbol"
-                                           placeholder="例如：601398.SH 或 600036.SH" value="601398.SH" required>
-                                </div>
+                            <div class="mb-3 d-flex align-items-center">
+                                <label for="runSymbol" class="form-label mb-0 me-2" style="min-width: 80px; font-size: 12px;">投资标的</label>
+                                <input type="text" class="form-control form-control-sm" id="runSymbol"
+                                       placeholder="例如：601398.SH 或 600036.SH" value="601398.SH" required>
                             </div>
-                            <div class="trade-form-row">
+
+                            <div class="mb-3">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="useDemoData" checked>
                                     <label class="form-check-label" for="useDemoData" style="font-size: 13px; font-weight: 500;">
-                                        使用演示数据（默认启用，将自动生成模拟交易）
+                                        使用演示数据（默认启用）
                                     </label>
                                 </div>
                             </div>
 
-                            <div class="trade-form-row">
-                                <div class="form-row-inline">
-                                    <label for="runInitialCapital" class="form-label fw-bold">初始资金</label>
-                                    <input type="number" class="form-control form-control-sm" id="runInitialCapital" 
-                                           value="100000" required>
-                                </div>
+                            <div class="mb-3 d-flex align-items-center">
+                                <label for="runInitialCapital" class="form-label mb-0 me-2" style="min-width: 80px; font-size: 12px;">初始资金</label>
+                                <input type="number" class="form-control form-control-sm" id="runInitialCapital" 
+                                       value="100000" required>
                             </div>
 
-                            <div class="trade-form-row">
-                                <div class="form-row-inline">
-                                    <label for="runCommission" class="form-label fw-bold">手续费率</label>
-                                    <input type="number" class="form-control form-control-sm" id="runCommission" 
-                                           value="0.001" step="0.0001">
-                                </div>
+                            <div class="mb-3 d-flex align-items-center">
+                                <label for="runCommission" class="form-label mb-0 me-2" style="min-width: 80px; font-size: 12px;">手续费率</label>
+                                <input type="number" class="form-control form-control-sm" id="runCommission" 
+                                       value="0.001" step="0.0001">
                             </div>
 
                             <div class="d-grid gap-2" style="margin-top: 0.5rem;">
-                                <button type="button" class="btn btn-primary" onclick="startRunStrategy()" id="startStrategyBtn">
-                                    <i class="fas fa-play me-1"></i>启动策略
+                                <button type="button" class="btn btn-primary btn-sm" onclick="startRunStrategy()" id="startStrategyBtn">
+                                    <i class="fas fa-play me-2"></i>启动策略
                                 </button>
-                                <button type="button" class="btn btn-danger" onclick="stopRunStrategy()" id="stopStrategyBtn" disabled>
-                                    <i class="fas fa-stop me-1"></i>停止策略
+                                <button type="button" class="btn btn-danger btn-sm" onclick="stopRunStrategy()" id="stopStrategyBtn" disabled>
+                                    <i class="fas fa-stop me-2"></i>停止策略
                                 </button>
                             </div>
                         </form>
@@ -587,6 +597,24 @@
                     <button type="button" class="btn btn-primary" onclick="createAccount()">
                         <i class="fas fa-check me-1"></i>创建账户
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 策略源码查看模态框 -->
+    <div class="modal fade" id="strategyCodeModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="strategyCodeTitle">策略源码</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <pre id="strategyCodeContent" style="margin: 0; padding: 1rem; max-height: 600px; overflow-y: auto; background-color: #f8f9fa; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px;"></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                 </div>
             </div>
         </div>

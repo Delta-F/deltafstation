@@ -1132,7 +1132,7 @@ async function stopSimulation() {
         return;
     }
     
-    if (!confirm('确定要关闭交易账户吗？关闭后需要重新创建账户才能继续交易。')) {
+    if (!confirm('确定要关闭交易账户吗？')) {
         return;
     }
     

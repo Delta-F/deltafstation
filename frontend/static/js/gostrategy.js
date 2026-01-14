@@ -57,7 +57,7 @@ async function loadStrategies() {
         const data = await response.json();
         
         const select = $('runStrategySelect');
-        select.innerHTML = '<option value="">请选择策略</option>';
+        select.innerHTML = '<option value="">请选择策略 (data/strategies)</option>';
         
         let defaultStrategyId = null;
         
@@ -65,7 +65,7 @@ async function loadStrategies() {
             data.strategies.forEach(strategy => {
                 const option = document.createElement('option');
                 option.value = strategy.id;
-                option.textContent = `${strategy.name} (${strategy.type || '技术分析'})`;
+                option.textContent = `${strategy.name}`;
                 select.appendChild(option);
                 
                 // 优先选择BOLLStrategy，如果没有则选择第一个策略
@@ -79,13 +79,23 @@ async function loadStrategies() {
             // 设置默认选中值（优先BOLLStrategy，否则选择第一个）
             if (defaultStrategyId) {
                 select.value = defaultStrategyId;
+                updateStrategyActionButtons(defaultStrategyId);
             }
         } else {
             select.innerHTML = '<option value="">暂无可用策略</option>';
+            updateStrategyActionButtons(null);
         }
     } catch (error) {
         console.error('Error loading strategies:', error);
         addLog('加载策略列表失败: ' + error.message, 'error');
+    }
+}
+
+// 策略选择变更处理
+function handleStrategySelectChange() {
+    const select = $('runStrategySelect');
+    if (select) {
+        updateStrategyActionButtons(select.value);
     }
 }
 
@@ -717,7 +727,7 @@ async function stopSimulation() {
         return;
     }
     
-    if (!confirm('确定要关闭交易账户吗？关闭后需要重新创建账户才能继续交易。')) {
+    if (!confirm('确定要关闭交易账户吗？')) {
         return;
     }
     
