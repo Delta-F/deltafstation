@@ -27,43 +27,28 @@ function generateMonthLabels(dateArray) {
 }
 
 function parseValuesDf(valuesDf) {
-    const portfolioValues = [];
-    const rawDates = [];
-    
-    if (!valuesDf || !Array.isArray(valuesDf)) return { portfolioValues, dates: [], rawDates: [] };
+    if (!valuesDf || !Array.isArray(valuesDf) || valuesDf.length === 0) {
+        return { portfolioValues: [], dates: [], rawDates: [] };
+    }
     
     const valueKeys = ['total_value', 'portfolio_value', 'value', 'equity', 'capital', 'balance'];
     const dateKeys = ['date', 'Date', 'index', 'timestamp', 'time'];
     
+    // 预先确定第一行的键名，避免每行都循环查找
+    const firstRow = valuesDf[0];
+    const foundValueKey = valueKeys.find(key => firstRow[key] !== undefined && firstRow[key] !== null) || 
+                         Object.keys(firstRow).find(key => typeof firstRow[key] === 'number' && firstRow[key] > 0 && !dateKeys.includes(key));
+    const foundDateKey = dateKeys.find(key => firstRow[key]);
+
+    const portfolioValues = [];
+    const rawDates = [];
+    
     valuesDf.forEach(row => {
-        let value = null;
-        for (const key of valueKeys) {
-            if (row[key] !== undefined && row[key] !== null) {
-                value = row[key];
-                break;
-            }
-        }
-        
-        if (value === null) {
-            for (const key of Object.keys(row)) {
-                const val = row[key];
-                if (typeof val === 'number' && val > 0 && !dateKeys.includes(key)) {
-                    value = val;
-                    break;
-                }
-            }
-        }
-        
-        if (value !== null && value !== undefined) {
+        const value = row[foundValueKey];
+        if (value !== undefined && value !== null) {
             portfolioValues.push(parseFloat(value));
-            let date = null;
-            for (const key of dateKeys) {
-                if (row[key]) {
-                    date = row[key];
-                    break;
-                }
-            }
             
+            const date = foundDateKey ? row[foundDateKey] : null;
             if (date) {
                 const dateStr = typeof date === 'string' ? date : new Date(date).toISOString().split('T')[0];
                 rawDates.push(dateStr);
@@ -456,24 +441,19 @@ async function clearBacktestHistory() {
     }
 }
 
-async function runBacktest() {
-    if (!currentStrategy) {
-        showAlert('请先选择策略', 'warning');
-        return;
-    }
-    
-    const symbol = $('backtestSymbol')?.value.trim().toUpperCase() || '';
-    const startDate = $('backtestStartDate')?.value || '';
-    const endDate = $('backtestEndDate')?.value || '';
-    const initialCapital = parseFloat($('backtestInitialCapital')?.value || 100000);
-    const commission = parseFloat($('backtestCommission')?.value || 0.001);
-    const slippage = 0.0005;
-    
-    if (!symbol || !startDate || !endDate) {
-        showAlert('请填写必填字段（策略、投资标的、日期区间）', 'warning');
-        return;
-    }
-    
+function getBacktestParams() {
+    return {
+        strategyId: currentStrategy?.id,
+        symbol: $('backtestSymbol')?.value.trim().toUpperCase() || '',
+        startDate: $('backtestStartDate')?.value || '',
+        endDate: $('backtestEndDate')?.value || '',
+        initialCapital: parseFloat($('backtestInitialCapital')?.value || 100000),
+        commission: parseFloat($('backtestCommission')?.value || 0.001),
+        slippage: 0.0005
+    };
+}
+
+async function syncMarketData(symbol, startDate, endDate) {
     const fetchResult = await apiRequest(`/api/data/symbols/${symbol}/files`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -482,29 +462,43 @@ async function runBacktest() {
     
     if (!fetchResult.ok) {
         showAlert(fetchResult.data.error || '获取数据失败', 'danger');
-        return;
+        return null;
     }
     
-    // 提示下载/同步成功并刷新目录
     const statusMsg = fetchResult.data.status === 'updated' ? '数据同步完成' : '全量数据下载完成';
     showAlert(`${symbol} ${statusMsg}`, 'success');
     loadDataFiles();
     
-    // 获取文件名（新API直接返回filename或id）
-    const filename = fetchResult.data.filename || fetchResult.data.id;
+    return fetchResult.data.filename || fetchResult.data.id;
+}
+
+async function runBacktest() {
+    if (!currentStrategy) {
+        showAlert('请先选择策略', 'warning');
+        return;
+    }
+    
+    const params = getBacktestParams();
+    if (!params.symbol || !params.startDate || !params.endDate) {
+        showAlert('请填写必填字段（策略、投资标的、日期区间）', 'warning');
+        return;
+    }
+    
+    const filename = await syncMarketData(params.symbol, params.startDate, params.endDate);
+    if (!filename) return;
     
     const result = await apiRequest('/api/backtests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            strategy_id: currentStrategy.id,
-            symbol: symbol, // 显式传递标的代码
+            strategy_id: params.strategyId,
+            symbol: params.symbol,
             data_file: filename,
-            start_date: startDate,
-            end_date: endDate,
-            initial_capital: initialCapital,
-            commission,
-            slippage
+            start_date: params.startDate,
+            end_date: params.endDate,
+            initial_capital: params.initialCapital,
+            commission: params.commission,
+            slippage: params.slippage
         })
     });
     
@@ -523,11 +517,11 @@ async function runBacktest() {
             metrics: result.data.metrics || {},
             portfolio_values: portfolioValues,
             dates,
-            rawDates: rawDates || dates, // 保存原始日期数组
+            rawDates: rawDates || dates,
             trades: result.data.trades_df || [],
-            initial_capital: initialCapital,
-            start_date: startDate,
-            end_date: endDate
+            initial_capital: params.initialCapital,
+            start_date: params.startDate,
+            end_date: params.endDate
         };
         showBacktestResult(resultsWithParams);
         loadBacktestHistory();
@@ -538,48 +532,44 @@ async function runBacktest() {
 }
 
 function showBacktestResult(results) {
-    const metrics = results.metrics || {};
-    const initialCapital = metrics.start_capital || results.initial_capital || 
+    const m = results.metrics || {};
+    const initialCapital = m.start_capital || results.initial_capital || 
         parseFloat($('backtestInitialCapital')?.value || 100000);
+    const endingCapital = m.end_capital || initialCapital;
+    const growth = endingCapital - initialCapital;
+    const growthPercent = initialCapital > 0 ? (growth / initialCapital * 100) : 0;
     
-    const indicators = {
-        resultTotalTradingDays: metrics.total_trading_days || 0,
-        resultProfitableDays: [metrics.profitable_days || 0, 'text-danger'],
-        resultLossDays: [metrics.losing_days || 0, 'text-success'],
-        resultInitialCapital: formatCurrency(initialCapital),
-        resultEndingCapital: formatCurrency(metrics.end_capital || initialCapital),
-        resultCapitalGrowth: (() => {
-            const ending = metrics.end_capital || initialCapital;
-            const growth = ending - initialCapital;
-            const percent = initialCapital > 0 ? (growth / initialCapital * 100) : 0;
-            return [`${percent >= 0 ? '+' : ''}${percent.toFixed(2)}%`, growth >= 0 ? 'text-danger' : 'text-success'];
-        })(),
-        resultTotalReturn: [`${((metrics.total_return || 0) * 100).toFixed(2)}%`, (metrics.total_return || 0) >= 0 ? 'text-danger' : 'text-success'],
-        resultAnnualizedReturn: [`${((metrics.annualized_return || 0) * 100).toFixed(2)}%`, (metrics.annualized_return || 0) >= 0 ? 'text-danger' : 'text-success'],
-        resultDailyAvgReturn: [`${((metrics.avg_daily_return || 0) * 100).toFixed(2)}%`, (metrics.avg_daily_return || 0) >= 0 ? 'text-danger' : 'text-success'],
-        resultMaxDrawdown: `${((metrics.max_drawdown || 0) * 100).toFixed(2)}%`,
-        resultStdDev: `${((metrics.return_std || 0) * 100).toFixed(2)}%`,
-        resultVolatility: `${((metrics.volatility || 0) * 100).toFixed(2)}%`,
-        resultSharpeRatio: (metrics.sharpe_ratio || 0).toFixed(2),
-        resultReturnDrawdownRatio: (metrics.return_drawdown_ratio || 0).toFixed(2),
-        resultWinRate: `${((metrics.win_rate || 0) * 100).toFixed(2)}%`,
-        resultProfitLossRatio: metrics.profit_loss_ratio === Infinity ? 'inf' : (metrics.profit_loss_ratio || 0).toFixed(2),
-        resultAvgProfit: [formatCurrency(metrics.avg_win || 0), 'text-danger'],
-        resultAvgLoss: [formatCurrency(Math.abs(metrics.avg_loss || 0)), 'text-success'],
-        resultTotalPnL: [formatCurrency(metrics.total_pnl || 0), (metrics.total_pnl || 0) >= 0 ? 'text-danger' : 'text-success'],
-        resultTotalCommission: formatCurrency(metrics.total_commission || 0),
-        resultTotalTurnover: formatCurrency(metrics.total_turnover || 0),
-        resultTotalTrades: metrics.total_trade_count || 0,
-        resultDailyAvgPnL: [formatCurrency(metrics.avg_daily_pnl || 0), (metrics.avg_daily_pnl || 0) >= 0 ? 'text-danger' : 'text-success'],
-        resultDailyAvgCommission: formatCurrency(metrics.avg_daily_commission || 0),
-        resultDailyAvgTurnover: formatCurrency(metrics.avg_daily_turnover || 0),
-        resultDailyAvgTrades: (metrics.avg_daily_trade_count || 0).toFixed(2)
-    };
+    // 配置化指标映射
+    const indicatorConfig = [
+        { id: 'resultTotalTradingDays', val: m.total_trading_days || 0 },
+        { id: 'resultProfitableDays', val: m.profitable_days || 0, cls: 'text-danger' },
+        { id: 'resultLossDays', val: m.losing_days || 0, cls: 'text-success' },
+        { id: 'resultInitialCapital', val: formatCurrency(initialCapital) },
+        { id: 'resultEndingCapital', val: formatCurrency(endingCapital) },
+        { id: 'resultCapitalGrowth', val: `${growthPercent >= 0 ? '+' : ''}${growthPercent.toFixed(2)}%`, cls: growth >= 0 ? 'text-danger' : 'text-success' },
+        { id: 'resultTotalReturn', val: `${((m.total_return || 0) * 100).toFixed(2)}%`, cls: (m.total_return || 0) >= 0 ? 'text-danger' : 'text-success' },
+        { id: 'resultAnnualizedReturn', val: `${((m.annualized_return || 0) * 100).toFixed(2)}%`, cls: (m.annualized_return || 0) >= 0 ? 'text-danger' : 'text-success' },
+        { id: 'resultDailyAvgReturn', val: `${((m.avg_daily_return || 0) * 100).toFixed(2)}%`, cls: (m.avg_daily_return || 0) >= 0 ? 'text-danger' : 'text-success' },
+        { id: 'resultMaxDrawdown', val: `${((m.max_drawdown || 0) * 100).toFixed(2)}%` },
+        { id: 'resultStdDev', val: `${((m.return_std || 0) * 100).toFixed(2)}%` },
+        { id: 'resultVolatility', val: `${((m.volatility || 0) * 100).toFixed(2)}%` },
+        { id: 'resultSharpeRatio', val: (m.sharpe_ratio || 0).toFixed(2) },
+        { id: 'resultReturnDrawdownRatio', val: (m.return_drawdown_ratio || 0).toFixed(2) },
+        { id: 'resultWinRate', val: `${((m.win_rate || 0) * 100).toFixed(2)}%` },
+        { id: 'resultProfitLossRatio', val: m.profit_loss_ratio === Infinity ? 'inf' : (m.profit_loss_ratio || 0).toFixed(2) },
+        { id: 'resultAvgProfit', val: formatCurrency(m.avg_win || 0), cls: 'text-danger' },
+        { id: 'resultAvgLoss', val: formatCurrency(Math.abs(m.avg_loss || 0)), cls: 'text-success' },
+        { id: 'resultTotalPnL', val: formatCurrency(m.total_pnl || 0), cls: (m.total_pnl || 0) >= 0 ? 'text-danger' : 'text-success' },
+        { id: 'resultTotalCommission', val: formatCurrency(m.total_commission || 0) },
+        { id: 'resultTotalTurnover', val: formatCurrency(m.total_turnover || 0) },
+        { id: 'resultTotalTrades', val: m.total_trade_count || 0 },
+        { id: 'resultDailyAvgPnL', val: formatCurrency(m.avg_daily_pnl || 0), cls: (m.avg_daily_pnl || 0) >= 0 ? 'text-danger' : 'text-success' },
+        { id: 'resultDailyAvgCommission', val: formatCurrency(m.avg_daily_commission || 0) },
+        { id: 'resultDailyAvgTurnover', val: formatCurrency(m.avg_daily_turnover || 0) },
+        { id: 'resultDailyAvgTrades', val: (m.avg_daily_trade_count || 0).toFixed(2) }
+    ];
     
-    Object.entries(indicators).forEach(([id, value]) => {
-        const [text, className] = Array.isArray(value) ? value : [value, ''];
-        setElementText(id, text, className);
-    });
+    indicatorConfig.forEach(item => setElementText(item.id, item.val, item.cls));
     
     setTimeout(() => {
         if (results.portfolio_values?.length > 0) {
@@ -672,6 +662,31 @@ function calculateDailyReturns(portfolioValues) {
     return returns;
 }
 
+function getChartTooltipCallbacks(originalDates) {
+    return {
+        title: function(context) {
+            const index = context[0].dataIndex;
+            const dateStr = (originalDates && originalDates[index]) ? originalDates[index] : context[0].label;
+            if (!dateStr) return '';
+            try {
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    return date.toISOString().split('T')[0];
+                }
+            } catch (e) {}
+            return dateStr;
+        },
+        label: function(ctx) {
+            const label = ctx.dataset.label || '';
+            const value = ctx.parsed.y;
+            if (label.includes('收益率') || label.includes('回撤')) {
+                return `${label}: ${value.toFixed(2)}%`;
+            }
+            return `${label}: ${value.toFixed(4)}`;
+        }
+    };
+}
+
 function drawEquityChart(dates, portfolioValues, initialCapital, rawDates = null) {
     const canvas = $('equityChart');
     if (!canvas) return;
@@ -680,8 +695,6 @@ function drawEquityChart(dates, portfolioValues, initialCapital, rawDates = null
     
     const normalizedValues = portfolioValues.map(v => v / initialCapital);
     const baseOptions = getChartBaseOptions();
-    
-    // 保存原始日期数组到图表实例
     const originalDates = rawDates || dates;
     
     charts.equity = new Chart(canvas.getContext('2d'), {
@@ -718,34 +731,12 @@ function drawEquityChart(dates, portfolioValues, initialCapital, rawDates = null
                 legend: {
                     display: true,
                     position: 'top',
-                    labels: { font: { size: 10, weight: 'normal' }, padding: 5, usePointStyle: true, boxWidth: 8, boxHeight: 8 }
+                    labels: { font: { size: 10 }, padding: 5, usePointStyle: true, boxWidth: 8, boxHeight: 8 }
                 },
                 tooltip: {
                     ...baseOptions.plugins.tooltip,
                     displayColors: true,
-                    callbacks: {
-                        title: function(context) {
-                            const index = context[0].dataIndex;
-                            if (originalDates && originalDates[index]) {
-                                const dateStr = originalDates[index];
-                                // 显示完整日期
-                                try {
-                                    const date = new Date(dateStr);
-                                    if (!isNaN(date.getTime())) {
-                                        const year = date.getFullYear();
-                                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                                        const day = String(date.getDate()).padStart(2, '0');
-                                        return `${year}-${month}-${day}`;
-                                    }
-                                } catch (e) {
-                                    // 如果解析失败，返回原始日期字符串
-                                }
-                                return dateStr;
-                            }
-                            return context[0].label || '';
-                        },
-                        label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(4)}`
-                    }
+                    callbacks: getChartTooltipCallbacks(originalDates)
                 }
             },
             scales: {
@@ -794,29 +785,7 @@ function drawDrawdownChart(dates, portfolioValues, rawDates = null) {
                 legend: { display: false },
                 tooltip: {
                     ...baseOptions.plugins.tooltip,
-                    callbacks: {
-                        title: function(context) {
-                            const index = context[0].dataIndex;
-                            if (originalDates && originalDates[index]) {
-                                const dateStr = originalDates[index];
-                                // 显示完整日期
-                                try {
-                                    const date = new Date(dateStr);
-                                    if (!isNaN(date.getTime())) {
-                                        const year = date.getFullYear();
-                                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                                        const day = String(date.getDate()).padStart(2, '0');
-                                        return `${year}-${month}-${day}`;
-                                    }
-                                } catch (e) {
-                                    // 如果解析失败，返回原始日期字符串
-                                }
-                                return dateStr;
-                            }
-                            return context[0].label || '';
-                        },
-                        label: ctx => `回撤: ${ctx.parsed.y.toFixed(2)}%`
-                    }
+                    callbacks: getChartTooltipCallbacks(originalDates)
                 }
             },
             scales: {
@@ -858,29 +827,7 @@ function drawDailyReturnChart(dates, portfolioValues, rawDates = null) {
                 legend: { display: false },
                 tooltip: {
                     ...baseOptions.plugins.tooltip,
-                    callbacks: {
-                        title: function(context) {
-                            const index = context[0].dataIndex;
-                            if (originalDates && originalDates[index]) {
-                                const dateStr = originalDates[index];
-                                // 显示完整日期
-                                try {
-                                    const date = new Date(dateStr);
-                                    if (!isNaN(date.getTime())) {
-                                        const year = date.getFullYear();
-                                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                                        const day = String(date.getDate()).padStart(2, '0');
-                                        return `${year}-${month}-${day}`;
-                                    }
-                                } catch (e) {
-                                    // 如果解析失败，返回原始日期字符串
-                                }
-                                return dateStr;
-                            }
-                            return context[0].label || '';
-                        },
-                        label: ctx => `收益率: ${ctx.parsed.y.toFixed(2)}%`
-                    }
+                    callbacks: getChartTooltipCallbacks(originalDates)
                 }
             },
             scales: {
@@ -897,10 +844,13 @@ function drawPnlDistChart(portfolioValues) {
     
     if (charts.pnlDist) charts.pnlDist.destroy();
     
-    const dailyReturns = calculateDailyReturns(portfolioValues);
+    let dailyReturns = calculateDailyReturns(portfolioValues);
+    // 过滤掉日收益率为 0 的样本（空仓或无波动日），使分布图更聚焦于实际盈亏分布
+    dailyReturns = dailyReturns.filter(r => r !== 0);
+    
     if (dailyReturns.length === 0) return;
     
-    const bins = 20;
+    const bins = 50;
     const min = Math.min(...dailyReturns);
     const max = Math.max(...dailyReturns);
     const binSize = (max - min) / bins;
@@ -930,6 +880,37 @@ function drawPnlDistChart(portfolioValues) {
                 pointHoverRadius: 4
             }]
         },
+        plugins: [{
+            id: 'zeroLine',
+            beforeDraw: (chart) => {
+                const {ctx, chartArea: {top, bottom, left, right}, scales: {x}} = chart;
+                let zeroIndex = -1;
+                let minDiff = Infinity;
+                chart.data.labels.forEach((label, index) => {
+                    const val = parseFloat(label);
+                    const diff = Math.abs(val);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        zeroIndex = index;
+                    }
+                });
+
+                if (zeroIndex !== -1) {
+                    const zeroX = x.getPixelForValue(chart.data.labels[zeroIndex]); 
+                    if (zeroX >= left && zeroX <= right) {
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.lineWidth = 1.5;
+                        ctx.strokeStyle = 'rgba(220, 53, 69, 0.6)';
+                        ctx.setLineDash([4, 4]);
+                        ctx.moveTo(zeroX, top);
+                        ctx.lineTo(zeroX, bottom);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+            }
+        }],
         options: {
             ...baseOptions,
             plugins: {
