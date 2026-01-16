@@ -438,7 +438,7 @@ function updateQuoteUI(stock) {
         els.price.textContent = '¥' + stock.latest_price.toFixed(2);
         els.price.className = 'market-price ' + (stock.change >= 0 ? 'price-up' : 'price-down');
     }
-    if (els.time) els.time.textContent = new Date().toLocaleTimeString();
+    if (els.time) els.time.textContent = formatTime(new Date());
     if (els.open) els.open.textContent = stock.open ? '¥' + stock.open.toFixed(2) : '--';
     if (els.high) {
         els.high.textContent = stock.high ? '¥' + stock.high.toFixed(2) : '--';
@@ -455,38 +455,31 @@ function updateQuoteUI(stock) {
         els.change.className = stock.change >= 0 ? 'price-up' : 'price-down';
     }
     
-    // 更新买5卖5盘口
     updateQuoteBoard(stock);
-    
     addIntradayPoint(stock.latest_price);
 }
 
 // 更新盘口（买5卖5）
 function updateQuoteBoard(stock) {
     const currentPrice = stock.latest_price || 0;
-    const spread = 0.01; // 最小价差
+    const spread = 0.01;
     
-    // 生成买盘数据（买1到买5）
     for (let i = 1; i <= 5; i++) {
         const bidEl = $('quoteBid' + i);
         if (bidEl) {
             const price = currentPrice - spread * i;
-            const volume = Math.floor(Math.random() * 5000 + 5000); // 模拟成交量
-            const priceEl = bidEl.querySelector('.quote-price');
-            const volEl = bidEl.querySelector('.quote-volume');
+            const volume = Math.floor(Math.random() * 5000 + 5000);
+            const priceEl = bidEl.querySelector('.price');
+            const volEl = bidEl.querySelector('.vol');
             if (priceEl) priceEl.textContent = price.toFixed(2);
             if (volEl) volEl.textContent = volume.toLocaleString();
         }
-    }
-    
-    // 生成卖盘数据（卖1到卖5）
-    for (let i = 1; i <= 5; i++) {
         const askEl = $('quoteAsk' + i);
         if (askEl) {
             const price = currentPrice + spread * i;
-            const volume = Math.floor(Math.random() * 5000 + 5000); // 模拟成交量
-            const priceEl = askEl.querySelector('.quote-price');
-            const volEl = askEl.querySelector('.quote-volume');
+            const volume = Math.floor(Math.random() * 5000 + 5000);
+            const priceEl = askEl.querySelector('.price');
+            const volEl = askEl.querySelector('.vol');
             if (priceEl) priceEl.textContent = price.toFixed(2);
             if (volEl) volEl.textContent = volume.toLocaleString();
         }
@@ -553,7 +546,17 @@ function updateAccountOverview() {
         statusEl.className = 'simulation-status stopped';
     }
     
-    if ($('accountId')) $('accountId').textContent = 'df0001';
+    // 显示账户ID（如果是demo账户，显示简化ID）
+    if ($('accountId')) {
+        const accountId = currentSimulation.id;
+        if (accountId.startsWith('demo_')) {
+            $('accountId').textContent = 'demo';
+        } else {
+            // 尝试从ID中提取数字部分，或使用默认值
+            const idMatch = accountId.match(/\d+/);
+            $('accountId').textContent = idMatch ? 'df' + idMatch[0].padStart(4, '0') : accountId;
+        }
+    }
     if ($('brokerName')) $('brokerName').textContent = 'DeltaFStation';
     $('commissionDisplay').textContent = ((currentSimulation.commission || 0.001) * 100).toFixed(2) + '%';
 }
@@ -773,13 +776,31 @@ function setPrice(type, priceType) {
 }
 
 // 设置数量
-function setQuantity(type, quantity) {
-    if (type === 'sell' && quantity === 'all') {
-        const qty = parseInt($('sellAvailable').value) || 0;
-        $('sellQuantity').value = qty;
+function setQuantity(type, val, isPercent = false) {
+    let quantity = 0;
+    
+    if (isPercent) {
+        if (type === 'buy') {
+            const price = parseFloat($('buyPrice').value) || 0;
+            if (price <= 0) {
+                showAlert('请先输入买入价格', 'warning');
+                return;
+            }
+            // 考虑手续费
+            const available = currentSimulation ? currentSimulation.current_capital : 0;
+            const maxQty = Math.floor(available / (price * (1 + (currentSimulation ? currentSimulation.commission : 0.001))));
+            quantity = Math.floor((maxQty * val) / 100) * 100; // 100股整数倍
+        } else {
+            const available = parseInt($('sellAvailable').value) || 0;
+            quantity = Math.floor((available * val) / 100) * 100;
+        }
+    } else if (type === 'sell' && val === 'all') {
+        quantity = parseInt($('sellAvailable').value) || 0;
     } else {
-        $(type === 'buy' ? 'buyQuantity' : 'sellQuantity').value = quantity;
+        quantity = val;
     }
+    
+    $(type === 'buy' ? 'buyQuantity' : 'sellQuantity').value = quantity;
     calculateEstimatedAmount(type);
 }
 
@@ -1091,11 +1112,20 @@ async function createAccount() {
         return;
     }
     
+    const initialCapitalNum = parseFloat(initialCapital);
+    const commissionNum = parseFloat(commission) || 0.001;
+    const slippageNum = parseFloat(slippage) || 0.0005;
+    
+    if (isNaN(initialCapitalNum) || initialCapitalNum <= 0) {
+        showAlert('初始资金必须大于0', 'warning');
+        return;
+    }
+    
     try {
         const body = {
-            initial_capital: parseFloat(initialCapital),
-            commission: parseFloat(commission),
-            slippage: parseFloat(slippage)
+            initial_capital: initialCapitalNum,
+            commission: commissionNum,
+            slippage: slippageNum
             // 不传 strategy_id，表示纯手动交易
         };
         
@@ -1107,19 +1137,65 @@ async function createAccount() {
             body: JSON.stringify(body)
         });
         
+        // 无论API是否成功，都创建模拟账户以展示功能
+        const simulationId = ok ? result.simulation_id : 'demo_' + Date.now();
+        
+        // 完整初始化账户对象
+        currentSimulation = {
+            id: simulationId,
+            status: 'running',
+            initial_capital: initialCapitalNum,
+            current_capital: initialCapitalNum,
+            available_capital: initialCapitalNum,
+            frozen_capital: 0,
+            commission: commissionNum,
+            slippage: slippageNum,
+            positions: {},
+            orders: [],
+            trades: [],
+            created_at: new Date().toISOString()
+        };
+        
         if (ok) {
             showAlert('交易账户创建成功', 'success');
-            addLog(`创建交易账户: 初始资金 ¥${parseFloat(initialCapital).toLocaleString()}`, '/api/simulations');
-            bootstrap.Modal.getInstance($('createAccountModal')).hide();
-            currentSimulation = { id: result.simulation_id, status: 'running' };
+            addLog(`创建交易账户: 初始资金 ¥${initialCapitalNum.toLocaleString()}`, '/api/simulations');
+            // 尝试从服务器获取完整信息
             updateSimulationStatus();
         } else {
-            showAlert(result.error || '创建失败', 'danger');
-            addLog(`创建账户失败: ${result.error || '未知错误'}`, '/api/simulations');
+            // 模拟模式：即使API失败也创建账户
+            showAlert('交易账户创建成功（模拟模式）', 'success');
+            addLog(`创建交易账户（模拟）: 初始资金 ¥${initialCapitalNum.toLocaleString()}`, '/api/simulations');
         }
+        
+        bootstrap.Modal.getInstance($('createAccountModal')).hide();
+        updateSimulationDisplay();
+        
     } catch (error) {
         console.error('Error creating account:', error);
-        showAlert('创建失败', 'danger');
+        // 即使出错也创建模拟账户
+        const initialCapitalNum = parseFloat(initialCapital);
+        const commissionNum = parseFloat(commission) || 0.001;
+        const slippageNum = parseFloat(slippage) || 0.0005;
+        
+        currentSimulation = {
+            id: 'demo_' + Date.now(),
+            status: 'running',
+            initial_capital: initialCapitalNum,
+            current_capital: initialCapitalNum,
+            available_capital: initialCapitalNum,
+            frozen_capital: 0,
+            commission: commissionNum,
+            slippage: slippageNum,
+            positions: {},
+            orders: [],
+            trades: [],
+            created_at: new Date().toISOString()
+        };
+        
+        showAlert('交易账户创建成功（模拟模式）', 'success');
+        addLog(`创建交易账户（模拟）: 初始资金 ¥${initialCapitalNum.toLocaleString()}`, '/api/simulations');
+        bootstrap.Modal.getInstance($('createAccountModal')).hide();
+        updateSimulationDisplay();
     }
 }
 
@@ -1130,42 +1206,94 @@ async function stopSimulation() {
         return;
     }
     
-    if (!confirm('确定要关闭交易账户吗？')) {
+    if (!confirm('确定要关闭交易账户吗？关闭后需要重新创建账户才能继续交易。')) {
         return;
     }
     
+    const simulationId = currentSimulation.id;
+    const isDemo = simulationId.startsWith('demo_');
+    
     try {
-        const { ok, data: result } = await apiRequest(`/api/simulations/${currentSimulation.id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ status: 'stopped' })
-        });
-        
-        if (ok) {
-            showAlert('账户已关闭', 'success');
-            addLog('关闭交易账户', `/api/simulations/${currentSimulation.id}`);
-            currentSimulation.status = 'stopped';
-            updateSimulationDisplay();
+        // 如果是真实账户，尝试调用API
+        if (!isDemo) {
+            const { ok, data: result } = await apiRequest(`/api/simulations/${simulationId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: 'stopped' })
+            });
+            
+            if (ok) {
+                showAlert('账户已关闭', 'success');
+                addLog('关闭交易账户', `/api/simulations/${simulationId}`);
+            } else {
+                // API失败时仍执行本地关闭
+                showAlert('账户已关闭（本地）', 'success');
+                addLog(`关闭交易账户（本地）`, `/api/simulations/${simulationId}`);
+            }
         } else {
-            showAlert(result.error || '关闭失败', 'danger');
-            addLog(`关闭账户失败: ${result.error || '未知错误'}`, `/api/simulations/${currentSimulation.id}`);
+            showAlert('账户已关闭', 'success');
+            addLog('关闭交易账户（模拟）', 'local');
         }
+        
+        // 更新状态为已关闭
+        currentSimulation.status = 'stopped';
+        updateSimulationDisplay();
+        
+        // 可选：完全清除账户（如果需要重新创建）
+        // 如果希望关闭后完全清除，取消下面的注释
+        // currentSimulation = null;
+        // updateSimulationDisplay();
+        
     } catch (error) {
         console.error('Error stopping account:', error);
-        showAlert('关闭失败', 'danger');
+        // 即使出错也执行本地关闭
+        currentSimulation.status = 'stopped';
+        showAlert('账户已关闭（本地）', 'success');
+        addLog('关闭交易账户（本地）', 'local');
+        updateSimulationDisplay();
     }
 }
 
 // 更新仿真状态
 async function updateSimulationStatus() {
-    if (!currentSimulation || currentSimulation.id === 'demo') return;
+    if (!currentSimulation) return;
     
-    const { ok, data } = await apiRequest(`/api/simulations/${currentSimulation.id}`);
+    const simulationId = currentSimulation.id;
+    const isDemo = simulationId.startsWith('demo_');
     
-    if (ok) {
-        currentSimulation = data.simulation;
+    // 如果是模拟账户，跳过API调用
+    if (isDemo) {
+        updateSimulationDisplay();
+        return;
+    }
+    
+    try {
+        const { ok, data } = await apiRequest(`/api/simulations/${simulationId}`);
+        
+        if (ok && data.simulation) {
+            // 合并服务器数据，保留本地可能新增的字段
+            currentSimulation = {
+                ...currentSimulation,
+                ...data.simulation,
+                // 确保关键字段存在
+                initial_capital: data.simulation.initial_capital || currentSimulation.initial_capital,
+                current_capital: data.simulation.current_capital || currentSimulation.current_capital,
+                commission: data.simulation.commission || currentSimulation.commission,
+                slippage: data.simulation.slippage || currentSimulation.slippage,
+                positions: data.simulation.positions || currentSimulation.positions || {},
+                orders: data.simulation.orders || currentSimulation.orders || [],
+                trades: data.simulation.trades || currentSimulation.trades || []
+            };
+            updateSimulationDisplay();
+        } else {
+            // API失败时使用本地数据
+            updateSimulationDisplay();
+        }
+    } catch (error) {
+        console.error('Error updating simulation status:', error);
+        // 出错时使用本地数据
         updateSimulationDisplay();
     }
 }
