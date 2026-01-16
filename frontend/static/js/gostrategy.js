@@ -52,42 +52,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 加载策略列表
 async function loadStrategies() {
-    try {
-        const response = await fetch('/api/strategies');
-        const data = await response.json();
-        
-        const select = $('runStrategySelect');
-        select.innerHTML = '<option value="">请选择策略 (data/strategies)</option>';
-        
+    const { ok, data } = await apiRequest('/api/strategies');
+    
+    const select = $('runStrategySelect');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">请选择策略 (data/strategies)</option>';
+    
+    if (ok && data.strategies && data.strategies.length > 0) {
         let defaultStrategyId = null;
-        
-        if (data.strategies && data.strategies.length > 0) {
-            data.strategies.forEach(strategy => {
-                const option = document.createElement('option');
-                option.value = strategy.id;
-                option.textContent = `${strategy.name}`;
-                select.appendChild(option);
-                
-                // 优先选择BOLLStrategy，如果没有则选择第一个策略
-                if (strategy.id === 'BOLLStrategy') {
-                    defaultStrategyId = strategy.id;
-                } else if (!defaultStrategyId) {
-                    defaultStrategyId = strategy.id;
-                }
-            });
+        data.strategies.forEach(strategy => {
+            const option = document.createElement('option');
+            option.value = strategy.id;
+            option.textContent = `${strategy.name}`;
+            select.appendChild(option);
             
-            // 设置默认选中值（优先BOLLStrategy，否则选择第一个）
-            if (defaultStrategyId) {
-                select.value = defaultStrategyId;
-                updateStrategyActionButtons(defaultStrategyId);
+            // 优先选择BOLLStrategy，如果没有则选择第一个策略
+            if (strategy.id === 'BOLLStrategy') {
+                defaultStrategyId = strategy.id;
+            } else if (!defaultStrategyId) {
+                defaultStrategyId = strategy.id;
             }
-        } else {
-            select.innerHTML = '<option value="">暂无可用策略</option>';
-            updateStrategyActionButtons(null);
+        });
+        
+        // 设置默认选中值
+        if (defaultStrategyId) {
+            select.value = defaultStrategyId;
+            updateStrategyActionButtons(defaultStrategyId);
         }
-    } catch (error) {
-        console.error('Error loading strategies:', error);
-        addLog('加载策略列表失败: ' + error.message, 'error');
+    } else {
+        select.innerHTML = '<option value="">暂无可用策略</option>';
+        updateStrategyActionButtons(null);
+        if (!ok) {
+            addLog('加载策略列表失败: ' + (data.error || '未知错误'), 'error');
+        }
     }
 }
 
@@ -677,7 +675,7 @@ async function createAccount() {
             // 不传 strategy_id，表示纯账户，不启动策略
         };
         
-        const response = await fetch('/api/simulations', {
+        const { ok, data: result } = await apiRequest('/api/simulations', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -685,9 +683,7 @@ async function createAccount() {
             body: JSON.stringify(body)
         });
         
-        const result = await response.json();
-        
-        if (response.ok) {
+        if (ok) {
             showAlert('交易账户创建成功', 'success');
             addLog(`创建交易账户: 初始资金 ¥${parseFloat(initialCapital).toLocaleString()}`, 'success');
             bootstrap.Modal.getInstance($('createAccountModal')).hide();
@@ -732,7 +728,7 @@ async function stopSimulation() {
     }
     
     try {
-        const response = await fetch(`/api/simulations/${currentStrategyRun.id}`, {
+        const { ok, data: result } = await apiRequest(`/api/simulations/${currentStrategyRun.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -740,9 +736,7 @@ async function stopSimulation() {
             body: JSON.stringify({ status: 'stopped' })
         });
         
-        const result = await response.json();
-        
-        if (response.ok) {
+        if (ok) {
             showAlert('账户已关闭', 'success');
             addLog('关闭交易账户', 'info');
             if (currentStrategyRun) {
@@ -784,7 +778,7 @@ async function startRunStrategy() {
                 slippage: 0.0005  // 默认滑点
             };
             
-            const response = await fetch('/api/simulations', {
+            const { ok, data: result } = await apiRequest('/api/simulations', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -792,9 +786,7 @@ async function startRunStrategy() {
                 body: JSON.stringify(body)
             });
             
-            const result = await response.json();
-            
-            if (!response.ok) {
+            if (!ok) {
                 addLog(`创建账户失败: ${result.error || '未知错误'}`, 'error');
                 showAlert(result.error || '创建账户失败', 'danger');
                 return;
@@ -837,7 +829,7 @@ async function startRunStrategy() {
     
     try {
         // 创建新账户并启动策略（基于历史数据回放）
-        const response = await fetch('/api/simulations', {
+        const { ok, data: result } = await apiRequest('/api/simulations', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -852,9 +844,7 @@ async function startRunStrategy() {
             })
         });
         
-        const result = await response.json();
-        
-        if (response.ok) {
+        if (ok) {
             currentStrategyRun = {
                 id: result.simulation_id,
                 strategy_id: strategyId,
@@ -904,7 +894,7 @@ async function stopRunStrategy() {
     addLog('正在停止策略运行...', 'warning');
     
     try {
-        const response = await fetch(`/api/simulations/${currentStrategyRun.id}`, {
+        const { ok, data: result } = await apiRequest(`/api/simulations/${currentStrategyRun.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -912,9 +902,7 @@ async function stopRunStrategy() {
             body: JSON.stringify({ status: 'stopped' })
         });
         
-        const result = await response.json();
-        
-        if (response.ok) {
+        if (ok) {
             addLog('策略已停止运行', 'success');
             if (currentStrategyRun) {
                 currentStrategyRun.status = 'stopped';
@@ -936,33 +924,28 @@ async function stopRunStrategy() {
 async function refreshStrategyStatus() {
     if (!currentStrategyRun) return;
     
-    try {
-        const response = await fetch(`/api/simulations/${currentStrategyRun.id}`);
-        const data = await response.json();
+    const { ok, data } = await apiRequest(`/api/simulations/${currentStrategyRun.id}`);
+    
+    if (ok && data.simulation) {
+        const simulation = data.simulation;
+        const oldTradeCount = currentStrategyRun.trades ? currentStrategyRun.trades.length : 0;
         
-        if (response.ok && data.simulation) {
-            const simulation = data.simulation;
-            const oldTradeCount = currentStrategyRun.trades ? currentStrategyRun.trades.length : 0;
-            
-            currentStrategyRun = {
-                ...currentStrategyRun,
-                ...simulation
-            };
-            
-            // 如果有新交易，记录到日志
-            const newTradeCount = simulation.trades ? simulation.trades.length : 0;
-            if (newTradeCount > oldTradeCount && simulation.trades) {
-                const newTrades = simulation.trades.slice(oldTradeCount);
-                newTrades.forEach(trade => {
-                    const action = trade.action === 'buy' ? '买入' : '卖出';
-                    addLog(`策略执行${action}: ${trade.symbol} ${trade.quantity}股 @ ¥${(trade.price || 0).toFixed(2)}`, 'success');
-                });
-            }
-            
-            updateStrategyDisplay();
+        currentStrategyRun = {
+            ...currentStrategyRun,
+            ...simulation
+        };
+        
+        // 如果有新交易，记录到日志
+        const newTradeCount = simulation.trades ? simulation.trades.length : 0;
+        if (newTradeCount > oldTradeCount && simulation.trades) {
+            const newTrades = simulation.trades.slice(oldTradeCount);
+            newTrades.forEach(trade => {
+                const action = trade.action === 'buy' ? '买入' : '卖出';
+                addLog(`策略执行${action}: ${trade.symbol} ${trade.quantity}股 @ ¥${(trade.price || 0).toFixed(2)}`, 'success');
+            });
         }
-    } catch (error) {
-        console.error('Error refreshing strategy status:', error);
+        
+        updateStrategyDisplay();
     }
 }
 
@@ -1106,7 +1089,7 @@ function updateStrategyMonitor() {
         const signalAction = lastTrade.action === 'buy' ? '买入' : '卖出';
         const signalText = `${signalAction} ${lastTrade.symbol} ${lastTrade.quantity}股 @ ¥${(lastTrade.price || 0).toFixed(2)}`;
         $('monitorLastSignal').textContent = signalText;
-        $('monitorSignalTime').textContent = formatDateTime(lastTrade.date || lastTrade.timestamp).split(' ')[1] || '--';
+        $('monitorSignalTime').textContent = formatTime(lastTrade.date || lastTrade.timestamp) || '--';
     } else {
         $('monitorLastSignal').textContent = '等待策略信号...';
         $('monitorSignalTime').textContent = '--';
@@ -1488,28 +1471,6 @@ function clearLogs() {
     logs = [];
     updateLogDisplay();
     addLog('日志已清空', 'info');
-}
-
-// =========================
-// 工具函数
-// =========================
-
-// formatDateTime 和 showAlert 已在 common.js 中定义
-// 但 run.js 需要完整格式的日期时间，使用 formatDateTimeFull
-function formatDateTime(dateTimeStr) {
-    if (!dateTimeStr) return '--';
-    try {
-        const date = new Date(dateTimeStr);
-        return date.toLocaleString('zh-CN', {
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        });
-    } catch (e) {
-        return dateTimeStr;
-    }
 }
 
 // 页面卸载时清理定时器

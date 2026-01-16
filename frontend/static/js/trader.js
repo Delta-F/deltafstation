@@ -1099,7 +1099,7 @@ async function createAccount() {
             // 不传 strategy_id，表示纯手动交易
         };
         
-        const response = await fetch('/api/simulations', {
+        const { ok, data: result } = await apiRequest('/api/simulations', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1107,9 +1107,7 @@ async function createAccount() {
             body: JSON.stringify(body)
         });
         
-        const result = await response.json();
-        
-        if (response.ok) {
+        if (ok) {
             showAlert('交易账户创建成功', 'success');
             addLog(`创建交易账户: 初始资金 ¥${parseFloat(initialCapital).toLocaleString()}`, '/api/simulations');
             bootstrap.Modal.getInstance($('createAccountModal')).hide();
@@ -1137,7 +1135,7 @@ async function stopSimulation() {
     }
     
     try {
-        const response = await fetch(`/api/simulations/${currentSimulation.id}`, {
+        const { ok, data: result } = await apiRequest(`/api/simulations/${currentSimulation.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -1145,9 +1143,7 @@ async function stopSimulation() {
             body: JSON.stringify({ status: 'stopped' })
         });
         
-        const result = await response.json();
-        
-        if (response.ok) {
+        if (ok) {
             showAlert('账户已关闭', 'success');
             addLog('关闭交易账户', `/api/simulations/${currentSimulation.id}`);
             currentSimulation.status = 'stopped';
@@ -1166,16 +1162,11 @@ async function stopSimulation() {
 async function updateSimulationStatus() {
     if (!currentSimulation || currentSimulation.id === 'demo') return;
     
-    try {
-        const response = await fetch(`/api/simulations/${currentSimulation.id}`);
-        const data = await response.json();
-        
-        if (response.ok) {
-            currentSimulation = data.simulation;
-            updateSimulationDisplay();
-        }
-    } catch (error) {
-        console.error('Error updating simulation status:', error);
+    const { ok, data } = await apiRequest(`/api/simulations/${currentSimulation.id}`);
+    
+    if (ok) {
+        currentSimulation = data.simulation;
+        updateSimulationDisplay();
     }
 }
 

@@ -132,7 +132,11 @@ def handle_file(filename):
             return jsonify({'error': 'File not found'}), 404
         
         if request.method == 'GET':
+            full = request.args.get('full', 'false').lower() == 'true'
             df = pd.read_csv(filepath)
+            
+            # 统一列名：首字母大写，防止大小写导致前端匹配失败
+            df.columns = [col.capitalize() for col in df.columns]
             
             total_rows = len(df)
             columns = list(df.columns)
@@ -145,8 +149,10 @@ def handle_file(filename):
                 end_date = df['Date'].max().strftime('%Y-%m-%d')
                 df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
 
-            # 准备预览数据：前50条 + 后面50条
-            if total_rows <= 100:
+            # 根据参数决定是否返回完整数据
+            if full:
+                preview_df = df
+            elif total_rows <= 100:
                 preview_df = df
             else:
                 preview_df = pd.concat([df.head(50), df.tail(50)])
@@ -159,7 +165,7 @@ def handle_file(filename):
                 'total_rows': total_rows,
                 'start_date': start_date,
                 'end_date': end_date,
-                'is_truncated': total_rows > 100
+                'is_truncated': not full and total_rows > 100
             })
         
         elif request.method == 'DELETE':

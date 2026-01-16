@@ -31,24 +31,17 @@ function parseValuesDf(valuesDf) {
         return { portfolioValues: [], dates: [], rawDates: [] };
     }
     
-    const valueKeys = ['total_value', 'portfolio_value', 'value', 'equity', 'capital', 'balance'];
-    const dateKeys = ['date', 'Date', 'index', 'timestamp', 'time'];
-    
-    // 预先确定第一行的键名，避免每行都循环查找
-    const firstRow = valuesDf[0];
-    const foundValueKey = valueKeys.find(key => firstRow[key] !== undefined && firstRow[key] !== null) || 
-                         Object.keys(firstRow).find(key => typeof firstRow[key] === 'number' && firstRow[key] > 0 && !dateKeys.includes(key));
-    const foundDateKey = dateKeys.find(key => firstRow[key]);
-
     const portfolioValues = [];
     const rawDates = [];
     
     valuesDf.forEach(row => {
-        const value = row[foundValueKey];
+        // 优先尝试首字母大写的键名，否则使用常见键名
+        const value = row['Value'] || row['total_value'] || row['portfolio_value'];
+        const date = row['Date'] || row['date'];
+
         if (value !== undefined && value !== null) {
             portfolioValues.push(parseFloat(value));
             
-            const date = foundDateKey ? row[foundDateKey] : null;
             if (date) {
                 const dateStr = typeof date === 'string' ? date : new Date(date).toISOString().split('T')[0];
                 rawDates.push(dateStr);
@@ -67,17 +60,6 @@ function parseValuesDf(valuesDf) {
     const dates = rawDates.length > 0 ? generateMonthLabels(rawDates) : [];
     
     return { portfolioValues, dates, rawDates };
-}
-
-async function apiRequest(url, options = {}) {
-    try {
-        const response = await fetch(url, options);
-        const data = await response.json();
-        return { ok: response.ok, data, response };
-    } catch (error) {
-        console.error(`API request failed: ${url}`, error);
-        return { ok: false, data: { error: error.message }, response: null };
-    }
 }
 
 function getChartBaseOptions() {
@@ -453,7 +435,7 @@ function getBacktestParams() {
     };
 }
 
-async function syncMarketData(symbol, startDate, endDate) {
+async function syncMarketData(symbol, startDate, endDate, silent = false) {
     const fetchResult = await apiRequest(`/api/data/symbols/${symbol}/files`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -461,13 +443,15 @@ async function syncMarketData(symbol, startDate, endDate) {
     });
     
     if (!fetchResult.ok) {
-        showAlert(fetchResult.data.error || '获取数据失败', 'danger');
+        if (!silent) showAlert(fetchResult.data.error || '获取数据失败', 'danger');
         return null;
     }
     
-    const statusMsg = fetchResult.data.status === 'updated' ? '数据同步完成' : '全量数据下载完成';
-    showAlert(`${symbol} ${statusMsg}`, 'success');
-    loadDataFiles();
+    if (!silent) {
+        const statusMsg = fetchResult.data.status === 'updated' ? '数据同步完成' : '全量数据下载完成';
+        showAlert(`${symbol} ${statusMsg}`, 'success');
+        loadDataFiles();
+    }
     
     return fetchResult.data.filename || fetchResult.data.id;
 }
@@ -521,7 +505,8 @@ async function runBacktest() {
             trades: result.data.trades_df || [],
             initial_capital: params.initialCapital,
             start_date: params.startDate,
-            end_date: params.endDate
+            end_date: params.endDate,
+            symbol: params.symbol
         };
         showBacktestResult(resultsWithParams);
         loadBacktestHistory();
@@ -591,15 +576,80 @@ function formatCurrency(value) {
     return value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-let charts = { equity: null, drawdown: null, dailyReturn: null, pnlDist: null };
+let charts = { priceTrend: null, equity: null, drawdown: null, dailyReturn: null, pnlDist: null };
 
-function drawBacktestCharts(results) {
-    if (!results.portfolio_values?.length) return;
+async function getBenchmarkNormalizedData(symbol, rawDates) {
+    if (!rawDates || rawDates.length === 0) return null;
     
-    let dates;
+    const startDate = rawDates[0];
+    const endDate = rawDates[rawDates.length - 1];
+    
+    try {
+        // 1. 直接复用同步逻辑 (开启静默模式)，确保本地有基准数据
+        const filename = await syncMarketData(symbol, startDate, endDate, true);
+        if (!filename) return null;
+        
+        // 2. 获取完整数据内容
+        const { ok, data } = await apiRequest(`/api/data/files/${filename}?full=true`);
+        if (!ok || !data.data || data.data.length === 0) return null;
+        
+        // 3. 将基准数据转为 Map 以便快速对齐日期
+        const priceMap = new Map();
+        data.data.forEach(row => {
+            const dateVal = row['Date'];
+            // 优先使用 Close，否则使用 Price，最后使用第二列
+            const priceVal = parseFloat(row['Close'] || row['Price'] || row[Object.keys(row)[1]]);
+            
+            if (dateVal && !isNaN(priceVal)) {
+                // 清理日期格式：只保留 YYYY-MM-DD
+                const cleanDate = typeof dateVal === 'string' ? dateVal.split(' ')[0].split('T')[0] : dateVal;
+                priceMap.set(cleanDate, priceVal);
+            }
+        });
+        
+        // 4. 按照回测的日期序列提取基准价格并归一化
+        let firstPrice = null;
+        const normalizedBenchmark = rawDates.map(date => {
+            // 清理目标日期格式
+            const cleanTargetDate = date ? date.split(' ')[0].split('T')[0] : '';
+            const price = priceMap.get(cleanTargetDate);
+            
+            if (price !== undefined && price !== null) {
+                if (firstPrice === null) firstPrice = price;
+                return price / firstPrice;
+            }
+            return null; 
+        });
+        
+        // 5. 线性填充缺失值：确保曲线连续
+        for (let i = 0; i < normalizedBenchmark.length; i++) {
+            if (normalizedBenchmark[i] === null && i > 0) {
+                normalizedBenchmark[i] = normalizedBenchmark[i-1];
+            }
+        }
+        // 反向填充第一天可能缺失的情况
+        if (normalizedBenchmark[0] === null) {
+            const firstValid = normalizedBenchmark.find(v => v !== null);
+            if (firstValid) {
+                for (let i = 0; i < normalizedBenchmark.length && normalizedBenchmark[i] === null; i++) {
+                    normalizedBenchmark[i] = firstValid;
+                }
+            }
+        }
+        
+        return normalizedBenchmark;
+    } catch (e) {
+        console.error("Fetch benchmark failed:", e);
+        return null;
+    }
+}
+
+// 辅助函数：标准化日期数据
+function normalizeBacktestDates(results, portfolioValues) {
     let rawDates = [];
-    
-    // 优先使用传入的原始日期数组
+    let dates = [];
+
+    // 1. 优先使用传入的原始日期数组
     if (results.rawDates && results.rawDates.length > 0) {
         rawDates = results.rawDates;
         // 如果dates已经存在且是月份标签格式 (YY/M)，直接使用；否则生成月份标签
@@ -608,34 +658,35 @@ function drawBacktestCharts(results) {
         } else {
             dates = generateMonthLabels(rawDates);
         }
-    } else if (results.dates?.length > 0) {
-        // 如果没有原始日期，尝试从dates推断
+    } 
+    // 2. 只有 dates 的情况
+    else if (results.dates?.length > 0) {
         if (results.dates[0] && results.dates[0].includes('/')) {
             const startDate = results.start_date ? new Date(results.start_date) : new Date();
-            rawDates = results.portfolio_values.map((_, i) => {
+            rawDates = portfolioValues.map((_, i) => {
                 const date = new Date(startDate);
                 date.setDate(date.getDate() + i);
                 return date.toISOString().split('T')[0];
             });
             dates = results.dates;
         } else {
-            // 如果dates已经是月份标签，尝试从start_date生成原始日期
             if (results.start_date) {
                 const startDate = new Date(results.start_date);
-                rawDates = results.portfolio_values.map((_, i) => {
+                rawDates = portfolioValues.map((_, i) => {
                     const date = new Date(startDate);
                     date.setDate(date.getDate() + i);
                     return date.toISOString().split('T')[0];
                 });
             } else {
-                rawDates = results.dates; // 降级方案
+                rawDates = results.dates;
             }
             dates = results.dates;
         }
-    } else {
-        // 完全没有日期数据，从start_date生成
+    } 
+    // 3. 完全没有日期数据
+    else {
         const startDate = results.start_date ? new Date(results.start_date) : new Date();
-        rawDates = results.portfolio_values.map((_, i) => {
+        rawDates = portfolioValues.map((_, i) => {
             const date = new Date(startDate);
             date.setDate(date.getDate() + i);
             return date.toISOString().split('T')[0];
@@ -643,11 +694,29 @@ function drawBacktestCharts(results) {
         dates = generateMonthLabels(rawDates);
     }
     
+    return { rawDates, dates };
+}
+
+async function drawBacktestCharts(results) {
+    if (!results.portfolio_values?.length) return;
+    
     const portfolioValues = results.portfolio_values;
+    const { rawDates, dates } = normalizeBacktestDates(results, portfolioValues);
+    
     const initialCapital = results.initial_capital || portfolioValues[0] || 100000;
     const dailyReturnRawDates = rawDates.slice(1);
     const dailyReturnDates = generateMonthLabels(dailyReturnRawDates);
     
+    // 获取 000001.SS 作为 Benchmark
+    const benchmarkData = await getBenchmarkNormalizedData('000001.SS', rawDates);
+    
+    // 获取投资标的本身的归一化价格 (Underlying Asset)
+    let underlyingData = null;
+    if (results.symbol && results.symbol.toUpperCase() !== '000001.SS') {
+        underlyingData = await getBenchmarkNormalizedData(results.symbol, rawDates);
+    }
+    
+    drawPriceTrendChart(dates, rawDates, benchmarkData, underlyingData, results.symbol);
     drawEquityChart(dates, portfolioValues, initialCapital, rawDates);
     drawDrawdownChart(dates, portfolioValues, rawDates);
     drawDailyReturnChart(dailyReturnDates, portfolioValues, dailyReturnRawDates);
@@ -687,6 +756,87 @@ function getChartTooltipCallbacks(originalDates) {
     };
 }
 
+function updateHeaderLegend(elementId, datasets) {
+    const container = $(elementId);
+    if (!container) return;
+    
+    container.innerHTML = datasets.map(ds => {
+        const color = ds.borderColor;
+        const lastValue = ds.data && ds.data.length > 0 ? ds.data[ds.data.length - 1] : null;
+        const displayValue = lastValue !== null ? ` <span class="fw-bold ms-1">${lastValue.toFixed(4)}</span>` : '';
+        return `<span class="d-flex align-items-center"><i class="fas fa-minus me-1" style="color: ${color}; width: 12px;"></i>${ds.label}${displayValue}</span>`;
+    }).join('');
+}
+
+function drawPriceTrendChart(dates, rawDates = null, benchmarkData = null, underlyingData = null, symbol = '') {
+    const canvas = $('priceTrendChart');
+    if (!canvas) return;
+    
+    if (charts.priceTrend) charts.priceTrend.destroy();
+    
+    const baseOptions = getChartBaseOptions();
+    const originalDates = rawDates || dates;
+    
+    const datasets = [];
+
+    // 如果投资标的不是上证指数，增加标的自身的价格线
+    if (underlyingData) {
+        datasets.push({
+            label: `标的 (${symbol})`,
+            data: underlyingData,
+            borderColor: 'rgba(255, 193, 7, 0.7)', // 降低饱和度的琥珀色
+            borderWidth: 1.5,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            tension: 0.1,
+            fill: false,
+            spanGaps: true
+        });
+    }
+
+    // 增加基准线 (上证指数)
+    datasets.push({
+        label: benchmarkData ? '基准 (000001.SS)' : '基准',
+        data: benchmarkData || dates.map(() => 1),
+        borderColor: 'rgba(108, 117, 125, 0.5)', // 降低饱和度的灰色
+        borderWidth: 1.5,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0,
+        fill: false,
+        spanGaps: true
+    });
+    
+    // 更新标题栏 Legend
+    updateHeaderLegend('priceTrendLegend', datasets);
+
+    charts.priceTrend = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: datasets
+        },
+        options: {
+            ...baseOptions,
+            plugins: {
+                ...baseOptions.plugins,
+                legend: {
+                    display: false // 隐藏内置 Legend
+                },
+                tooltip: {
+                    ...baseOptions.plugins.tooltip,
+                    displayColors: true,
+                    callbacks: getChartTooltipCallbacks(originalDates)
+                }
+            },
+            scales: {
+                y: getStandardYAxisConfig(v => v.toFixed(3), false),
+                x: getStandardXAxisConfig()
+            }
+        }
+    });
+}
+
 function drawEquityChart(dates, portfolioValues, initialCapital, rawDates = null) {
     const canvas = $('equityChart');
     if (!canvas) return;
@@ -697,41 +847,33 @@ function drawEquityChart(dates, portfolioValues, initialCapital, rawDates = null
     const baseOptions = getChartBaseOptions();
     const originalDates = rawDates || dates;
     
+    const datasets = [{
+        label: '策略净值',
+        data: normalizedValues,
+        borderColor: '#dc3545',
+        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.1,
+        fill: false
+    }];
+
+    // 更新标题栏 Legend
+    updateHeaderLegend('equityLegend', datasets);
+
     charts.equity = new Chart(canvas.getContext('2d'), {
         type: 'line',
         data: {
             labels: dates,
-            datasets: [{
-                label: '策略净值',
-                data: normalizedValues,
-                borderColor: '#dc3545',
-                backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                tension: 0.1,
-                fill: false
-            }, {
-                label: '基准净值',
-                data: portfolioValues.map(() => 1),
-                borderColor: '#6c757d',
-                borderDash: [5, 5],
-                backgroundColor: 'rgba(108, 117, 125, 0.1)',
-                borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                tension: 0,
-                fill: false
-            }]
+            datasets: datasets
         },
         options: {
             ...baseOptions,
             plugins: {
                 ...baseOptions.plugins,
                 legend: {
-                    display: true,
-                    position: 'top',
-                    labels: { font: { size: 10 }, padding: 5, usePointStyle: true, boxWidth: 8, boxHeight: 8 }
+                    display: false // 隐藏内置 Legend
                 },
                 tooltip: {
                     ...baseOptions.plugins.tooltip,
@@ -959,7 +1101,8 @@ async function viewBacktestResult(resultId) {
         trades: results.trades_df || [],
         initial_capital: resultData.initial_capital || 100000,
         start_date: resultData.start_date || '',
-        end_date: resultData.end_date || ''
+        end_date: resultData.end_date || '',
+        symbol: resultData.symbol || ''
     };
     
     showBacktestResult(resultsWithParams);
@@ -1070,10 +1213,6 @@ async function createStrategy() {
     }
 }
 
-// editStrategy 功能待实现，暂时删除
-
-// deleteStrategy 和 refreshBacktestHistory 函数未使用，已删除
-
 // =========================
 // 数据管理辅助函数
 // =========================
@@ -1087,26 +1226,18 @@ async function uploadDataFile(input) {
     
     showAlert('正在上传文件...', 'info');
     
-    try {
-        const response = await fetch('/api/data/files', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            showAlert('文件上传成功', 'success');
-            loadDataFiles();
-        } else {
-            showAlert(result.error || '上传失败', 'danger');
-        }
-    } catch (error) {
-        console.error('Upload failed:', error);
-        showAlert('上传请求失败', 'danger');
-    } finally {
-        input.value = ''; // 清空选择
+    const { ok, data } = await apiRequest('/api/data/files', {
+        method: 'POST',
+        body: formData
+    });
+    
+    if (ok) {
+        showAlert('文件上传成功', 'success');
+        loadDataFiles();
+    } else {
+        showAlert(data.error || '上传失败', 'danger');
     }
+    input.value = ''; // 清空选择
 }
 
 async function deleteDataFile(filename) {
@@ -1124,16 +1255,3 @@ async function deleteDataFile(filename) {
     }
 }
 
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-//showAlert 已在 common.js 中定义
-//formatDateTimeFull 已在 common.js 中定义
-function formatDateTime(dateString) {
-    return formatDateTimeFull(dateString);
-}

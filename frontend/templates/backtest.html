@@ -137,6 +137,38 @@
             max-width: 1600px;
             margin: 0 auto;
         }
+
+        /* 统一指标行样式 */
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+        .metric-label {
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .metric-value {
+            font-size: 14px;
+        }
+
+        /* 图表卡片统一样式 */
+        .chart-card-header {
+            padding: 0.5rem 1rem !important;
+        }
+        .chart-card-body {
+            padding: 0.5rem 1rem !important;
+        }
+        .chart-height-sm {
+            height: 160px;
+        }
+        .chart-height-md {
+            height: 180px;
+        }
+        
+        .btn-link {
+            text-decoration: none !important;
+        }
         
     </style>
 </head>
@@ -157,16 +189,16 @@
                                 <label class="form-label d-flex justify-content-between align-items-center" style="font-size: 12px;">
                                     <span>交易策略</span>
                                     <div class="strategy-actions">
-                                        <button type="button" class="btn btn-xs btn-link p-0 text-primary me-2" onclick="viewCurrentStrategy()" title="查看源码" id="btnViewStrategy" style="display:none; text-decoration:none;">
+                                        <button type="button" class="btn btn-xs btn-link p-0 text-primary me-2" onclick="viewCurrentStrategy()" title="查看源码" id="btnViewStrategy" style="display:none;">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        <button type="button" class="btn btn-xs btn-link p-0 text-success me-2" onclick="downloadCurrentStrategy()" title="下载策略" id="btnDownloadStrategy" style="display:none; text-decoration:none;">
+                                        <button type="button" class="btn btn-xs btn-link p-0 text-success me-2" onclick="downloadCurrentStrategy()" title="下载策略" id="btnDownloadStrategy" style="display:none;">
                                             <i class="fas fa-download"></i>
                                         </button>
-                                        <button type="button" class="btn btn-xs btn-link p-0 text-info me-2" onclick="$('strategyFileUpload').click()" title="上传策略" style="text-decoration:none;">
+                                        <button type="button" class="btn btn-xs btn-link p-0 text-info me-2" onclick="$('strategyFileUpload').click()" title="上传策略">
                                             <i class="fas fa-upload"></i>
                                         </button>
-                                        <button type="button" class="btn btn-xs btn-link p-0 text-danger" onclick="deleteCurrentStrategy()" title="删除策略" id="btnDeleteStrategy" style="display:none; text-decoration:none;">
+                                        <button type="button" class="btn btn-xs btn-link p-0 text-danger" onclick="deleteCurrentStrategy()" title="删除策略" id="btnDeleteStrategy" style="display:none;">
                                             <i class="fas fa-trash-alt"></i>
                                         </button>
                                         <input type="file" id="strategyFileUpload" style="display: none;" accept=".py" onchange="uploadStrategyFile(this)">
@@ -215,7 +247,7 @@
                 <div class="card mb-2">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h6 class="mb-0"><i class="fas fa-history me-2"></i>回测历史</h6>
-                        <button class="btn btn-xs btn-link p-0 text-secondary" onclick="clearBacktestHistory()" title="清空所有历史记录" style="text-decoration: none;">
+                        <button class="btn btn-xs btn-link p-0 text-secondary" onclick="clearBacktestHistory()" title="清空所有历史记录">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
@@ -257,160 +289,160 @@
             <div class="col-md-2">
                 <div class="card mb-2">
                     <div class="card-header" style="padding: 0.5rem;">
-                        <h6 class="mb-0" style="font-size: 13px;"><i class="fas fa-calendar me-2"></i>日期信息</h6>
+                        <h6 class="mb-0"><i class="fas fa-calendar me-2"></i>日期信息</h6>
                     </div>
                     <div class="card-body" style="padding: 0.5rem;">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">总交易日</span>
-                            <span id="resultTotalTradingDays" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">总交易日</span>
+                            <span id="resultTotalTradingDays" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">盈利交易日</span>
-                            <span id="resultProfitableDays" class="text-success" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">盈利交易日</span>
+                            <span id="resultProfitableDays" class="metric-value text-success">-</span>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted" style="font-size: 13px;">亏损交易日</span>
-                            <span id="resultLossDays" class="text-danger" style="font-size: 13px;">-</span>
+                        <div class="metric-row mb-0">
+                            <span class="metric-label">亏损交易日</span>
+                            <span id="resultLossDays" class="metric-value text-danger">-</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="card mb-2">
                     <div class="card-header" style="padding: 0.5rem;">
-                        <h6 class="mb-0" style="font-size: 13px;"><i class="fas fa-wallet me-2"></i>资金信息</h6>
+                        <h6 class="mb-0"><i class="fas fa-wallet me-2"></i>资金信息</h6>
                     </div>
                     <div class="card-body" style="padding: 0.5rem;">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">起始资金</span>
-                            <span id="resultInitialCapital" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">起始资金</span>
+                            <span id="resultInitialCapital" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">结束资金</span>
-                            <span id="resultEndingCapital" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">结束资金</span>
+                            <span id="resultEndingCapital" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted" style="font-size: 13px;">资金增长</span>
-                            <span id="resultCapitalGrowth" style="font-size: 13px;">-</span>
+                        <div class="metric-row mb-0">
+                            <span class="metric-label">资金增长</span>
+                            <span id="resultCapitalGrowth" class="metric-value">-</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="card mb-2">
                     <div class="card-header" style="padding: 0.5rem;">
-                        <h6 class="mb-0" style="font-size: 13px;"><i class="fas fa-chart-line me-2"></i>收益指标</h6>
+                        <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>收益指标</h6>
                     </div>
                     <div class="card-body" style="padding: 0.5rem;">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">总收益率</span>
-                            <span id="resultTotalReturn" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">总收益率</span>
+                            <span id="resultTotalReturn" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">年化收益</span>
-                            <span id="resultAnnualizedReturn" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">年化收益</span>
+                            <span id="resultAnnualizedReturn" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted" style="font-size: 13px;">日均收益率</span>
-                            <span id="resultDailyAvgReturn" style="font-size: 13px;">-</span>
+                        <div class="metric-row mb-0">
+                            <span class="metric-label">日均收益率</span>
+                            <span id="resultDailyAvgReturn" class="metric-value">-</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="card mb-2">
                     <div class="card-header" style="padding: 0.5rem;">
-                        <h6 class="mb-0" style="font-size: 13px;"><i class="fas fa-exclamation-triangle me-2"></i>风险指标</h6>
+                        <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>风险指标</h6>
                     </div>
                     <div class="card-body" style="padding: 0.5rem;">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">最大回撤</span>
-                            <span id="resultMaxDrawdown" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">最大回撤</span>
+                            <span id="resultMaxDrawdown" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">收益标准差</span>
-                            <span id="resultStdDev" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">收益标准差</span>
+                            <span id="resultStdDev" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted" style="font-size: 13px;">波动率</span>
-                            <span id="resultVolatility" style="font-size: 13px;">-</span>
+                        <div class="metric-row mb-0">
+                            <span class="metric-label">波动率</span>
+                            <span id="resultVolatility" class="metric-value">-</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="card mb-2">
                     <div class="card-header" style="padding: 0.5rem;">
-                        <h6 class="mb-0" style="font-size: 13px;"><i class="fas fa-trophy me-2"></i>绩效指标</h6>
+                        <h6 class="mb-0"><i class="fas fa-trophy me-2"></i>绩效指标</h6>
                     </div>
                     <div class="card-body" style="padding: 0.5rem;">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">夏普比率</span>
-                            <span id="resultSharpeRatio" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">夏普比率</span>
+                            <span id="resultSharpeRatio" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">收益回撤比</span>
-                            <span id="resultReturnDrawdownRatio" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">收益回撤比</span>
+                            <span id="resultReturnDrawdownRatio" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">交易胜率</span>
-                            <span id="resultWinRate" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">交易胜率</span>
+                            <span id="resultWinRate" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">盈亏比</span>
-                            <span id="resultProfitLossRatio" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">盈亏比</span>
+                            <span id="resultProfitLossRatio" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">平均盈利</span>
-                            <span id="resultAvgProfit" class="text-success" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">平均盈利</span>
+                            <span id="resultAvgProfit" class="metric-value text-success">-</span>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted" style="font-size: 13px;">平均亏损</span>
-                            <span id="resultAvgLoss" class="text-danger" style="font-size: 13px;">-</span>
+                        <div class="metric-row mb-0">
+                            <span class="metric-label">平均亏损</span>
+                            <span id="resultAvgLoss" class="metric-value text-danger">-</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="card mb-2">
                     <div class="card-header" style="padding: 0.5rem;">
-                        <h6 class="mb-0" style="font-size: 13px;"><i class="fas fa-exchange-alt me-2"></i>交易统计</h6>
+                        <h6 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>交易统计</h6>
                     </div>
                     <div class="card-body" style="padding: 0.5rem;">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">总盈亏</span>
-                            <span id="resultTotalPnL" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">总盈亏</span>
+                            <span id="resultTotalPnL" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">总手续费</span>
-                            <span id="resultTotalCommission" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">总手续费</span>
+                            <span id="resultTotalCommission" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="text-muted" style="font-size: 13px;">总成交额</span>
-                            <span id="resultTotalTurnover" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">总成交额</span>
+                            <span id="resultTotalTurnover" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted" style="font-size: 13px;">总成交笔数</span>
-                            <span id="resultTotalTrades" style="font-size: 13px;">-</span>
+                        <div class="metric-row mb-0">
+                            <span class="metric-label">总成交笔数</span>
+                            <span id="resultTotalTrades" class="metric-value">-</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="card mb-2">
                     <div class="card-header" style="padding: 0.5rem;">
-                        <h6 class="mb-0" style="font-size: 13px;"><i class="fas fa-calendar-day me-2"></i>日均统计</h6>
+                        <h6 class="mb-0"><i class="fas fa-calendar-day me-2"></i>日均统计</h6>
                     </div>
                     <div class="card-body" style="padding: 0.5rem;">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted" style="font-size: 13px;">日均盈亏</span>
-                            <span id="resultDailyAvgPnL" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">日均盈亏</span>
+                            <span id="resultDailyAvgPnL" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted" style="font-size: 13px;">日均手续费</span>
-                            <span id="resultDailyAvgCommission" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">日均手续费</span>
+                            <span id="resultDailyAvgCommission" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted" style="font-size: 13px;">日均成交额</span>
-                            <span id="resultDailyAvgTurnover" style="font-size: 13px;">-</span>
+                        <div class="metric-row">
+                            <span class="metric-label">日均成交额</span>
+                            <span id="resultDailyAvgTurnover" class="metric-value">-</span>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted" style="font-size: 13px;">日均成交笔数</span>
-                            <span id="resultDailyAvgTrades" style="font-size: 13px;">-</span>
+                        <div class="metric-row mb-0">
+                            <span class="metric-label">日均成交笔数</span>
+                            <span id="resultDailyAvgTrades" class="metric-value">-</span>
                         </div>
                     </div>
                 </div>
@@ -418,37 +450,48 @@
 
             <div class="col-md-7">
                 <div class="card mb-2">
-                    <div class="card-header" style="padding: 0.5rem 1rem;">
-                        <h6 class="mb-0"><i class="fas fa-wallet me-2"></i>账户净值</h6>
+                    <div class="card-header d-flex justify-content-between align-items-center chart-card-header">
+                        <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>价格走势</h6>
+                        <div id="priceTrendLegend" class="d-flex gap-3" style="font-size: 11px;"></div>
                     </div>
-                    <div class="card-body" style="height: 200px; padding: 0.5rem 1rem;">
+                    <div class="card-body chart-card-body chart-height-md">
+                        <canvas id="priceTrendChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card mb-2">
+                    <div class="card-header d-flex justify-content-between align-items-center chart-card-header">
+                        <h6 class="mb-0"><i class="fas fa-wallet me-2"></i>账户净值</h6>
+                        <div id="equityLegend" class="d-flex gap-3" style="font-size: 11px;"></div>
+                    </div>
+                    <div class="card-body chart-card-body chart-height-md">
                         <canvas id="equityChart"></canvas>
                     </div>
                 </div>
 
                 <div class="card mb-2">
-                    <div class="card-header" style="padding: 0.5rem 1rem;">
+                    <div class="card-header chart-card-header">
                         <h6 class="mb-0"><i class="fas fa-arrow-down me-2"></i>净值回撤</h6>
                     </div>
-                    <div class="card-body" style="height: 160px; padding: 0.5rem 1rem;">
+                    <div class="card-body chart-card-body chart-height-sm">
                         <canvas id="drawdownChart"></canvas>
                     </div>
                 </div>
 
                 <div class="card mb-2">
-                    <div class="card-header" style="padding: 0.5rem 1rem;">
+                    <div class="card-header chart-card-header">
                         <h6 class="mb-0"><i class="fas fa-calendar-day me-2"></i>每日盈亏</h6>
                     </div>
-                    <div class="card-body" style="height: 160px; padding: 0.5rem 1rem;">
+                    <div class="card-body chart-card-body chart-height-sm">
                         <canvas id="dailyReturnChart"></canvas>
                     </div>
                 </div>
 
                 <div class="card mb-2">
-                    <div class="card-header" style="padding: 0.5rem 1rem;">
+                    <div class="card-header chart-card-header">
                         <h6 class="mb-0"><i class="fas fa-chart-area me-2"></i>盈亏分布（已交易日期）</h6>
                     </div>
-                    <div class="card-body" style="height: 160px; padding: 0.5rem 1rem;">
+                    <div class="card-body chart-card-body chart-height-sm">
                         <canvas id="pnlDistChart"></canvas>
                     </div>
                 </div>
@@ -456,7 +499,7 @@
                 <div class="card mb-2">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h6 class="mb-0"><i class="fas fa-terminal me-2"></i>系统日志 (Live Console)</h6>
-                        <button class="btn btn-xs btn-link p-0 text-secondary" onclick="clearConsole()" title="清空控制台日志" style="text-decoration: none;">
+                        <button class="btn btn-xs btn-link p-0 text-secondary" onclick="clearConsole()" title="清空控制台日志">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>

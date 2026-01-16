@@ -24,8 +24,29 @@ function showAlert(message, type = 'info') {
     }, 3000);
 }
 
-// 格式化日期时间
-function formatDateTime(dateString) {
+// 统一 API 请求封装
+async function apiRequest(url, options = {}) {
+    try {
+        const response = await fetch(url, options);
+        const data = await response.json();
+        return { ok: response.ok, data, response };
+    } catch (error) {
+        console.error(`API request failed: ${url}`, error);
+        return { ok: false, data: { error: error.message }, response: null };
+    }
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 格式化时间 (仅时间)
+function formatTime(dateString) {
     if (!dateString) return '--:--:--';
     try {
         const date = new Date(dateString);
@@ -36,8 +57,8 @@ function formatDateTime(dateString) {
     }
 }
 
-// 格式化日期时间（完整格式，用于策略页面）
-function formatDateTimeFull(dateString) {
+// 格式化日期时间 (日期 + 时间)
+function formatDateTime(dateString) {
     if (!dateString) return '';
     try {
         const date = new Date(dateString);
