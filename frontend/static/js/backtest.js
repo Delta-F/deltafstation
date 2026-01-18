@@ -2,6 +2,17 @@
 // DOM 辅助函数 $ 已在 common.js 中定义
 let currentStrategy = null;
 
+// =========================
+// 日期处理辅助函数（优化：统一日期格式化）
+// =========================
+function formatDateToYYYYMMDD(date) {
+    if (!date) return '';
+    if (typeof date === 'string') {
+        return date.split(' ')[0].split('T')[0];
+    }
+    return new Date(date).toISOString().split('T')[0];
+}
+
 function formatDateToMonth(dateStr) {
     if (!dateStr) return '';
     try {
@@ -26,6 +37,16 @@ function generateMonthLabels(dateArray) {
     });
 }
 
+// 优化：简化日期序列生成
+function generateDateSequence(startDate, count) {
+    const start = startDate ? new Date(startDate) : new Date();
+    return Array.from({ length: count }, (_, i) => {
+        const date = new Date(start);
+        date.setDate(date.getDate() + i);
+        return formatDateToYYYYMMDD(date);
+    });
+}
+
 function parseValuesDf(valuesDf) {
     if (!valuesDf || !Array.isArray(valuesDf) || valuesDf.length === 0) {
         return { portfolioValues: [], dates: [], rawDates: [] };
@@ -41,13 +62,7 @@ function parseValuesDf(valuesDf) {
 
         if (value !== undefined && value !== null) {
             portfolioValues.push(parseFloat(value));
-            
-            if (date) {
-                const dateStr = typeof date === 'string' ? date : new Date(date).toISOString().split('T')[0];
-                rawDates.push(dateStr);
-            } else {
-                rawDates.push(null);
-            }
+            rawDates.push(date ? formatDateToYYYYMMDD(date) : null);
         }
     });
     
@@ -104,18 +119,8 @@ function getStandardXAxisConfig() {
             callback: function(value) {
                 const label = this.getLabelForValue(value);
                 if (!label || label.trim() === '') return '';
-                // 尝试解析日期并格式化为 YY/M 格式 (例如 25/1)
-                try {
-                    const date = new Date(label);
-                    if (!isNaN(date.getTime())) {
-                        const yearShort = String(date.getFullYear()).substring(2);
-                        const month = date.getMonth() + 1;
-                        return `${yearShort}/${month}`;
-                    }
-                } catch (e) {
-                    // 如果解析失败，返回原值
-                }
-                return label;
+                const formatted = formatDateToMonth(label);
+                return formatted || label;
             },
             maxTicksLimit: undefined,
             autoSkip: false,
@@ -173,8 +178,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     const startInput = $('backtestStartDate');
     const endInput = $('backtestEndDate');
     if (startInput && endInput) {
-        startInput.value = twoYearsAgo.toISOString().split('T')[0];
-        endInput.value = today.toISOString().split('T')[0];
+        startInput.value = formatDateToYYYYMMDD(twoYearsAgo);
+        endInput.value = formatDateToYYYYMMDD(today);
     }
 
     // 首先加载策略列表（最关键的交互）
@@ -332,19 +337,26 @@ async function loadDataFiles() {
     }).join('');
 }
 
-function selectDataFileForBacktest(filename) {
+async function selectDataFileForBacktest(filename) {
     const symbol = filename.replace('.csv', '');
     const symbolInput = $('backtestSymbol');
     if (symbolInput) {
         symbolInput.value = symbol;
-        // 视觉反馈：闪烁一下表示已选中
         symbolInput.classList.add('is-valid');
         setTimeout(() => symbolInput.classList.remove('is-valid'), 1000);
-        
-        // 自动滚动到参数配置区域
-        $('backtestConfigCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        showAlert(`已选择数据文件: ${filename}`, 'info');
     }
+    
+    // 获取文件日期信息并填充
+    const { ok, data } = await apiRequest(`/api/data/files/${encodeURIComponent(filename)}`);
+    if (ok && data.start_date && data.end_date) {
+        const startInput = $('backtestStartDate');
+        const endInput = $('backtestEndDate');
+        if (startInput) startInput.value = data.start_date;
+        if (endInput) endInput.value = data.end_date;
+    }
+    
+    $('backtestConfigCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showAlert(`已选择数据文件: ${filename}`, 'info');
 }
 
 async function loadBacktestHistory() {
@@ -436,6 +448,33 @@ function getBacktestParams() {
 }
 
 async function syncMarketData(symbol, startDate, endDate, silent = false) {
+    // 首先检查本地文件是否存在，以及日期范围是否已包含所需数据
+    const { ok, data } = await apiRequest(`/api/data/symbols/${symbol}/files`, {
+        method: 'GET'
+    });
+    
+    // 如果文件存在，检查日期范围
+    if (ok && data && data.filename) {
+        // 获取文件详细信息，检查日期范围
+        const fileInfo = await apiRequest(`/api/data/files/${data.filename}`);
+        if (fileInfo.ok && fileInfo.data.start_date && fileInfo.data.end_date) {
+            const fileStartDate = new Date(fileInfo.data.start_date);
+            const fileEndDate = new Date(fileInfo.data.end_date);
+            const requiredStartDate = new Date(startDate);
+            const requiredEndDate = new Date(endDate);
+            
+            // 检查文件的日期范围是否包含所需的日期范围
+            if (fileStartDate <= requiredStartDate && fileEndDate >= requiredEndDate) {
+                // 日期范围已存在，无需重新下载
+                if (!silent) {
+                    showAlert(`${symbol} 数据已存在，无需下载`, 'info');
+                }
+                return data.filename;
+            }
+        }
+    }
+    
+    // 文件不存在或日期范围不完整，需要全量重新下载
     const fetchResult = await apiRequest(`/api/data/symbols/${symbol}/files`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -443,12 +482,12 @@ async function syncMarketData(symbol, startDate, endDate, silent = false) {
     });
     
     if (!fetchResult.ok) {
-        if (!silent) showAlert(fetchResult.data.error || '获取数据失败', 'danger');
+        if (!silent) showAlert(fetchResult.data?.error || '获取数据失败', 'danger');
         return null;
     }
     
     if (!silent) {
-        const statusMsg = fetchResult.data.status === 'updated' ? '数据同步完成' : '全量数据下载完成';
+        const statusMsg = fetchResult.data.status === 'exists' ? '数据已存在' : '全量数据下载完成';
         showAlert(`${symbol} ${statusMsg}`, 'success');
         loadDataFiles();
     }
@@ -488,8 +527,6 @@ async function runBacktest() {
     
     if (!result.ok) {
         showAlert(result.data.error || '回测失败', 'danger');
-        const debugOutput = $('debugOutput');
-        if (debugOutput) debugOutput.textContent = JSON.stringify(result.data, null, 2);
         return;
     }
     
@@ -544,7 +581,7 @@ function showBacktestResult(results) {
         { id: 'resultProfitLossRatio', val: m.profit_loss_ratio === Infinity ? 'inf' : (m.profit_loss_ratio || 0).toFixed(2) },
         { id: 'resultAvgProfit', val: formatCurrency(m.avg_win || 0), cls: 'text-danger' },
         { id: 'resultAvgLoss', val: formatCurrency(Math.abs(m.avg_loss || 0)), cls: 'text-success' },
-        { id: 'resultTotalPnL', val: formatCurrency(m.total_pnl || 0), cls: (m.total_pnl || 0) >= 0 ? 'text-danger' : 'text-success' },
+        { id: 'resultTotalPnL', val: formatCurrency(growth), cls: growth >= 0 ? 'text-danger' : 'text-success' },
         { id: 'resultTotalCommission', val: formatCurrency(m.total_commission || 0) },
         { id: 'resultTotalTurnover', val: formatCurrency(m.total_turnover || 0) },
         { id: 'resultTotalTrades', val: m.total_trade_count || 0 },
@@ -601,8 +638,7 @@ async function getBenchmarkNormalizedData(symbol, rawDates) {
             const priceVal = parseFloat(row['Close'] || row['Price'] || row[Object.keys(row)[1]]);
             
             if (dateVal && !isNaN(priceVal)) {
-                // 清理日期格式：只保留 YYYY-MM-DD
-                const cleanDate = typeof dateVal === 'string' ? dateVal.split(' ')[0].split('T')[0] : dateVal;
+                const cleanDate = formatDateToYYYYMMDD(dateVal);
                 priceMap.set(cleanDate, priceVal);
             }
         });
@@ -610,8 +646,7 @@ async function getBenchmarkNormalizedData(symbol, rawDates) {
         // 4. 按照回测的日期序列提取基准价格并归一化
         let firstPrice = null;
         const normalizedBenchmark = rawDates.map(date => {
-            // 清理目标日期格式
-            const cleanTargetDate = date ? date.split(' ')[0].split('T')[0] : '';
+            const cleanTargetDate = formatDateToYYYYMMDD(date);
             const price = priceMap.get(cleanTargetDate);
             
             if (price !== undefined && price !== null) {
@@ -644,56 +679,28 @@ async function getBenchmarkNormalizedData(symbol, rawDates) {
     }
 }
 
-// 辅助函数：标准化日期数据
+// 辅助函数：标准化日期数据（优化）
 function normalizeBacktestDates(results, portfolioValues) {
-    let rawDates = [];
-    let dates = [];
-
-    // 1. 优先使用传入的原始日期数组
-    if (results.rawDates && results.rawDates.length > 0) {
-        rawDates = results.rawDates;
-        // 如果dates已经存在且是月份标签格式 (YY/M)，直接使用；否则生成月份标签
-        if (results.dates && results.dates.length > 0 && results.dates.some(d => d && d.match(/^\d{2}\/\d{1,2}$/))) {
-            dates = results.dates;
-        } else {
-            dates = generateMonthLabels(rawDates);
-        }
-    } 
-    // 2. 只有 dates 的情况
-    else if (results.dates?.length > 0) {
-        if (results.dates[0] && results.dates[0].includes('/')) {
-            const startDate = results.start_date ? new Date(results.start_date) : new Date();
-            rawDates = portfolioValues.map((_, i) => {
-                const date = new Date(startDate);
-                date.setDate(date.getDate() + i);
-                return date.toISOString().split('T')[0];
-            });
-            dates = results.dates;
-        } else {
-            if (results.start_date) {
-                const startDate = new Date(results.start_date);
-                rawDates = portfolioValues.map((_, i) => {
-                    const date = new Date(startDate);
-                    date.setDate(date.getDate() + i);
-                    return date.toISOString().split('T')[0];
-                });
-            } else {
-                rawDates = results.dates;
-            }
-            dates = results.dates;
-        }
-    } 
-    // 3. 完全没有日期数据
-    else {
-        const startDate = results.start_date ? new Date(results.start_date) : new Date();
-        rawDates = portfolioValues.map((_, i) => {
-            const date = new Date(startDate);
-            date.setDate(date.getDate() + i);
-            return date.toISOString().split('T')[0];
-        });
-        dates = generateMonthLabels(rawDates);
+    // 如果已有 rawDates，直接使用
+    if (results.rawDates?.length > 0) {
+        const dates = results.dates?.some(d => d?.match(/^\d{2}\/\d{1,2}$/)) 
+            ? results.dates 
+            : generateMonthLabels(results.rawDates);
+        return { rawDates: results.rawDates, dates };
     }
     
+    // 如果有 dates 且是月份格式
+    if (results.dates?.length > 0 && results.dates[0]?.includes('/')) {
+        const rawDates = generateDateSequence(results.start_date, portfolioValues.length);
+        return { rawDates, dates: results.dates };
+    }
+    
+    // 其他情况
+    const rawDates = results.dates?.length > 0 && !results.dates[0]?.includes('/')
+        ? (results.start_date ? generateDateSequence(results.start_date, portfolioValues.length) : results.dates)
+        : generateDateSequence(results.start_date, portfolioValues.length);
+    
+    const dates = results.dates?.length > 0 ? results.dates : generateMonthLabels(rawDates);
     return { rawDates, dates };
 }
 
@@ -735,23 +742,14 @@ function getChartTooltipCallbacks(originalDates) {
     return {
         title: function(context) {
             const index = context[0].dataIndex;
-            const dateStr = (originalDates && originalDates[index]) ? originalDates[index] : context[0].label;
-            if (!dateStr) return '';
-            try {
-                const date = new Date(dateStr);
-                if (!isNaN(date.getTime())) {
-                    return date.toISOString().split('T')[0];
-                }
-            } catch (e) {}
-            return dateStr;
+            const dateStr = originalDates?.[index] || context[0].label;
+            return dateStr ? (formatDateToYYYYMMDD(dateStr) || dateStr) : '';
         },
         label: function(ctx) {
             const label = ctx.dataset.label || '';
             const value = ctx.parsed.y;
-            if (label.includes('收益率') || label.includes('回撤')) {
-                return `${label}: ${value.toFixed(2)}%`;
-            }
-            return `${label}: ${value.toFixed(4)}`;
+            const format = label.includes('收益率') || label.includes('回撤') ? 2 : 4;
+            return `${label}: ${value.toFixed(format)}%`;
         }
     };
 }
@@ -1025,31 +1023,19 @@ function drawPnlDistChart(portfolioValues) {
         plugins: [{
             id: 'zeroLine',
             beforeDraw: (chart) => {
-                const {ctx, chartArea: {top, bottom, left, right}, scales: {x}} = chart;
-                let zeroIndex = -1;
-                let minDiff = Infinity;
-                chart.data.labels.forEach((label, index) => {
-                    const val = parseFloat(label);
-                    const diff = Math.abs(val);
-                    if (diff < minDiff) {
-                        minDiff = diff;
-                        zeroIndex = index;
-                    }
-                });
-
-                if (zeroIndex !== -1) {
-                    const zeroX = x.getPixelForValue(chart.data.labels[zeroIndex]); 
-                    if (zeroX >= left && zeroX <= right) {
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.lineWidth = 1.5;
-                        ctx.strokeStyle = 'rgba(220, 53, 69, 0.6)';
-                        ctx.setLineDash([4, 4]);
-                        ctx.moveTo(zeroX, top);
-                        ctx.lineTo(zeroX, bottom);
-                        ctx.stroke();
-                        ctx.restore();
-                    }
+                const {ctx, chartArea: {top, bottom, left, right}} = chart;
+                if (min <= 0 && max >= 0) {
+                    const ratio = (0 - min) / (max - min);
+                    const zeroX = left + ratio * (right - left);
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = 'rgba(220, 53, 69, 0.6)';
+                    ctx.setLineDash([4, 4]);
+                    ctx.moveTo(zeroX, top);
+                    ctx.lineTo(zeroX, bottom);
+                    ctx.stroke();
+                    ctx.restore();
                 }
             }
         }],
@@ -1180,37 +1166,6 @@ async function previewData(filename) {
     modal.show();
     
     modalDiv.addEventListener('hidden.bs.modal', () => document.body.removeChild(modalDiv));
-}
-
-async function createStrategy() {
-    const name = $('strategyName')?.value;
-    const type = $('strategyType')?.value;
-    const description = $('strategyDescription')?.value;
-    const rules = $('strategyRules')?.value;
-    
-    if (!name || !type) {
-        showAlert('请填写必填字段', 'warning');
-        return;
-    }
-    
-    const result = await apiRequest('/api/strategies', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            name, type, description,
-            parameters: {},
-            rules: rules.split('\n').filter(rule => rule.trim())
-        })
-    });
-    
-    if (result.ok) {
-        showAlert('策略创建成功', 'success');
-        bootstrap.Modal.getInstance($('strategyCreateModal'))?.hide();
-        $('strategyCreateForm')?.reset();
-        loadStrategies();
-    } else {
-        showAlert(result.data.error || '创建失败', 'danger');
-    }
 }
 
 // =========================

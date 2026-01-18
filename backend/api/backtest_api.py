@@ -4,66 +4,46 @@
 from flask import Blueprint, request, jsonify
 import os
 import json
+import math
+import re
+import traceback
 import pandas as pd
+import numpy as np
 from datetime import datetime
 from typing import Any
 from backend.core.backtest_engine import BacktestEngine
 
 backtest_bp = Blueprint("backtest", __name__)
 
+# 路径常量
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+_DATA_RESULTS_FOLDER = os.path.join(_BASE_DIR, "data", "results")
+
 
 def _convert_to_json_serializable(obj):
     """将 pandas/numpy 对象转换为 JSON 可序列化的格式"""
-    import math
-    import numpy as np
-    
     if isinstance(obj, pd.DataFrame):
-        # DataFrame 转字典列表
-        result = obj.to_dict("records")
-        # 处理每个记录中的特殊类型
-        for record in result:
-            for key, value in list(record.items()):
-                record[key] = _convert_to_json_serializable(value)
-        return result
+        return [_convert_to_json_serializable(record) for record in obj.to_dict("records")]
     elif isinstance(obj, pd.Series):
-        # Series 转列表
         return [_convert_to_json_serializable(item) for item in obj.tolist()]
     elif isinstance(obj, dict):
-        # 递归处理字典
         return {k: _convert_to_json_serializable(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):
-        # 递归处理列表
         return [_convert_to_json_serializable(item) for item in obj]
     elif isinstance(obj, pd.Timestamp):
         return obj.strftime("%Y-%m-%d %H:%M:%S")
     elif isinstance(obj, pd.Timedelta):
         return str(obj)
     elif isinstance(obj, (int, float, np.integer, np.floating)):
-        # 处理 NaN、Infinity 和 -Infinity
-        # 先转换为 Python 原生类型
         try:
-            if isinstance(obj, (np.integer, np.floating)):
-                obj = float(obj) if isinstance(obj, np.floating) else int(obj)
-        except (OverflowError, ValueError):
-            return None
-        
-        # 检查 NaN
-        if pd.isna(obj):
-            return None
-        
-        # 检查 Infinity
-        try:
-            if math.isinf(obj):
-                return None  # 将 Infinity 转换为 None
-            if math.isnan(obj):
-                return None
-        except (TypeError, ValueError):
-            pass
-        
-        # 检查是否为有效的数值
-        try:
-            # 确保值在合理范围内
-            if abs(obj) > 1e308:  # 接近 Infinity 的值
+            # 转换为 Python 原生类型
+            if isinstance(obj, np.floating):
+                obj = float(obj)
+            elif isinstance(obj, np.integer):
+                obj = int(obj)
+            
+            # 检查 NaN 和 Infinity
+            if pd.isna(obj) or math.isinf(obj) or abs(obj) > 1e308:
                 return None
             return obj
         except (TypeError, ValueError, OverflowError):
@@ -74,107 +54,43 @@ def _convert_to_json_serializable(obj):
 
 @backtest_bp.route("", methods=["POST"])
 def run_backtest():
-    """
-    创建并运行回测 - POST /api/backtests
-    原：POST /api/backtest/run
-    """
+    """创建并运行回测 - POST /api/backtests"""
     try:
         payload: Any = request.get_json()
-
-        # 基本字段验证
-        if not payload.get("strategy_id") or not payload.get("data_file"):
+        if not payload or not payload.get("strategy_id") or not payload.get("data_file"):
             return jsonify({"error": "Missing required fields: strategy_id, data_file"}), 400
 
-        # 加载数据
-        data_folder = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "data",
-            "raw",
-        )
-        data_file = os.path.join(data_folder, payload["data_file"])
-
-        if not os.path.exists(data_file):
-            return jsonify({"error": "Data file not found"}), 404
-
-        df = pd.read_csv(data_file)
-        if "Date" in df.columns:
-            df["Date"] = pd.to_datetime(df["Date"])
-            df = df.set_index("Date")
-
-        # 过滤日期范围（如果提供）
-        if payload.get("start_date") and payload.get("end_date"):
-            start_date = pd.to_datetime(payload["start_date"])
-            end_date = pd.to_datetime(payload["end_date"])
-            df = df[(df.index >= start_date) & (df.index <= end_date)]
-
-        # 提取 symbol：优先从 payload 获取，否则从文件名解析（去掉 .csv）
-        symbol = payload.get("symbol")
-        if not symbol:
-            symbol = payload["data_file"].replace(".csv", "").split("_")[0]
-        if not symbol or symbol.upper() == "ASSET":
-            symbol = "ASSET"
-        
-        symbol = symbol.upper()
-
-        # 通过 Core 层加载策略类
-        strategy_class = BacktestEngine.load_strategy_class(payload["strategy_id"])
-
-        # 实例化策略
-        strategy_instance = strategy_class()
-
-        # 初始化回测引擎（通过 Core 层）
-        initial_capital = payload.get("initial_capital", 100000)
-        commission = payload.get("commission", 0.001)
-        slippage = payload.get("slippage", 0.0005)
+        # 创建回测引擎
         engine = BacktestEngine(
-            initial_capital=initial_capital,
-            commission=commission,
-            slippage=slippage
+            initial_capital=payload.get("initial_capital", 100000),
+            commission=payload.get("commission", 0.001),
+            slippage=payload.get("slippage", 0.0005)
+        )
+        
+        # 运行回测（Core 层处理数据加载和预处理）
+        symbol = engine.run_backtest_from_file(
+            strategy_id=payload["strategy_id"],
+            data_file=payload["data_file"],
+            start_date=payload.get("start_date"),
+            end_date=payload.get("end_date"),
+            symbol=payload.get("symbol")
         )
 
-        # 运行回测（通过 Core 层统一接口）
-        engine.run_backtest(
-            strategy=strategy_instance,
-            data=df,
-            symbol=symbol,
-            strategy_name=payload["strategy_id"]
-        )
-
-        # 从引擎获取回测结果
-        trades_df = engine.get_trades_df()
-        values_df = engine.get_values_df()
-        metrics = engine.get_metrics()
-        values_metrics = engine.get_values_metrics()
-
-        # 原样返回所有数据，不做格式化处理
+        # 获取回测结果
         result = {
-            "trades_df": _convert_to_json_serializable(trades_df),
-            "values_df": _convert_to_json_serializable(values_df),
-            "values_metrics": _convert_to_json_serializable(values_metrics),
-            "metrics": _convert_to_json_serializable(metrics),
+            "trades_df": _convert_to_json_serializable(engine.get_trades_df()),
+            "values_df": _convert_to_json_serializable(engine.get_values_df()),
+            "values_metrics": _convert_to_json_serializable(engine.get_values_metrics()),
+            "metrics": _convert_to_json_serializable(engine.get_metrics()),
         }
 
-        # 保存回测结果（可选）
-        results_folder = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "data",
-            "results",
-        )
-        os.makedirs(results_folder, exist_ok=True)
-
-        # 优化 result_id 命名：策略_标的_开始日期_结束日期_时间戳
-        # 移除日期中的横杠，保持文件名简洁
+        # 保存结果
+        os.makedirs(_DATA_RESULTS_FOLDER, exist_ok=True)
         s_date = payload.get("start_date", "").replace("-", "")
         e_date = payload.get("end_date", "").replace("-", "")
-        # 使用当前日期+时间戳，确保唯一性
-        date_tag = datetime.now().strftime('%Y%m%d_%H%M%S')
-        
-        # 提取标的代码
         symbol_name = symbol.split(".")[0] if "." in symbol else symbol
+        result_id = f"res_{payload['strategy_id']}_{symbol_name}_{s_date}_{e_date}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        result_id = f"res_{payload['strategy_id']}_{symbol_name}_{s_date}_{e_date}_{date_tag}"
-        result_file = os.path.join(results_folder, f"{result_id}.json")
-
         result_data = {
             "id": result_id,
             "strategy_id": payload["strategy_id"],
@@ -182,62 +98,44 @@ def run_backtest():
             "data_file": payload["data_file"],
             "start_date": payload.get("start_date"),
             "end_date": payload.get("end_date"),
-            "initial_capital": initial_capital,
-            "commission": commission,
+            "initial_capital": payload.get("initial_capital", 100000),
+            "commission": payload.get("commission", 0.001),
             "created_at": datetime.now().isoformat(),
             "result": result,
         }
 
-        # 保存前清理 Infinity 值
-        cleaned_result_data = _convert_to_json_serializable(result_data)
-        
-        with open(result_file, "w", encoding="utf-8") as f:
-            json.dump(cleaned_result_data, f, ensure_ascii=False, indent=2)
+        with open(os.path.join(_DATA_RESULTS_FOLDER, f"{result_id}.json"), "w", encoding="utf-8") as f:
+            json.dump(_convert_to_json_serializable(result_data), f, ensure_ascii=False, indent=2)
 
-        # 确保返回的结果中不包含 Infinity（再次转换以确保安全）
-        safe_result = _convert_to_json_serializable(result)
-        
         return jsonify({
             "message": "Backtest completed successfully",
             "result_id": result_id,
-            **safe_result
+            **result
         })
 
     except Exception as e:
-        import traceback
         error_trace = traceback.format_exc()
-        print(f"Backtest error: {e}")
-        print(f"Traceback: {error_trace}")
+        print(f"Backtest error: {e}\nTraceback: {error_trace}")
         return jsonify({"error": str(e), "traceback": error_trace}), 500
 
 @backtest_bp.route('', methods=['GET'])
 def list_results():
-    """
-    获取回测结果列表 - GET /api/backtests
-    原：GET /api/backtest/results
-    """
+    """获取回测结果列表 - GET /api/backtests"""
     try:
-        results_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'results')
-        
-        if not os.path.exists(results_folder):
+        if not os.path.exists(_DATA_RESULTS_FOLDER):
             return jsonify({'results': []})
         
         results = []
-        for filename in os.listdir(results_folder):
+        for filename in os.listdir(_DATA_RESULTS_FOLDER):
             if filename.endswith('.json'):
-                filepath = os.path.join(results_folder, filename)
-                with open(filepath, 'r', encoding='utf-8') as f:
+                with open(os.path.join(_DATA_RESULTS_FOLDER, filename), 'r', encoding='utf-8') as f:
                     result = json.load(f)
-                    # 正确提取 metrics 数据
-                    metrics = result.get('result', {}).get('metrics', {})
-                    if not metrics and 'metrics' in result:
-                        # 兼容旧格式：如果 metrics 直接在 result 中
-                        metrics = result.get('metrics', {})
+                    metrics = result.get('result', {}).get('metrics', {}) or result.get('metrics', {})
                     
                     results.append({
                         'id': result.get('id', ''),
                         'strategy_id': result.get('strategy_id', ''),
-                        'symbol': result.get('symbol', ''), # 新增标的字段
+                        'symbol': result.get('symbol', ''),
                         'data_file': result.get('data_file', ''),
                         'start_date': result.get('start_date'),
                         'end_date': result.get('end_date'),
@@ -247,9 +145,7 @@ def list_results():
                         'max_drawdown': metrics.get('max_drawdown', 0) if isinstance(metrics, dict) else 0
                     })
         
-        # 按创建时间倒序排列（最新的在前）
         results.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-        
         return jsonify({'results': results})
     
     except Exception as e:
@@ -257,23 +153,18 @@ def list_results():
 
 @backtest_bp.route('', methods=['DELETE'])
 def clear_results():
-    """
-    清空所有回测结果 - DELETE /api/backtests
-    """
+    """清空所有回测结果 - DELETE /api/backtests"""
     try:
-        results_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'results')
-        
-        if not os.path.exists(results_folder):
+        if not os.path.exists(_DATA_RESULTS_FOLDER):
             return jsonify({'message': 'No results to clear'}), 200
         
         count = 0
-        for filename in os.listdir(results_folder):
+        for filename in os.listdir(_DATA_RESULTS_FOLDER):
             if filename.endswith('.json'):
-                filepath = os.path.join(results_folder, filename)
                 try:
-                    os.remove(filepath)
+                    os.remove(os.path.join(_DATA_RESULTS_FOLDER, filename))
                     count += 1
-                except:
+                except OSError:
                     pass
         
         return jsonify({'message': f'Successfully cleared {count} results'}), 200
@@ -283,41 +174,20 @@ def clear_results():
 
 @backtest_bp.route('/<result_id>', methods=['GET'])
 def get_result(result_id: str):
-    """
-    获取回测结果详情 - GET /api/backtests/<result_id>
-    原：GET /api/backtest/results/<result_id>
-    """
+    """获取回测结果详情 - GET /api/backtests/<result_id>"""
     try:
-        results_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'results')
-        result_file = os.path.join(results_folder, f"{result_id}.json")
-        
+        result_file = os.path.join(_DATA_RESULTS_FOLDER, f"{result_id}.json")
         if not os.path.exists(result_file):
             return jsonify({'error': 'Result not found'}), 404
         
-        # 读取文件并处理可能的 Infinity 值
-        try:
-            with open(result_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-                # 替换可能的 Infinity 字符串（处理旧文件）
-                content = content.replace(': Infinity', ': null')
-                content = content.replace(': -Infinity', ': null')
-                content = content.replace(': "inf"', ': null')
-                content = content.replace(': "-inf"', ': null')
-                result = json.loads(content)
-        except json.JSONDecodeError as e:
-            # 如果 JSON 解析失败，尝试使用更宽松的方式
-            import re
-            # 替换所有 Infinity 相关的字符串
-            content = re.sub(r':\s*Infinity', ': null', content)
-            content = re.sub(r':\s*-Infinity', ': null', content)
+        with open(result_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+            # 处理旧文件中的 Infinity 字符串
+            content = re.sub(r':\s*-?Infinity', ': null', content)
             result = json.loads(content)
         
-        # 清理 Infinity 值，确保 JSON 可序列化
-        cleaned_result = _convert_to_json_serializable(result)
-        
-        return jsonify({'result': cleaned_result})
+        return jsonify({'result': _convert_to_json_serializable(result)})
     
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500

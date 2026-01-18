@@ -73,6 +73,17 @@ class DataManager:
             pass
         return (datetime.now() - timedelta(days=365*20)).date()
     
+    def _get_file_date_range(self, filename):
+        """从文件中获取日期范围"""
+        try:
+            df = pd.read_csv(os.path.join(self.raw_folder, filename), usecols=['Date'])
+            if not df.empty:
+                df['Date'] = pd.to_datetime(df['Date'])
+                return df['Date'].min().date(), df['Date'].max().date()
+        except:
+            pass
+        return None, None
+    
     def fetch_data(self, symbol, start_date=None, end_date=None, period=None, update_existing=True):
         """
         统一的数据获取方法，支持多种数据源和增量更新
@@ -89,19 +100,35 @@ class DataManager:
         """
         symbol = symbol.upper()
         
+        # 转换日期格式
+        if start_date and isinstance(start_date, str):
+            start_date = datetime.fromisoformat(start_date).date()
+        if end_date and isinstance(end_date, str):
+            end_date = datetime.fromisoformat(end_date).date()
+        
         # 1. 检查本地文件（如果需要增量更新）
         latest_file = None
         if update_existing:
             latest_file = self.find_latest_file(symbol)
+            
+            # 如果指定了日期范围，检查现有文件是否已包含所需日期范围
+            if latest_file and start_date and end_date:
+                file_start, file_end = self._get_file_date_range(latest_file)
+                if file_start and file_end:
+                    # 检查文件的日期范围是否包含所需的日期范围
+                    if file_start <= start_date and file_end >= end_date:
+                        # 日期范围已存在，直接返回文件
+                        df = pd.read_csv(os.path.join(self.raw_folder, latest_file))
+                        return latest_file, df, "exists", "local"
         
         # 2. 确定时间范围
-        if latest_file and update_existing:
-            # 从已有文件获取起始日期，更新到最新
+        if latest_file and update_existing and not (start_date and end_date):
+            # 从已有文件获取起始日期，更新到最新（仅在没有指定日期范围时）
             start_date = self._get_file_start_date(latest_file)
             end_date = datetime.now().date()
             status = "updated"
         else:
-            # 首次下载或指定了日期范围
+            # 首次下载或指定了日期范围（需要全量重新下载）
             if period:
                 # 使用 period 参数
                 start_date = None
@@ -109,12 +136,8 @@ class DataManager:
             else:
                 if not start_date:
                     start_date = (datetime.now() - timedelta(days=365*20)).date()
-                elif isinstance(start_date, str):
-                    start_date = datetime.fromisoformat(start_date).date()
                 if not end_date:
                     end_date = datetime.now().date()
-                elif isinstance(end_date, str):
-                    end_date = datetime.fromisoformat(end_date).date()
             status = "downloaded_full"
         
         # 3. 获取数据（优先使用 DataFetcher，否则使用 yfinance）

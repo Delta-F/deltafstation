@@ -9,6 +9,11 @@ from typing import Dict, Any, Optional, Type
 from deltafq.backtest import BacktestEngine as DeltaFqBacktestEngine
 from deltafq.strategy.base import BaseStrategy
 
+# 路径常量
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+_STRATEGIES_FOLDER = os.path.join(_BASE_DIR, "data", "strategies")
+_DATA_RAW_FOLDER = os.path.join(_BASE_DIR, "data", "raw")
+
 
 class BacktestEngine:
     """
@@ -55,7 +60,7 @@ class BacktestEngine:
         data: pd.DataFrame,
         symbol: str = "ASSET",
         strategy_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> None:
         """
         运行回测
         
@@ -64,25 +69,9 @@ class BacktestEngine:
             data: 历史数据 DataFrame，需包含 Date 索引和 Close 列
             symbol: 交易标的代码
             strategy_name: 策略名称
-            
-        Returns:
-            回测结果字典，包含：
-            - total_return: 总收益率
-            - annualized_return: 年化收益率
-            - sharpe_ratio: 夏普比率
-            - max_drawdown: 最大回撤
-            - win_rate: 胜率
-            - total_trades: 总交易次数
-            - final_capital: 最终资金
-            - portfolio_values: 组合价值序列
-            - trades: 交易记录列表
-            - dates: 日期序列
         """
-        # 生成策略信号
-        signals = strategy.generate_signals(data)
-        signals = signals.astype(int)
-        
-        # 运行回测
+        # 生成策略信号并运行回测
+        signals = strategy.generate_signals(data).astype(int)
         self.trades_df, self.values_df = self._engine.run_backtest(
             symbol=symbol,
             signals=signals,
@@ -92,52 +81,6 @@ class BacktestEngine:
         
         # 计算指标
         self.values_metrics, self.metrics = self._engine.calculate_metrics()
-        
-        # 提取组合价值序列
-        portfolio_values = []
-        dates = []
-        if not self.values_df.empty:
-            if "total_value" in self.values_df.columns:
-                portfolio_values = self.values_df["total_value"].tolist()
-            elif "portfolio_value" in self.values_df.columns:
-                portfolio_values = self.values_df["portfolio_value"].tolist()
-            elif "value" in self.values_df.columns:
-                portfolio_values = self.values_df["value"].tolist()
-            elif "equity" in self.values_df.columns:
-                portfolio_values = self.values_df["equity"].tolist()
-            else:
-                numeric_cols = self.values_df.select_dtypes(include=["float64", "int64"]).columns
-                if len(numeric_cols) > 0:
-                    portfolio_values = self.values_df[numeric_cols[0]].tolist()
-            
-            # 提取日期
-            if "date" in self.values_df.columns:
-                dates = pd.to_datetime(self.values_df["date"]).dt.strftime("%Y-%m-%d").tolist()
-            elif isinstance(self.values_df.index, pd.DatetimeIndex):
-                dates = self.values_df.index.strftime("%Y-%m-%d").tolist()
-            else:
-                dates = [str(d) for d in self.values_df.index]
-        
-        # 提取交易记录
-        trades = []
-        if not self.trades_df.empty:
-            trades = self.trades_df.to_dict("records")
-        
-        # 构建返回结果
-        results = {
-            "total_return": self.metrics.get("total_return", 0.0),
-            "annualized_return": self.metrics.get("annualized_return", 0.0),
-            "sharpe_ratio": self.metrics.get("sharpe_ratio", 0.0),
-            "max_drawdown": self.metrics.get("max_drawdown", 0.0),
-            "win_rate": self.metrics.get("win_rate", 0.0),
-            "total_trades": self.metrics.get("total_trade_count", len(trades)),
-            "final_capital": self.metrics.get("end_capital", portfolio_values[-1] if portfolio_values else self.initial_capital),
-            "portfolio_values": portfolio_values,
-            "trades": trades,
-            "dates": dates,
-        }
-        
-        return results
     
     def get_trades_df(self) -> pd.DataFrame:
         """获取交易记录 DataFrame"""
@@ -156,6 +99,102 @@ class BacktestEngine:
         return self.values_metrics
 
     @staticmethod
+    def load_and_prepare_data(
+        data_file: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        symbol: Optional[str] = None,
+    ) -> tuple[pd.DataFrame, str]:
+        """
+        加载并预处理数据
+        
+        Args:
+            data_file: 数据文件名（相对于 data/raw 目录）
+            start_date: 起始日期（可选）
+            end_date: 结束日期（可选）
+            symbol: 标的代码（可选，默认从文件名解析）
+            
+        Returns:
+            tuple: (处理后的 DataFrame, symbol)
+            
+        Raises:
+            FileNotFoundError: 如果数据文件不存在
+            ValueError: 如果数据格式不正确
+        """
+        # 构建完整文件路径
+        filepath = os.path.join(_DATA_RAW_FOLDER, data_file)
+        if not os.path.exists(filepath):
+            raise FileNotFoundError(f"Data file not found: {data_file}")
+        
+        # 加载数据
+        df = pd.read_csv(filepath)
+        if df.empty:
+            raise ValueError(f"Data file is empty: {data_file}")
+        
+        # 处理日期列
+        if "Date" in df.columns:
+            df["Date"] = pd.to_datetime(df["Date"])
+            df = df.set_index("Date")
+        elif not isinstance(df.index, pd.DatetimeIndex):
+            raise ValueError("Data must have 'Date' column or DatetimeIndex")
+        
+        # 过滤日期范围
+        if start_date and end_date:
+            start = pd.to_datetime(start_date)
+            end = pd.to_datetime(end_date)
+            df = df[(df.index >= start) & (df.index <= end)]
+            if df.empty:
+                raise ValueError(f"No data in date range: {start_date} to {end_date}")
+        
+        # 提取 symbol
+        if not symbol:
+            symbol = data_file.replace(".csv", "").split("_")[0]
+        symbol = "ASSET" if not symbol or symbol.upper() == "ASSET" else symbol.upper()
+        
+        # 验证必要列
+        if "Close" not in df.columns:
+            raise ValueError("Data must contain 'Close' column")
+        
+        return df, symbol
+
+    def run_backtest_from_file(
+        self,
+        strategy_id: str,
+        data_file: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        symbol: Optional[str] = None,
+    ) -> str:
+        """
+        从文件运行回测（高级接口）
+        
+        Args:
+            strategy_id: 策略ID
+            data_file: 数据文件名
+            start_date: 起始日期（可选）
+            end_date: 结束日期（可选）
+            symbol: 标的代码（可选）
+            
+        Returns:
+            str: 使用的 symbol
+        """
+        # 加载并预处理数据
+        df, symbol = self.load_and_prepare_data(data_file, start_date, end_date, symbol)
+        
+        # 加载策略类
+        strategy_class = self.load_strategy_class(strategy_id)
+        
+        # 运行回测
+        self.run_backtest(
+            strategy=strategy_class(),
+            data=df,
+            symbol=symbol,
+            strategy_name=strategy_id
+        )
+        
+        return symbol
+
+    @staticmethod
     def load_strategy_class(strategy_class_name: str) -> Type[BaseStrategy]:
         """
         从 data/strategies 目录加载策略类
@@ -169,20 +208,14 @@ class BacktestEngine:
         Raises:
             RuntimeError: 如果策略类未找到
         """
-        strategies_folder = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "data",
-            "strategies",
-        )
-        
-        if not os.path.exists(strategies_folder):
+        if not os.path.exists(_STRATEGIES_FOLDER):
             raise RuntimeError("Strategies folder not found")
 
-        for filename in os.listdir(strategies_folder):
+        for filename in os.listdir(_STRATEGIES_FOLDER):
             if not filename.endswith(".py"):
                 continue
 
-            filepath = os.path.join(strategies_folder, filename)
+            filepath = os.path.join(_STRATEGIES_FOLDER, filename)
             module_name = f"deltafstation_backtest_strategy_{os.path.splitext(filename)[0]}"
             spec = importlib.util.spec_from_file_location(module_name, filepath)
             if spec is None or spec.loader is None:
@@ -190,17 +223,15 @@ class BacktestEngine:
 
             module = importlib.util.module_from_spec(spec)
             try:
-                spec.loader.exec_module(module)  # type: ignore[arg-type]
+                spec.loader.exec_module(module)
             except Exception:
                 continue
 
             for name, obj in inspect.getmembers(module, inspect.isclass):
-                if name != strategy_class_name:
-                    continue
-                if not issubclass(obj, BaseStrategy) or obj is BaseStrategy:
-                    continue
-
-                return obj  # type: ignore[return-value]
+                if (name == strategy_class_name and 
+                    obj is not BaseStrategy and 
+                    issubclass(obj, BaseStrategy)):
+                    return obj
 
         raise RuntimeError(f"Strategy class {strategy_class_name} not found in data/strategies")
 

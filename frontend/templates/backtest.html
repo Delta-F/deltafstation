@@ -106,12 +106,6 @@
             margin-bottom: 0;
         }
         
-        #debugOutput {
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            line-height: 1.4;
-        }
-        
         .data-file-item {
             padding: 0.5rem;
             margin-bottom: 0.5rem;
@@ -508,51 +502,6 @@
                             <div class="text-muted italic">等待日志输出...</div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="strategyCreateModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">创建新策略</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="strategyCreateForm">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="strategyName" class="form-label">策略名称</label>
-                                    <input type="text" class="form-control" id="strategyName" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="strategyType" class="form-label">策略类型</label>
-                                    <select class="form-select" id="strategyType" required>
-                                        <option value="technical">技术分析</option>
-                                        <option value="fundamental">基本面分析</option>
-                                        <option value="ml">机器学习</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="strategyDescription" class="form-label">策略描述</label>
-                            <textarea class="form-control" id="strategyDescription" rows="3"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="strategyRules" class="form-label">交易规则</label>
-                            <textarea class="form-control" id="strategyRules" rows="5" placeholder="描述策略的具体交易规则..."></textarea>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="createStrategy()">创建</button>
                 </div>
             </div>
         </div>
