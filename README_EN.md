@@ -65,8 +65,8 @@ deltafstation/
 
 ## Architecture
 
-<img src="assets/arch1.png" style="width:49%; height:220px; object-fit:contain; display:inline-block; vertical-align:top;" />
-<img src="assets/arch2.png" style="width:49%; height:220px; object-fit:contain; display:inline-block; vertical-align:top;" />
+<img src="assets/arch1.png" style="width:47%; height:220px; object-fit:contain; display:inline-block; vertical-align:top;" />
+<img src="assets/arch2.png" style="width:47%; height:220px; object-fit:contain; display:inline-block; vertical-align:top;" />
 
 ## Community & Contribution
 
