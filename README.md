@@ -65,8 +65,12 @@ deltafstation/
 
 ## 技术架构
 
-<img src="assets/arch1.png" style="width:47%; height:220px; object-fit:contain; display:inline-block; vertical-align:top;" />
-<img src="assets/arch2.png" style="width:47%; height:220px; object-fit:contain; display:inline-block; vertical-align:top;" />
+<table>
+  <tr>
+    <td><img src="assets/arch1.png" style="width:100%; height:220px; object-fit:contain;" /></td>
+    <td><img src="assets/arch2.png" style="width:100%; height:220px; object-fit:contain;" /></td>
+  </tr>
+</table>
 
 ## 社区与贡献
 
