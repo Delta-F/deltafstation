@@ -9,11 +9,11 @@
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
 
-基于 Web 的量化交易系统，专注于策略回测、仿真交易与实时监控。
+基于 deltafq 的开源量化交易云平台，集成数据服务、策略管理与交易接入，支持模拟与实盘。
 
-<img src="assets/trader.png" width="32%" />
-<img src="assets/backtest.png" width="32%" />
-<img src="assets/monitor.png" width="32%" />
+<img src="assets/trader.png" style="width:32%; height:200px; object-fit:contain;" />
+<img src="assets/backtest.png" style="width:32%; height:200px; object-fit:contain;" />
+<img src="assets/monitor.png" style="width:32%; height:200px; object-fit:contain;" />
 
 </div>
 
@@ -41,39 +41,6 @@ DeltaFStation/
 └── AI 小助手     # 智能问答、使用指导、上下文感知帮助
 ```
 
-## 使用示例
-
-### 1. 策略回测
-
-- 上传 CSV 数据文件或从 Yahoo Finance 下载
-- 创建策略（支持自定义 Python 策略文件）
-- 运行回测，查看收益率、夏普比率、最大回撤等指标
-- 可视化回测结果（资产曲线、回撤图、收益分布等）
-
-### 2. 手动交易
-
-- 创建仿真账户，设置初始资金和手续费率
-- 手动执行买卖操作，实时查看持仓和盈亏
-- 跟踪委托、成交和持仓记录
-
-### 3. 策略运行
-
-- 选择策略并启动自动交易
-- 实时监控策略状态、资产变化和交易信号
-- 查看实时资产曲线和交易日志
-
-### 4. AI 小助手
-
-- 智能问答：解答系统使用、策略开发、回测分析等问题
-- 上下文感知：根据当前页面提供针对性的帮助和建议
-- 快捷操作：一键获取常用问题的答案
-- 实时对话：支持 Markdown 格式的代码示例和格式化文本
-
-## 技术栈
-
-- **后端**: Flask, Pandas, NumPy, yfinance, deltafq, SSE (Server-Sent Events)
-- **前端**: Bootstrap 5, JavaScript, Chart.js, Flatpickr
-
 ## 项目结构
 
 ```
@@ -95,6 +62,11 @@ deltafstation/
 │   └── strategies/   # 策略文件
 └── run.py           # 启动脚本
 ```
+
+## 技术架构
+
+<img src="assets/arch1.png" style="width:49%; height:220px; object-fit:contain; display:inline-block; vertical-align:top;" />
+<img src="assets/arch2.png" style="width:49%; height:220px; object-fit:contain; display:inline-block; vertical-align:top;" />
 
 ## 社区与贡献
 

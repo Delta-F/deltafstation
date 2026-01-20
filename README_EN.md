@@ -9,11 +9,11 @@
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
 
-A web-based quantitative trading system focused on strategy backtesting, simulation trading, and real-time monitoring.
+An open-source quantitative trading cloud platform built on deltafq, integrating data services, strategy management, and trading access with support for simulation and live trading.
 
-<img src="assets/trader.png" width="32%" />
-<img src="assets/backtest.png" width="32%" />
-<img src="assets/monitor.png" width="32%" />
+<img src="assets/trader.png" style="width:32%; height:200px; object-fit:contain;" />
+<img src="assets/backtest.png" style="width:32%; height:200px; object-fit:contain;" />
+<img src="assets/monitor.png" style="width:32%; height:200px; object-fit:contain;" />
 
 </div>
 
@@ -41,39 +41,6 @@ DeltaFStation/
 └── AI Assistant         # Intelligent Q&A, usage guidance, context-aware help
 ```
 
-## Usage Examples
-
-### 1. Strategy Backtest
-
-- Upload CSV data files or download from Yahoo Finance
-- Create strategies (supports custom Python strategy files)
-- Run backtests and view metrics (returns, Sharpe ratio, max drawdown, etc.)
-- Visualize backtest results (equity curve, drawdown chart, PnL distribution, etc.)
-
-### 2. Manual Trading
-
-- Create simulation accounts with initial capital and commission rates
-- Execute manual buy/sell operations and view positions and P&L in real-time
-- Track orders, trades, and positions
-
-### 3. Strategy Running
-
-- Select strategies and start automated trading
-- Monitor strategy status, asset changes, and trading signals in real-time
-- View real-time equity curves and trading logs
-
-### 4. AI Assistant
-
-- Intelligent Q&A: Answer questions about system usage, strategy development, backtest analysis, etc.
-- Context-aware: Provides targeted help and suggestions based on the current page
-- Quick actions: One-click access to answers for common questions
-- Real-time chat: Supports Markdown formatting for code examples and formatted text
-
-## Tech Stack
-
-- **Backend**: Flask, Pandas, NumPy, yfinance, deltafq, SSE (Server-Sent Events)
-- **Frontend**: Bootstrap 5, JavaScript, Chart.js, Flatpickr
-
 ## Project Structure
 
 ```
@@ -95,6 +62,11 @@ deltafstation/
 │   └── strategies/   # Strategy files
 └── run.py           # Startup script
 ```
+
+## Architecture
+
+<img src="assets/arch1.png" style="width:49%; height:220px; object-fit:contain; display:inline-block; vertical-align:top;" />
+<img src="assets/arch2.png" style="width:49%; height:220px; object-fit:contain; display:inline-block; vertical-align:top;" />
 
 ## Community & Contribution
 
