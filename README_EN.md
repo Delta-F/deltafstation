@@ -17,15 +17,10 @@ An open-source quantitative trading cloud platform built on deltafq, integrating
 
 </div>
 
-## Installation
+## Installation & Quick Start
 
 ```bash
 pip install -r requirements.txt
-```
-
-## Quick Start
-
-```bash
 python run.py
 ```
 
@@ -33,37 +28,37 @@ Open your browser and visit: http://localhost:5000
 
 ## Core Features
 
-```
-DeltaFStation/
-├── Strategy Backtest    # Strategy creation, historical backtesting, performance analysis
-├── Manual Trading       # Account management, manual buy/sell, position tracking
-├── Strategy Running     # Automated trading, real-time monitoring, signal execution
-└── AI Assistant         # Intelligent Q&A, usage guidance, context-aware help
-```
+- 📉 Backtest Hub - Strategy creation, historical backtesting, performance analysis, and visual reports
+- 🧾 Manual Trading - Account management, buy/sell execution, and position & PnL tracking
+- ⚡ Strategy Running - Automated trading, real-time monitoring, signal execution, and logs
+- 🤖 AI Assistant - Intelligent Q&A, usage guidance, and context-aware help
 
 ## Project Structure
 
 ```
 deltafstation/
+├── assets/           # Docs and presentation images
 ├── backend/          # Backend code
 │   ├── api/          # API endpoints
 │   └── core/         # Core modules
-├── frontend/         # Frontend code
-│   ├── templates/    # HTML templates
-│   │   └── _ai_assistant.html  # AI Assistant component
-│   └── static/       # Static resources
-│       ├── css/      # Stylesheets
-│       │   └── ai-assistant.css  # AI Assistant styles
-│       └── js/        # JavaScript files
-│           └── ai-assistant.js   # AI Assistant logic
+├── config/           # Configuration
 ├── data/             # Data directory
 │   ├── raw/          # Raw data
 │   ├── results/      # Backtest results
+│   ├── simulations/  # Simulation records
 │   └── strategies/   # Strategy files
+├── data_cache/       # Cached data
+├── frontend/         # Frontend code
+│   ├── templates/    # HTML templates
+│   └── static/       # Static assets (css/js)
+├── requirements.txt  # Dependencies
 └── run.py           # Startup script
 ```
 
 ## Architecture
+
+DeltaFStation is built with Flask on the web layer and integrates the deltafq quantitative framework to deliver a cloud workflow from research to execution:
+https://github.com/Delta-F/deltafq
 
 <table>
   <tr>
@@ -75,6 +70,11 @@ deltafstation/
 ## Community & Contribution
 
 - Welcome to submit [issues](https://github.com/delta-f/deltafstation/issues) or [pull requests](https://github.com/delta-f/deltafstation/pulls) for feedback and improvements.
+- WeChat Official Account: follow `DeltaFQ开源量化` for updates and quant resources.
+
+<p align="center">
+  <img src="assets/wechat_qr.png" width="150" alt="WeChat Official Account" />
+</p>
 
 ## License
 
