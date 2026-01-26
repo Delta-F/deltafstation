@@ -17,9 +17,9 @@ An open-source quantitative trading cloud platform built on deltafq, integrating
 
 </div>
 
-## Tutorial
+## Exclusive Tutorials
 
-AI Quantitative System Course: Imooc Special Course (Coming Soon)
+iMOOC - AI Quantitative System Course : https://class.imooc.com/sale/aiqwm
 
 ## Installation & Quick Start
 
