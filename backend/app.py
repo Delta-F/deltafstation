@@ -58,6 +58,7 @@ from backend.api.data_api import data_bp
 from backend.api.strategy_api import strategy_bp
 from backend.api.backtest_api import backtest_bp
 from backend.api.simulation_api import simulation_bp
+from backend.core.live_data_manager import live_data_manager
 
 def create_app():
     app = Flask(__name__, 
@@ -70,6 +71,12 @@ def create_app():
     # 配置
     app.config['SECRET_KEY'] = 'deltafstation_secret_key_2024'
     app.config['DATA_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+    
+    # 启动市场数据服务
+    try:
+        live_data_manager.start()
+    except Exception as e:
+        print(f"Error starting LiveDataManager: {e}")
     
     # 注册蓝图（使用复数形式，符合RESTful规范）
     app.register_blueprint(data_bp, url_prefix='/api/data')

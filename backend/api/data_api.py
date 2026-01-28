@@ -193,6 +193,40 @@ def download_template():
     )
 
 
+@data_bp.route('/quotes/<symbol>', methods=['GET'])
+def get_live_quote(symbol):
+    """获取实时行情 - GET /api/data/quotes/<symbol>"""
+    try:
+        from backend.core.live_data_manager import live_data_manager
+        quote = live_data_manager.get_quote(symbol)
+        
+        if quote:
+            return jsonify(quote)
+            
+        # 如果没有缓存数据，尝试订阅并返回 404
+        live_data_manager.subscribe([symbol])
+        return jsonify({'error': 'Quote not yet available, subscribed for future updates'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@data_bp.route('/quotes/subscribe', methods=['POST'])
+def subscribe_quotes():
+    """订阅实时行情 - POST /api/data/quotes/subscribe"""
+    try:
+        data = request.get_json()
+        symbols = data.get('symbols', [])
+        if not symbols:
+            return jsonify({'error': 'No symbols provided'}), 400
+            
+        from backend.core.live_data_manager import live_data_manager
+        live_data_manager.subscribe(symbols)
+        
+        return jsonify({'message': f'Subscribed to {len(symbols)} symbols'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @data_bp.route('/symbols/<symbol>/files', methods=['GET', 'POST'])
 def handle_symbol_files(symbol):
     """

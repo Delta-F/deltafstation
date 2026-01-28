@@ -215,8 +215,8 @@ function initializeMonitorDailyChart() {
 // 初始化监控行情数据
 function initializeMonitorMarketData() {
     // 模拟行情数据：工商银行
-    monitorMarketData['601398.SH'] = {
-        symbol: '601398.SH',
+    monitorMarketData['000001.SS'] = {
+        symbol: '000001.SS',
         name: '工商银行',
         latest_price: 5.85,
         open: 5.80,
@@ -233,7 +233,7 @@ function initializeMonitorMarketData() {
 
 // 生成模拟日K数据（用于监控）
 function generateMonitorDemoDailyData() {
-    const symbol = currentStrategyRun?.symbol || $('runSymbol')?.value || '601398.SH';
+    const symbol = currentStrategyRun?.symbol || $('runSymbol')?.value || '000001.SS';
     
     // 生成最近3个月（约90天）的模拟K线数据（OHLC）
     const basePrice = 5.85; // 默认基础价格
@@ -589,7 +589,7 @@ function switchMonitorIndicator(indicator, btnElement) {
 
 // 更新监控盘口（买5卖5）
 function updateMonitorQuoteBoard() {
-    const symbol = currentStrategyRun?.symbol || $('runSymbol')?.value || '601398.SH';
+    const symbol = currentStrategyRun?.symbol || $('runSymbol')?.value || '000001.SS';
     
     // 获取当前价格（优先从策略运行数据中获取）
     let currentPrice = 5.85; // 默认价格

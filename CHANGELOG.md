@@ -1,10 +1,24 @@
 # DeltaFStation 更新记录 / Changelog
 
-## v0.6.6 （2026-01-18）
+## v0.6.6 （2026-01-28）
 
-**定位**：代码架构优化与职责分离，提升可维护性。
+**定位**：实时行情集成与核心架构优化。
 
-- **回测 API 层优化 (backtest_api.py)**
+- **实时行情集成 (LiveDataManager)**
+  - **新增 LiveDataManager**：集成 DeltaFQ 的 `YFinanceDataGateway`，支持 A 股、美股及加密货币实时行情。
+  - **自动映射机制**：支持 `.SS` 股票代码原生请求，自动处理上证指数等核心资产订阅。
+  - **RESTful API**：新增 `/api/data/quotes/<symbol>` 接口，支持前端异步获取最新行情。
+
+- **交易界面优化 (trader.js)**
+  - **数据源切换**：将交易页面的模拟数据彻底替换为来自 `LiveDataManager` 的真实实时流数据。
+  - **代码格式统一**：全面转向 `.SS` 后缀标准，解决 `yfinance` 兼容性导致的 404 错误。
+  - **默认资产更新**：默认加载上证指数 (000001.SS)，并同步更新仿真引擎的价格波动逻辑。
+
+- **核心架构重构**
+  - **模块归位**：将 `MarketService` 重命名为 `LiveDataManager` 并移至 `backend/core/`，与 `DataManager` 保持命名对称。
+  - **应用集成**：在 `app.py` 中实现行情引擎的自动启动与生命周期管理。
+
+- **回测与仿真优化**
   - **代码精简**：从 324 行减少到 194 行（减少 40%），移除冗余逻辑。
   - **路径常量提取**：统一提取 `_DATA_RESULTS_FOLDER` 等路径常量，消除重复构建。
   - **函数简化**：优化 `_convert_to_json_serializable` 函数，移除冗余的 NaN/Infinity 检查逻辑。

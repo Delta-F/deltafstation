@@ -107,10 +107,10 @@ class SimulationEngine:
             print(f"Error getting price range from demo data: {e}")
         
         # 如果没有找到演示数据，根据symbol设置默认价格范围
-        if '601398' in symbol or '601398.SH' in symbol:
-            # 工商银行
-            return 6.8, 8.8, 7.8
-        elif '600036' in symbol or '600036.SH' in symbol:
+        if '000001' in symbol or '000001.SS' in symbol:
+            # 上证指数
+            return 3100.0, 3300.0, 3200.0
+        elif '600036' in symbol or '600036.SS' in symbol:
             # 招商银行
             return 42.0, 43.0, 42.5
         else:

@@ -24,7 +24,7 @@ let currentIndicator = 'ma'; // 当前选中的技术指标：'ma' 或 'boll'
 const CONSTANTS = {
     MIN_QUANTITY: 100,
     QUANTITY_STEP: 100,
-    SUPPORTED_STOCKS: ['601398.SH', '600036.SH'],
+    SUPPORTED_STOCKS: ['000001.SS', '600036.SS'],
     BASE_ID: 10000000,
     MAX_TRADES_DISPLAY: 50,
     MAX_ORDERS_DISPLAY: 20,
@@ -53,7 +53,7 @@ function validateOrderForm(symbol, price, quantity, type = 'buy') {
         return false;
     }
     if (!CONSTANTS.SUPPORTED_STOCKS.includes(symbol)) {
-        showAlert('模拟模式仅支持：工商银行(601398.SH) 或 招商银行(600036.SH)', 'warning');
+        showAlert('模拟模式仅支持：上证指数(000001.SS) 或 招商银行(600036.SS)', 'warning');
         return false;
     }
     return true;
@@ -182,24 +182,24 @@ function initializeDemoData() {
     if (currentSimulation) return;
 
     // 模拟行情数据：工商银行、招商银行
-    marketData['601398.SH'] = {
-        symbol: '601398.SH',
-        name: '工商银行',
-        latest_price: 5.85,
-        open: 5.80,
-        high: 5.92,
-        low: 5.78,
-        bid1_price: 5.84,
-        bid1_quantity: 15000,
-        ask1_price: 5.86,
-        ask1_quantity: 12000,
-        volume: 125000000,
-        change: 0.05,
-        changePercent: 0.86
+    marketData['000001.SS'] = {
+        symbol: '000001.SS',
+        name: '上证指数',
+        latest_price: 3150.00,
+        open: 3140.00,
+        high: 3165.00,
+        low: 3135.00,
+        bid1_price: 3149.50,
+        bid1_quantity: 100000,
+        ask1_price: 3150.50,
+        ask1_quantity: 80000,
+        volume: 500000000,
+        change: 10.00,
+        changePercent: 0.32
     };
     
-    marketData['600036.SH'] = {
-        symbol: '600036.SH',
+    marketData['600036.SS'] = {
+        symbol: '600036.SS',
         name: '招商银行',
         latest_price: 42.58,
         open: 42.30,
@@ -219,14 +219,14 @@ function initializeDemoData() {
     const baseTime = now.getTime();
     const demoTrades = [];
     
-    // 买入工商银行（放大10倍以适应100万初始资金）
+    // 买入上证指数
     demoTrades.push({
         id: `trade_${tradeIdCounter++}`,
         order_id: `order_${orderIdCounter++}`,
-        symbol: '601398.SH',
+        symbol: '000001.SS',
         action: 'buy',
-        quantity: 10000,
-        price: 5.80,
+        quantity: 100,
+        price: 3140.00,
         date: new Date(baseTime - 600000).toISOString(),
         timestamp: new Date(baseTime - 600000).toISOString()
     });
@@ -235,7 +235,7 @@ function initializeDemoData() {
     demoTrades.push({
         id: `trade_${tradeIdCounter++}`,
         order_id: `order_${orderIdCounter++}`,
-        symbol: '600036.SH',
+        symbol: '600036.SS',
         action: 'buy',
         quantity: 2000,
         price: 42.50,
@@ -243,26 +243,26 @@ function initializeDemoData() {
         timestamp: new Date(baseTime - 480000).toISOString()
     });
     
-    // 卖出部分工商银行
+    // 卖出部分上证指数
     demoTrades.push({
         id: `trade_${tradeIdCounter++}`,
         order_id: `order_${orderIdCounter++}`,
-        symbol: '601398.SH',
+        symbol: '000001.SS',
         action: 'sell',
-        quantity: 5000,
-        price: 5.85,
+        quantity: 50,
+        price: 3155.00,
         date: new Date(baseTime - 360000).toISOString(),
         timestamp: new Date(baseTime - 360000).toISOString()
     });
     
-    // 再次买入工商银行
+    // 再次买入上证指数
     demoTrades.push({
         id: `trade_${tradeIdCounter++}`,
         order_id: `order_${orderIdCounter++}`,
-        symbol: '601398.SH',
+        symbol: '000001.SS',
         action: 'buy',
-        quantity: 8000,
-        price: 5.82,
+        quantity: 80,
+        price: 3145.00,
         date: new Date(baseTime - 240000).toISOString(),
         timestamp: new Date(baseTime - 240000).toISOString()
     });
@@ -271,7 +271,7 @@ function initializeDemoData() {
     demoTrades.push({
         id: `trade_${tradeIdCounter++}`,
         order_id: `order_${orderIdCounter++}`,
-        symbol: '600036.SH',
+        symbol: '600036.SS',
         action: 'buy',
         quantity: 1000,
         price: 42.55,
@@ -330,18 +330,18 @@ function initializeDemoData() {
     const priceMultiplier = estimatedPositionValue > 0 ? targetPositionValue / estimatedPositionValue : 1.18;
     
     // 调整市场价格
-    if (marketData['601398.SH'] && positions['601398.SH']) {
-        const avgPrice = positions['601398.SH'].avg_price || 5.81;
-        marketData['601398.SH'].latest_price = parseFloat((avgPrice * priceMultiplier).toFixed(2));
+    if (marketData['000001.SS'] && positions['000001.SS']) {
+        const avgPrice = positions['000001.SS'].avg_price || 5.81;
+        marketData['000001.SS'].latest_price = parseFloat((avgPrice * priceMultiplier).toFixed(2));
         // 同时更新其他价格字段以保持一致性
-        marketData['601398.SH'].bid1_price = parseFloat((marketData['601398.SH'].latest_price - 0.01).toFixed(2));
-        marketData['601398.SH'].ask1_price = parseFloat((marketData['601398.SH'].latest_price + 0.01).toFixed(2));
+        marketData['000001.SS'].bid1_price = parseFloat((marketData['000001.SS'].latest_price - 0.01).toFixed(2));
+        marketData['000001.SS'].ask1_price = parseFloat((marketData['000001.SS'].latest_price + 0.01).toFixed(2));
     }
-    if (marketData['600036.SH'] && positions['600036.SH']) {
-        const avgPrice = positions['600036.SH'].avg_price || 42.52;
-        marketData['600036.SH'].latest_price = parseFloat((avgPrice * priceMultiplier).toFixed(2));
-        marketData['600036.SH'].bid1_price = parseFloat((marketData['600036.SH'].latest_price - 0.04).toFixed(2));
-        marketData['600036.SH'].ask1_price = parseFloat((marketData['600036.SH'].latest_price + 0.04).toFixed(2));
+    if (marketData['600036.SS'] && positions['600036.SS']) {
+        const avgPrice = positions['600036.SS'].avg_price || 42.52;
+        marketData['600036.SS'].latest_price = parseFloat((avgPrice * priceMultiplier).toFixed(2));
+        marketData['600036.SS'].bid1_price = parseFloat((marketData['600036.SS'].latest_price - 0.04).toFixed(2));
+        marketData['600036.SS'].ask1_price = parseFloat((marketData['600036.SS'].latest_price + 0.04).toFixed(2));
     }
     
     currentSimulation = {
@@ -360,11 +360,11 @@ function initializeDemoData() {
     logs = [
         { time: new Date(baseTime - 900000).toLocaleTimeString(), message: '系统初始化完成', api: '--' },
         { time: new Date(baseTime - 840000).toLocaleTimeString(), message: '创建交易账户: 初始资金 ¥1,000,000', api: '/api/simulations' },
-        { time: new Date(baseTime - 600000).toLocaleTimeString(), message: '买入成交: 601398.SH 10000股 @ ¥5.80', api: '/api/simulations/demo/trades' },
-        { time: new Date(baseTime - 480000).toLocaleTimeString(), message: '买入成交: 600036.SH 2000股 @ ¥42.50', api: '/api/simulations/demo/trades' },
-        { time: new Date(baseTime - 360000).toLocaleTimeString(), message: '卖出成交: 601398.SH 5000股 @ ¥5.85', api: '/api/simulations/demo/trades' },
-        { time: new Date(baseTime - 240000).toLocaleTimeString(), message: '买入成交: 601398.SH 8000股 @ ¥5.82', api: '/api/simulations/demo/trades' },
-        { time: new Date(baseTime - 120000).toLocaleTimeString(), message: '买入成交: 600036.SH 1000股 @ ¥42.55', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 600000).toLocaleTimeString(), message: '买入成交: 000001.SS 100股 @ ¥3140.00', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 480000).toLocaleTimeString(), message: '买入成交: 600036.SS 2000股 @ ¥42.50', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 360000).toLocaleTimeString(), message: '卖出成交: 000001.SS 50股 @ ¥3155.00', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 240000).toLocaleTimeString(), message: '买入成交: 000001.SS 80股 @ ¥3145.00', api: '/api/simulations/demo/trades' },
+        { time: new Date(baseTime - 120000).toLocaleTimeString(), message: '买入成交: 600036.SS 1000股 @ ¥42.55', api: '/api/simulations/demo/trades' },
         { time: new Date(baseTime - 60000).toLocaleTimeString(), message: '账户状态更新成功', api: '/api/simulations/demo' }
     ];
 
@@ -372,49 +372,80 @@ function initializeDemoData() {
     updateSimulationDisplay();
     updateLogDisplay();
     
-    // 默认显示工商银行行情
-    $('buySymbol').value = '601398.SH';
+    // 默认显示上证指数行情
+    $('buySymbol').value = '000001.SS';
     loadStockInfo('buy');
 }
 
-// 启动模拟行情数据更新
+// 启动市场行情数据更新
 function startMarketDataUpdate() {
     if (marketUpdateInterval) {
         clearInterval(marketUpdateInterval);
     }
     
-    // 每2秒更新一次行情数据
-    marketUpdateInterval = setInterval(() => {
-        updateMarketData();
+    // 立即执行一次
+    updateMarketData().then(() => {
+        const currentSymbol = $('quoteSymbol')?.textContent;
+        if (currentSymbol) updateQuoteDisplay(currentSymbol);
+    });
+
+    // 每 5 秒更新一次行情数据 (YFinance 轮询建议不要太频繁)
+    marketUpdateInterval = setInterval(async () => {
+        await updateMarketData();
         const currentSymbol = $('quoteSymbol')?.textContent;
         if (currentSymbol && marketData[currentSymbol]) {
             updateQuoteDisplay(currentSymbol);
         }
-    }, 2000);
+    }, 5000);
 }
 
-// 更新模拟行情数据（价格小幅波动）
-function updateMarketData() {
-    Object.keys(marketData).forEach(symbol => {
-        const stock = marketData[symbol];
-        if (!stock) return;
-        
-        // 价格小幅随机波动（-0.02 到 +0.02）
-        const priceChange = (Math.random() - 0.5) * 0.04;
-        stock.latest_price = Math.max(0.01, stock.latest_price + priceChange);
-        stock.latest_price = parseFloat(stock.latest_price.toFixed(2));
-        
-        // 买卖盘数据在updateQuoteBoard中动态生成
-        
-        // 更新涨跌
-        const basePrice = symbol === '601398.SH' ? 5.80 : 42.30;
-        stock.change = parseFloat((stock.latest_price - basePrice).toFixed(2));
-        stock.changePercent = parseFloat(((stock.change / basePrice) * 100).toFixed(2));
-        
-        // 更新最高最低
-        if (stock.latest_price > stock.high) stock.high = stock.latest_price;
-        if (stock.latest_price < stock.low) stock.low = stock.latest_price;
+// 从后端 API 获取实时行情数据
+async function updateMarketData() {
+    const symbols = Object.keys(marketData);
+    
+    // 我们只更新当前显示的股票，或者所有已关注的股票
+    // 为了性能，这里我们并行请求所有已关注股票的最新价格
+    const updatePromises = symbols.map(async (symbol) => {
+        try {
+            const response = await fetch(`/api/data/quotes/${symbol}`);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.warn(`Quote for ${symbol} not yet available from YFinance.`);
+                }
+                return;
+            }
+            
+            const data = await response.json();
+            if (data && !data.error) {
+                const stock = marketData[symbol];
+                
+                // 更新实时价格和基本信息
+                stock.latest_price = data.price;
+                stock.timestamp = data.timestamp;
+                
+                // 更新开高低
+                if (data.open) stock.open = data.open;
+                if (data.high) stock.high = data.high;
+                if (data.low) stock.low = data.low;
+                
+                // 计算涨跌幅
+                // 优先使用 prev_close，如果没有则使用 hardcoded basePrice
+                const prevClose = data.prev_close || (symbol === '000001.SS' ? 5.80 : 42.30);
+                stock.change = parseFloat((stock.latest_price - prevClose).toFixed(2));
+                stock.changePercent = parseFloat(((stock.change / prevClose) * 100).toFixed(2));
+                
+                // 如果是当前正在查看的股票，同步更新 UI
+                const currentSymbol = $('quoteSymbol')?.textContent;
+                if (currentSymbol === symbol) {
+                    updateQuoteUI(stock);
+                }
+            }
+        } catch (error) {
+            console.error(`Failed to fetch live data for ${symbol}:`, error);
+        }
     });
+
+    await Promise.all(updatePromises);
 }
 
 // 统一行情UI更新函数
@@ -549,7 +580,7 @@ function updateAccountOverview() {
     // 显示账户ID（如果是demo账户，显示简化ID）
     if ($('accountId')) {
         const accountId = currentSimulation.id;
-        if (accountId.startsWith('demo_')) {
+        if (accountId === 'demo' || accountId.startsWith('demo_')) {
             $('accountId').textContent = 'demo';
         } else {
             // 尝试从ID中提取数字部分，或使用默认值
@@ -704,20 +735,20 @@ async function loadStockInfo(type) {
     if (!symbol) return;
     
     if (!CONSTANTS.SUPPORTED_STOCKS.includes(symbol)) {
-        showAlert('模拟模式仅支持：工商银行(601398.SH) 或 招商银行(600036.SH)', 'warning');
+        showAlert('模拟模式仅支持：上证指数(000001.SS) 或 招商银行(600036.SS)', 'warning');
         return;
     }
     
     // 如果股票数据不存在，初始化
     if (!marketData[symbol]) {
-        if (symbol === '601398.SH') {
+        if (symbol === '000001.SS') {
             marketData[symbol] = {
-                symbol: '601398.SH', name: '工商银行', latest_price: 5.85, open: 5.80, high: 5.92, low: 5.78,
-                bid1_price: 5.84, bid1_quantity: 15000, ask1_price: 5.86, ask1_quantity: 12000
+                symbol: '000001.SS', name: '上证指数', latest_price: 3150.00, open: 3140.00, high: 3165.00, low: 3135.00,
+                bid1_price: 3149.50, bid1_quantity: 100000, ask1_price: 3150.50, ask1_quantity: 80000
             };
-        } else if (symbol === '600036.SH') {
+        } else if (symbol === '600036.SS') {
             marketData[symbol] = {
-                symbol: '600036.SH', name: '招商银行', latest_price: 42.58, open: 42.30, high: 42.88, low: 42.15,
+                symbol: '600036.SS', name: '招商银行', latest_price: 42.58, open: 42.30, high: 42.88, low: 42.15,
                 bid1_price: 42.56, bid1_quantity: 8000, ask1_price: 42.60, ask1_quantity: 7500
             };
         }
@@ -1211,7 +1242,7 @@ async function stopSimulation() {
     }
     
     const simulationId = currentSimulation.id;
-    const isDemo = simulationId.startsWith('demo_');
+    const isDemo = simulationId === 'demo' || simulationId.startsWith('demo_');
     
     try {
         // 如果是真实账户，尝试调用API
@@ -1261,7 +1292,7 @@ async function updateSimulationStatus() {
     if (!currentSimulation) return;
     
     const simulationId = currentSimulation.id;
-    const isDemo = simulationId.startsWith('demo_');
+    const isDemo = simulationId === 'demo' || simulationId.startsWith('demo_');
     
     // 如果是模拟账户，跳过API调用
     if (isDemo) {

@@ -27,6 +27,7 @@
            ▼
 核心引擎 (Core)
   ├── DataManager        backend/core/data_manager.py
+  ├── LiveDataManager    backend/core/live_data_manager.py
   ├── BacktestEngine*    backend/core/backtest_engine.py
   └── SimulationEngine   backend/core/simulation_engine.py
 
@@ -46,6 +47,10 @@
 - **DataManager**
   - 处理 CSV 上传 / 下载 / 预览等数据管理
   - 封装在 `backend/core/data_manager.py`，对外通过 `data_api` 暴露
+
+- **LiveDataManager**
+  - 封装 `deltafq.live.YFinanceDataGateway`，负责实时行情获取与订阅
+  - 维护内存行情缓存，支持 REST API 异步查询
 
 - **BacktestEngine（回测引擎）**
   - 封装 `deltafq.BacktestEngine`，负责历史回测与绩效指标
