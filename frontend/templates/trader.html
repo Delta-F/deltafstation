@@ -62,30 +62,38 @@
         .account-label { font-size: 11px; color: #6c757d; margin-bottom: 2px; }
         .account-value { font-size: 15px; font-weight: 600; color: #333; }
 
-        /* 买卖表单布局 */
+        /* 买卖表单布局优化 */
         .trade-form-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
             margin-bottom: 0.8rem;
         }
-        .trade-form-row.form-row-inline {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
         .trade-form-row .form-label {
-            font-weight: 600; /* 统一加粗 */
+            width: 60px;
+            margin-bottom: 0;
+            margin-top: 6px; /* 微调使其与输入框文字水平对齐 */
+            flex-shrink: 0;
+            font-weight: 600;
             color: #333;
             font-size: 12px;
+            text-align: left;
         }
-        .trade-form-row.form-row-inline .form-label {
-            width: 65px;
-            margin-bottom: 0;
-            flex-shrink: 0;
+        .trade-form-content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
         
-        /* 委托价格和数量输入框加粗 */
-        #buyPrice, #sellPrice, #buyQuantity, #sellQuantity {
-            font-weight: 600;
+        /* 统一输入框高度和字体 */
+        .trade-form-content .form-control, 
+        .trade-form-content .form-select,
+        .trade-form-content .input-group-text {
             font-size: 13px;
+            font-weight: 600;
+            height: 31px; /* 统一高度 */
         }
         
         .price-btn-group, .quantity-btn-group {
@@ -176,6 +184,23 @@
         .quote-ask-row .price { color: #28a745; }
         .quote-bid-row { background: rgba(220, 53, 69, 0.04); }
         .quote-bid-row .price { color: #dc3545; }
+
+        /* 日K图交互 tooltip */
+        .daily-chart-tooltip {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+            background: rgba(33, 37, 41, 0.95);
+            color: #fff;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1.5;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        }
+        .daily-chart-tooltip .tooltip-date { font-weight: 600; margin-bottom: 4px; }
+        .daily-chart-tooltip .tooltip-ohlc { color: #dee2e6; }
 
         /* 布局调整 */
         .equal-height-row {
@@ -318,39 +343,56 @@
                             <!-- 买入面板 -->
                             <div class="tab-pane fade show active buy-panel" id="buy-panel" role="tabpanel">
                                 <form id="buyForm">
-                                    <div class="trade-form-row form-row-inline">
-                                        <label class="form-label">股票代码</label>
-                                        <input type="text" class="form-control form-control-sm" id="buySymbol" 
-                                               placeholder="代码 / 拼音" onblur="loadStockInfo('buy')">
-                                    </div>
-                                    <div class="trade-form-row form-row-inline">
-                                        <label class="form-label">股票名称</label>
-                                        <input type="text" class="form-control form-control-sm" id="buyName" readonly 
-                                               style="background-color: #f8f9fa;" placeholder="自动显示">
-                                    </div>
                                     <div class="trade-form-row">
-                                        <div class="form-row-inline mb-1">
-                                            <label class="form-label">委托价格</label>
-                                            <input type="number" class="form-control form-control-sm" id="buyPrice" 
-                                                   step="0.01" placeholder="价格" required>
-                                        </div>
-                                        <div class="price-btn-group">
-                                            <button type="button" class="price-btn" onclick="setPrice('buy', 'bid1')">买1</button>
-                                            <button type="button" class="price-btn" onclick="setPrice('buy', 'current')">现价</button>
-                                            <button type="button" class="price-btn" onclick="setPrice('buy', 'ask1')">卖1</button>
+                                        <label class="form-label">投资标的</label>
+                                        <div class="trade-form-content">
+                                            <input type="text" class="form-control form-control-sm" id="buySymbol" 
+                                                   list="defaultSymbols" placeholder="代码 / 拼音" 
+                                                   onblur="loadStockInfo('buy')"
+                                                   onkeydown="if(event.key==='Enter') this.blur()">
+                                            <datalist id="defaultSymbols">
+                                                <option value="000001.SS">上证指数 (000001.SS)</option>
+                                                <option value="BTC-USD">比特币 (BTC-USD)</option>
+                                                <option value="AAPL">苹果 (AAPL)</option>
+                                            </datalist>
                                         </div>
                                     </div>
                                     <div class="trade-form-row">
-                                        <div class="form-row-inline mb-1">
-                                            <label class="form-label">委托数量</label>
+                                        <label class="form-label">标的名称</label>
+                                        <div class="trade-form-content">
+                                            <input type="text" class="form-control form-control-sm" id="buyName" readonly 
+                                                   style="background-color: #f8f9fa;" placeholder="自动显示">
+                                        </div>
+                                    </div>
+                                    <div class="trade-form-row">
+                                        <label class="form-label">委托价格</label>
+                                        <div class="trade-form-content">
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" class="form-control" id="buyPrice" 
+                                                       step="0.01" placeholder="价格" required oninput="cancelFollow('buy')">
+                                                <div class="input-group-text">
+                                                    <input class="form-check-input mt-0" type="checkbox" id="buyFollow" title="跟随现价">
+                                                    <small class="ms-1" style="font-size: 10px;">跟随</small>
+                                                </div>
+                                            </div>
+                                            <div class="price-btn-group">
+                                                <button type="button" class="price-btn" onclick="setPrice('buy', 'bid1')">买1</button>
+                                                <button type="button" class="price-btn" onclick="setPrice('buy', 'current')">现价</button>
+                                                <button type="button" class="price-btn" onclick="setPrice('buy', 'ask1')">卖1</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="trade-form-row">
+                                        <label class="form-label">委托数量</label>
+                                        <div class="trade-form-content">
                                             <input type="number" class="form-control form-control-sm" id="buyQuantity" 
                                                    min="100" step="100" placeholder="100股起" required>
-                                        </div>
-                                        <div class="quantity-btn-group">
-                                            <button type="button" class="quantity-btn" onclick="setQuantity('buy', 0.25, true)">25%</button>
-                                            <button type="button" class="quantity-btn" onclick="setQuantity('buy', 0.5, true)">50%</button>
-                                            <button type="button" class="quantity-btn" onclick="setQuantity('buy', 1.0, true)">100%</button>
-                                            <button type="button" class="quantity-btn" onclick="setQuantity('buy', 1000)">1000</button>
+                                            <div class="quantity-btn-group">
+                                                <button type="button" class="quantity-btn" onclick="setQuantity('buy', 0.25, true)">25%</button>
+                                                <button type="button" class="quantity-btn" onclick="setQuantity('buy', 0.5, true)">50%</button>
+                                                <button type="button" class="quantity-btn" onclick="setQuantity('buy', 1.0, true)">100%</button>
+                                                <button type="button" class="quantity-btn" onclick="setQuantity('buy', 1000)">1000</button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="est-amount-box">
@@ -366,45 +408,57 @@
                             <!-- 卖出面板 -->
                             <div class="tab-pane fade sell-panel" id="sell-panel" role="tabpanel">
                                 <form id="sellForm">
-                                    <div class="trade-form-row form-row-inline">
+                                    <div class="trade-form-row">
                                         <label class="form-label">选择持仓</label>
-                                        <select class="form-select form-select-sm" id="sellPositionSelect" onchange="loadSellPosition()">
-                                            <option value="">请选择持仓</option>
-                                        </select>
+                                        <div class="trade-form-content">
+                                            <select class="form-select form-select-sm" id="sellPositionSelect" onchange="loadSellPosition()">
+                                                <option value="">请选择持仓</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div class="trade-form-row form-row-inline">
-                                        <label class="form-label">股票代码</label>
-                                        <input type="text" class="form-control form-control-sm" id="sellSymbol" readonly
-                                               style="background-color: #f8f9fa;" placeholder="自动显示">
+                                    <div class="trade-form-row">
+                                        <label class="form-label">投资标的</label>
+                                        <div class="trade-form-content">
+                                            <input type="text" class="form-control form-control-sm" id="sellSymbol" readonly
+                                                   style="background-color: #f8f9fa;" placeholder="自动显示">
+                                        </div>
                                     </div>
-                                    <div class="trade-form-row form-row-inline">
+                                    <div class="trade-form-row">
                                         <label class="form-label">可卖数量</label>
-                                        <input type="text" class="form-control form-control-sm" id="sellAvailable" readonly
-                                               style="background-color: #f8f9fa;" placeholder="自动显示">
-                                    </div>
-                                    <div class="trade-form-row">
-                                        <div class="form-row-inline mb-1">
-                                            <label class="form-label">委托价格</label>
-                                            <input type="number" class="form-control form-control-sm" id="sellPrice" 
-                                                   step="0.01" placeholder="价格" required>
-                                        </div>
-                                        <div class="price-btn-group">
-                                            <button type="button" class="price-btn" onclick="setPrice('sell', 'bid1')">买1</button>
-                                            <button type="button" class="price-btn" onclick="setPrice('sell', 'current')">现价</button>
-                                            <button type="button" class="price-btn" onclick="setPrice('sell', 'ask1')">卖1</button>
+                                        <div class="trade-form-content">
+                                            <input type="text" class="form-control form-control-sm" id="sellAvailable" readonly
+                                                   style="background-color: #f8f9fa;" placeholder="自动显示">
                                         </div>
                                     </div>
                                     <div class="trade-form-row">
-                                        <div class="form-row-inline mb-1">
-                                            <label class="form-label">委托数量</label>
+                                        <label class="form-label">委托价格</label>
+                                        <div class="trade-form-content">
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" class="form-control" id="sellPrice" 
+                                                       step="0.01" placeholder="价格" required oninput="cancelFollow('sell')">
+                                                <div class="input-group-text">
+                                                    <input class="form-check-input mt-0" type="checkbox" id="sellFollow" title="跟随现价">
+                                                    <small class="ms-1" style="font-size: 10px;">跟随</small>
+                                                </div>
+                                            </div>
+                                            <div class="price-btn-group">
+                                                <button type="button" class="price-btn" onclick="setPrice('sell', 'bid1')">买1</button>
+                                                <button type="button" class="price-btn" onclick="setPrice('sell', 'current')">现价</button>
+                                                <button type="button" class="price-btn" onclick="setPrice('sell', 'ask1')">卖1</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="trade-form-row">
+                                        <label class="form-label">委托数量</label>
+                                        <div class="trade-form-content">
                                             <input type="number" class="form-control form-control-sm" id="sellQuantity" 
                                                    min="100" step="100" placeholder="100股起" required>
-                                        </div>
-                                        <div class="quantity-btn-group">
-                                            <button type="button" class="quantity-btn" onclick="setQuantity('sell', 0.25, true)">25%</button>
-                                            <button type="button" class="quantity-btn" onclick="setQuantity('sell', 0.5, true)">50%</button>
-                                            <button type="button" class="quantity-btn" onclick="setQuantity('sell', 1.0, true)">100%</button>
-                                            <button type="button" class="quantity-btn" onclick="setQuantity('sell', 'all')">全部</button>
+                                            <div class="quantity-btn-group">
+                                                <button type="button" class="quantity-btn" onclick="setQuantity('sell', 0.25, true)">25%</button>
+                                                <button type="button" class="quantity-btn" onclick="setQuantity('sell', 0.5, true)">50%</button>
+                                                <button type="button" class="quantity-btn" onclick="setQuantity('sell', 1.0, true)">100%</button>
+                                                <button type="button" class="quantity-btn" onclick="setQuantity('sell', 'all')">全部</button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="est-amount-box">
@@ -468,12 +522,12 @@
                         <small class="text-muted" id="quoteTime">--:--:--</small>
                     </div>
                     <div class="chart-card-body">
-                        <!-- 第一行：股票信息 + 基础数据 + 当前价格 -->
+                        <!-- 第一行：标的信息 + 基础数据 + 当前价格 -->
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <!-- 左侧：股票代码和名称 -->
+                            <!-- 左侧：标的代码和名称 -->
                             <div style="flex: 0 0 auto;">
                                 <div class="fw-bold fs-5" id="quoteSymbol" style="color: #1a1a1a;">--</div>
-                                <small class="text-muted" id="quoteName">请输入左侧股票代码查看行情</small>
+                                <small class="text-muted" id="quoteName">请输入左侧投资标的查看行情</small>
                             </div>
                             
                             <!-- 中间：今开/最高/最低 -->
@@ -502,9 +556,10 @@
                         <!-- 图表区域 + 盘口 -->
                         <div class="d-flex gap-3" style="flex: 1; min-height: 0;">
                             <!-- 图表 -->
-                            <div style="flex: 1; position: relative; min-height: 250px; min-width: 0;">
+                            <div style="flex: 1; position: relative; height: 350px; min-width: 0;">
                                 <canvas id="intradayChart" style="width: 100%; height: 100%;"></canvas>
                                 <canvas id="dailyChart" style="display: none; width: 100%; height: 100%;"></canvas>
+                                <div id="dailyChartTooltip" class="daily-chart-tooltip" style="display: none;"></div>
                             </div>
                             
                             <!-- 分隔线 -->

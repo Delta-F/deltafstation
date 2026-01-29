@@ -198,14 +198,19 @@ def get_live_quote(symbol):
     """获取实时行情 - GET /api/data/quotes/<symbol>"""
     try:
         from backend.core.live_data_manager import live_data_manager
-        quote = live_data_manager.get_quote(symbol)
+        include_history = request.args.get('history', 'false').lower() == 'true'
+        quote = live_data_manager.get_quote(symbol, include_history=include_history)
         
         if quote:
             return jsonify(quote)
             
-        # 如果没有缓存数据，尝试订阅并返回 404
+        # 优化：数据未就绪时不再返回 404，而是返回 200 + loading 状态
         live_data_manager.subscribe([symbol])
-        return jsonify({'error': 'Quote not yet available, subscribed for future updates'}), 404
+        return jsonify({
+            'symbol': symbol,
+            'status': 'loading',
+            'message': 'Quote not yet available, subscribing...'
+        }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

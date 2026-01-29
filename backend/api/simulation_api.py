@@ -146,16 +146,22 @@ def list_simulations():
         for filename in os.listdir(simulation_folder):
             if filename.endswith('.json'):
                 filepath = os.path.join(simulation_folder, filename)
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    simulation = json.load(f)
-                    simulations.append({
-                        'id': simulation['id'],
-                        'strategy_id': simulation['strategy_id'],
-                        'status': simulation['status'],
-                        'initial_capital': simulation['initial_capital'],
-                        'current_capital': simulation.get('current_capital', simulation['initial_capital']),
-                        'created_at': simulation['created_at']
-                    })
+                if os.path.getsize(filepath) == 0:
+                    continue
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        simulation = json.load(f)
+                        simulations.append({
+                            'id': simulation.get('id', filename.replace('.json', '')),
+                            'strategy_id': simulation.get('strategy_id'),
+                            'status': simulation.get('status', 'unknown'),
+                            'initial_capital': simulation.get('initial_capital', 0),
+                            'current_capital': simulation.get('current_capital', simulation.get('initial_capital', 0)),
+                            'created_at': simulation.get('created_at', 'unknown')
+                        })
+                except Exception as e:
+                    print(f"Error loading simulation file {filename}: {e}")
+                    continue
         
         return jsonify({'simulations': simulations})
     

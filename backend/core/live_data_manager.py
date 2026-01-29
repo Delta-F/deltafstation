@@ -1,18 +1,13 @@
 import threading
 from typing import Dict
-from datetime import datetime
-
-try:
-    from deltafq.live.gateway_registry import create_data_gateway
-    from deltafq.live.event_engine import EVENT_TICK
-except ImportError:
-    print("Warning: Could not import deltafq. Please ensure it is installed (pip install deltafq).")
-    create_data_gateway = None
+from deltafq.live.gateway_registry import create_data_gateway
 
 class LiveDataManager:
     def __init__(self):
         self.gateway = None
         self.latest_ticks: Dict[str, dict] = {}
+        self.history_ticks: Dict[str, list] = {} # 存储当日历史数据 (yf_warmup)
+        self.subscribed_symbols = set()
         self._lock = threading.Lock()
         self.is_running = False
         
@@ -27,19 +22,34 @@ class LiveDataManager:
 
     def _on_tick(self, tick):
         with self._lock:
-            # 调试日志：记录收到的 Tick 数据
-            # print(f"[LiveDataManager] Tick received: {tick.symbol} @ {tick.price}")
-            
-            self.latest_ticks[tick.symbol] = {
+            # 直接使用原始 timestamp (naive UTC)
+            current_min = tick.timestamp.strftime('%H:%M')
+
+            tick_data = {
                 "symbol": tick.symbol,
                 "price": tick.price,
                 "volume": tick.volume,
                 "timestamp": tick.timestamp.isoformat(),
-                "open": getattr(tick, 'open_price', None),
-                "high": getattr(tick, 'high_price', None),
-                "low": getattr(tick, 'low_price', None),
+                "minute": current_min,  # 新增：交易所本地时间的分钟字符串
                 "prev_close": getattr(tick, 'pre_close', None)
             }
+            
+            # 维护当日历史数据列表
+            if tick.symbol not in self.history_ticks:
+                self.history_ticks[tick.symbol] = []
+            
+            # 使用交易所分钟进行去重
+            history = self.history_ticks[tick.symbol]
+            if history and history[-1].get('minute') == current_min:
+                history[-1] = tick_data
+            else:
+                history.append(tick_data)
+                if len(history) > 1500:
+                    history.pop(0)
+            
+            # 实时数据始终保持最新
+            if getattr(tick, 'source', None) != "yf_warmup":
+                self.latest_ticks[tick.symbol] = tick_data
 
     def start(self):
         if not self.gateway:
@@ -50,10 +60,7 @@ class LiveDataManager:
         if self.gateway.connect():
             self.gateway.start()
             self.is_running = True
-            # 默认订阅一些股票代码
-            default_symbols = ["000001.SS", "AAPL", "GOOGL", "BTC-USD"]
-            self.gateway.subscribe(default_symbols)
-            print(f"[LiveDataManager] Connected and subscribed to: {default_symbols}")
+            print(f"[LiveDataManager] Connected. Ready for dynamic subscriptions.")
         else:
             print("[LiveDataManager] Failed to connect to YFinance gateway.")
 
@@ -61,21 +68,38 @@ class LiveDataManager:
         if self.gateway and self.is_running:
             self.gateway.stop()
             self.is_running = False
+            self.subscribed_symbols.clear()
             print("[LiveDataManager] Gateway stopped.")
 
     def subscribe(self, symbols: list):
         if self.gateway and self.is_running:
-            print(f"[LiveDataManager] Subscribing to: {symbols}")
-            self.gateway.subscribe(symbols)
+            new_symbols = [s for s in symbols if s not in self.subscribed_symbols]
+            if new_symbols:
+                print(f"[LiveDataManager] Subscribing to: {new_symbols}")
+                self.gateway.subscribe(new_symbols)
+                with self._lock:
+                    for s in new_symbols:
+                        self.subscribed_symbols.add(s)
         else:
             print(f"[LiveDataManager] Cannot subscribe: Gateway not running.")
 
-    def get_quote(self, symbol: str):
+    def get_quote(self, symbol: str, include_history: bool = False):
+        # 如果未订阅，则自动触发订阅
+        if symbol not in self.subscribed_symbols:
+            self.subscribe([symbol])
+            
         with self._lock:
-            quote = self.latest_ticks.get(symbol)
-            # if not quote:
-            #     print(f"[LiveDataManager] No cache for {symbol}")
-            return quote
+            data = self.latest_ticks.get(symbol, {}).copy()
+            
+            # 如果没有实时 tick，尝试从历史中取最后一条
+            if not data and symbol in self.history_ticks and self.history_ticks[symbol]:
+                data = self.history_ticks[symbol][-1].copy()
+            
+            # 如果前端要求历史数据，附带上
+            if include_history and symbol in self.history_ticks:
+                data['history'] = self.history_ticks[symbol]
+            
+            return data if data else None
 
 # 全局单例
 live_data_manager = LiveDataManager()
