@@ -33,7 +33,8 @@ const TraderApp = {
         currentIndicator: 'ma',
         timers: {
             account: null,
-            market: null
+            market: null,
+            clock: null
         }
     },
 
@@ -73,6 +74,7 @@ const TraderApp = {
         console.log('TraderApp initializing...');
         this.ui.initListeners();
         this.charts.initIntraday();
+        this.ui.startClock(); // 启动独立时钟
         
         // 加载活跃账户
         await this.account.loadActive();
@@ -85,7 +87,11 @@ const TraderApp = {
         // 设置默认标的并启动行情更新
         const buySymbolInput = $('buySymbol');
         if (buySymbolInput) {
-            if (!buySymbolInput.value) {
+            // 优先从 URL Hash 中获取标的，无则使用默认值
+            const hashSymbol = window.location.hash.substring(1).toUpperCase().trim();
+            if (hashSymbol) {
+                buySymbolInput.value = hashSymbol;
+            } else if (!buySymbolInput.value) {
                 buySymbolInput.value = '000001.SS';
             }
             // 无论是否有初始值，都加载一次信息以初始化图表和价格
@@ -179,10 +185,15 @@ const TraderApp = {
             } else {
                 const sellPriceInput = $('sellPrice');
                 if (sellPriceInput && !sellPriceInput.value && price > 0) sellPriceInput.value = price.toFixed(2);
-                TraderApp.ui.calculateEstimatedAmount('sell');
+                 TraderApp.ui.calculateEstimatedAmount('sell');
             }
             
             this.updateQuoteUI(stock);
+            
+            // 更新 URL Hash 记录当前标的
+            if (type === 'buy') {
+                window.location.hash = symbol;
+            }
 
             try {
                 const response = await fetch(`/api/data/quotes/${symbol}`);
@@ -238,7 +249,6 @@ const TraderApp = {
                 symbol: quoteSymbolEl,
                 name: $('quoteName'),
                 price: $('quotePrice'),
-                time: $('quoteTime'),
                 open: $('quoteOpen'),
                 high: $('quoteHigh'),
                 low: $('quoteLow'),
@@ -251,14 +261,6 @@ const TraderApp = {
                 const price = stock.latest_price || 0;
                 els.price.textContent = '¥' + price.toFixed(2);
                 els.price.className = 'market-price ' + ((stock.change || 0) >= 0 ? 'price-up' : 'price-down');
-            }
-            if (els.time) {
-                if (stock.timestamp) {
-                    const t = new Date(stock.timestamp);
-                    els.time.textContent = `${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')}:${String(t.getUTCSeconds()).padStart(2, '0')}`;
-                } else {
-                    els.time.textContent = '--';
-                }
             }
             if (els.open) els.open.textContent = stock.open ? '¥' + stock.open.toFixed(2) : '--';
             if (els.high) {
@@ -529,7 +531,9 @@ const TraderApp = {
                             ticks: {
                                 font: { size: 8 },
                                 maxTicksLimit: 3,
-                                callback: (v) => {
+                                callback: (v, index, ticks) => {
+                                    // 隐藏最上方的刻度数值，防止与价格轴标签重合
+                                    if (index === ticks.length - 1) return '';
                                     if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
                                     if (v >= 1000) return (v / 1000).toFixed(0) + 'K';
                                     return v;
@@ -561,9 +565,9 @@ const TraderApp = {
 
         getTimeAxisConfig(assetType) {
             const configs = {
-                // 已改为 UTC 时间以匹配后端 Naive UTC 数据
-                'A-Share': [{ start: '01:30', end: '03:30' }, { start: '05:00', end: '07:00' }],
-                'US-Stock': [{ start: '14:30', end: '21:00' }],
+                // 已恢复为各市场本地时间，由后端负责归一化 minute 字段
+                'A-Share': [{ start: '09:30', end: '11:30' }, { start: '13:00', end: '15:00' }],
+                'US-Stock': [{ start: '09:30', end: '16:00' }],
                 'Crypto': [{ start: '00:00', end: '23:59' }]
             };
             return configs[assetType] || configs['Crypto'];
@@ -575,8 +579,8 @@ const TraderApp = {
             let timeStr = minute;
             if (!timeStr) {
                 const tickTime = timestamp ? new Date(timestamp) : new Date();
-                // 使用 UTC 时间以匹配后端 Naive UTC
-                timeStr = `${String(tickTime.getUTCHours()).padStart(2, '0')}:${String(tickTime.getUTCMinutes()).padStart(2, '0')}`;
+                // 恢复为本地时间，以匹配各市场本地分钟轴
+                timeStr = `${String(tickTime.getHours()).padStart(2, '0')}:${String(tickTime.getMinutes()).padStart(2, '0')}`;
             }
             
             const idx = this.data.intraday.timeToIndexMap[timeStr];
@@ -1026,6 +1030,36 @@ const TraderApp = {
             window.addEventListener('beforeunload', () => {
                 Object.values(TraderApp.state.timers).forEach(t => t && clearInterval(t));
             });
+
+            // 监听 URL Hash 变化，实现改 URL 即改标的
+            window.addEventListener('hashchange', () => {
+                const hashSymbol = window.location.hash.substring(1).toUpperCase().trim();
+                const buySymbolInput = $('buySymbol');
+                if (hashSymbol && buySymbolInput && buySymbolInput.value !== hashSymbol) {
+                    buySymbolInput.value = hashSymbol;
+                    TraderApp.market.loadStockInfo('buy');
+                }
+            });
+        },
+
+        startClock() {
+            if (TraderApp.state.timers.clock) clearInterval(TraderApp.state.timers.clock);
+            TraderApp.state.timers.clock = setInterval(() => {
+                const now = new Date();
+                const utcBase = now.getTime() + (now.getTimezoneOffset() * 60000);
+
+                const updateClock = (id, offset, label) => {
+                    const el = $(id);
+                    if (!el) return;
+                    const t = new Date(utcBase + (3600000 * offset));
+                    const timeStr = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}`;
+                    el.textContent = `${timeStr} (${label})`;
+                };
+
+                updateClock('clock-bj', 8, '北京');
+                updateClock('clock-ny', -5, '美东');
+                updateClock('clock-utc', 0, 'UTC');
+            }, 1000);
         },
 
         calculateEstimatedAmount(type) {

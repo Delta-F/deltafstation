@@ -347,13 +347,13 @@
                                         <label class="form-label">投资标的</label>
                                         <div class="trade-form-content">
                                             <input type="text" class="form-control form-control-sm" id="buySymbol" 
-                                                   list="defaultSymbols" placeholder="代码 / 拼音" 
+                                                   autocomplete="off" list="defaultSymbols" placeholder="代码" 
                                                    onblur="loadStockInfo('buy')"
                                                    onkeydown="if(event.key==='Enter') this.blur()">
                                             <datalist id="defaultSymbols">
-                                                <option value="000001.SS">上证指数 (000001.SS)</option>
-                                                <option value="BTC-USD">比特币 (BTC-USD)</option>
-                                                <option value="AAPL">苹果 (AAPL)</option>
+                                                <option value="000001.SS"></option>
+                                                <option value="AAPL"></option>
+                                                <option value="BTC-USD"></option>
                                             </datalist>
                                         </div>
                                     </div>
@@ -519,7 +519,11 @@
                                 <button type="button" class="btn btn-outline-secondary" data-indicator="boll" onclick="switchIndicator('boll', this)">BOLL</button>
                             </div>
                         </div>
-                        <small class="text-muted" id="quoteTime">--:--:--</small>
+                        <div class="d-flex gap-3 text-muted" style="font-size: 11px; font-family: 'JetBrains Mono', monospace;">
+                            <span id="clock-bj">--:--:-- (北京)</span>
+                            <span id="clock-ny">--:--:-- (美东)</span>
+                            <span id="clock-utc">--:--:-- (UTC)</span>
+                        </div>
                     </div>
                     <div class="chart-card-body">
                         <!-- 第一行：标的信息 + 基础数据 + 当前价格 -->

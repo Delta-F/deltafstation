@@ -1,5 +1,7 @@
 import threading
 from typing import Dict
+from datetime import timedelta
+import yfinance as yf
 from deltafq.live.gateway_registry import create_data_gateway
 
 class LiveDataManager:
@@ -22,15 +24,24 @@ class LiveDataManager:
 
     def _on_tick(self, tick):
         with self._lock:
-            # 直接使用原始 timestamp (naive UTC)
-            current_min = tick.timestamp.strftime('%H:%M')
+            # 极简时区处理：归一化 minute 字段供前端分时图对齐
+            s = tick.symbol.upper()
+            if s.endswith(('.SS', '.SZ')):
+                offset = 8
+            elif s.endswith('-USD') or 'BTC' in s or 'ETH' in s:
+                offset = 0  # 加密货币回归使用 UTC 时间
+            else:
+                offset = -5
+            
+            ts_local = tick.timestamp + timedelta(hours=offset)
+            current_min = ts_local.strftime('%H:%M')
 
             tick_data = {
                 "symbol": tick.symbol,
                 "price": tick.price,
                 "volume": tick.volume,
                 "timestamp": tick.timestamp.isoformat(),
-                "minute": current_min,  # 新增：交易所本地时间的分钟字符串
+                "minute": current_min,
                 "prev_close": getattr(tick, 'pre_close', None)
             }
             
