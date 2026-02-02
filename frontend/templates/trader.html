@@ -272,6 +272,44 @@
         .simulation-status.running { background: #d4edda; color: #155724; }
         .simulation-status.stopped { background: #f8d7da; color: #721c24; }
 
+        /* 实时行情：分时/日K、MA/BOLL 按钮组 */
+        .chart-type-group {
+            display: inline-flex;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #dee2e6;
+            background: #f8f9fa;
+        }
+        .chart-type-group .chart-type-btn {
+            padding: 0.35rem 0.75rem;
+            font-size: 13px;
+            font-weight: 500;
+            border: none;
+            background: transparent;
+            color: #6c757d;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+        .chart-type-group .chart-type-btn:not(:last-child) {
+            border-right: 1px solid #e9ecef;
+        }
+        .chart-type-group .chart-type-btn:hover { background: #e9ecef; color: #495057; }
+        .chart-type-group .chart-type-btn.active {
+            background: #198754;
+            color: #fff;
+        }
+        .chart-type-group.indicator-group { margin-left: 0.5rem; border-color: #ced4da; }
+        .chart-type-group.indicator-group .chart-type-btn.active { background: #0d6efd; }
+
+        /* 三个时区时钟 */
+        .clock-row {
+            font-size: 14px;
+            font-weight: 500;
+            font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
+            color: #495057;
+            letter-spacing: 0.02em;
+        }
+
         @media (max-width: 1400px) {
             .equal-height-row { flex-wrap: wrap; }
             .trading-left-panel, .trading-right-panel {
@@ -347,13 +385,13 @@
                                         <label class="form-label">投资标的</label>
                                         <div class="trade-form-content">
                                             <input type="text" class="form-control form-control-sm" id="buySymbol" 
-                                                   autocomplete="off" list="defaultSymbols" placeholder="代码" 
+                                                   value="BTC-USD" autocomplete="off" list="defaultSymbols" placeholder="代码" 
                                                    onblur="loadStockInfo('buy')"
                                                    onkeydown="if(event.key==='Enter') this.blur()">
                                             <datalist id="defaultSymbols">
+                                                <option value="BTC-USD"></option>
                                                 <option value="000001.SS"></option>
                                                 <option value="AAPL"></option>
-                                                <option value="BTC-USD"></option>
                                             </datalist>
                                         </div>
                                     </div>
@@ -367,14 +405,8 @@
                                     <div class="trade-form-row">
                                         <label class="form-label">委托价格</label>
                                         <div class="trade-form-content">
-                                            <div class="input-group input-group-sm">
-                                                <input type="number" class="form-control" id="buyPrice" 
-                                                       step="0.01" placeholder="价格" required oninput="cancelFollow('buy')">
-                                                <div class="input-group-text">
-                                                    <input class="form-check-input mt-0" type="checkbox" id="buyFollow" title="跟随现价">
-                                                    <small class="ms-1" style="font-size: 10px;">跟随</small>
-                                                </div>
-                                            </div>
+                                            <input type="number" class="form-control form-control-sm" id="buyPrice" 
+                                                   step="0.01" placeholder="价格" required>
                                             <div class="price-btn-group">
                                                 <button type="button" class="price-btn" onclick="setPrice('buy', 'bid1')">买1</button>
                                                 <button type="button" class="price-btn" onclick="setPrice('buy', 'current')">现价</button>
@@ -433,14 +465,8 @@
                                     <div class="trade-form-row">
                                         <label class="form-label">委托价格</label>
                                         <div class="trade-form-content">
-                                            <div class="input-group input-group-sm">
-                                                <input type="number" class="form-control" id="sellPrice" 
-                                                       step="0.01" placeholder="价格" required oninput="cancelFollow('sell')">
-                                                <div class="input-group-text">
-                                                    <input class="form-check-input mt-0" type="checkbox" id="sellFollow" title="跟随现价">
-                                                    <small class="ms-1" style="font-size: 10px;">跟随</small>
-                                                </div>
-                                            </div>
+                                            <input type="number" class="form-control form-control-sm" id="sellPrice" 
+                                                   step="0.01" placeholder="价格" required>
                                             <div class="price-btn-group">
                                                 <button type="button" class="price-btn" onclick="setPrice('sell', 'bid1')">买1</button>
                                                 <button type="button" class="price-btn" onclick="setPrice('sell', 'current')">现价</button>
@@ -507,19 +533,18 @@
                 <!-- 实时行情卡片 -->
                 <div class="card flex-fill mb-2">
                     <div class="chart-card-header">
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
                             <span><i class="fas fa-chart-line me-2"></i>实时行情</span>
-                            <div class="btn-group btn-group-sm">
-                                <button type="button" class="btn btn-outline-success active" id="chartTypeIntraday" onclick="switchChartType('intraday')">分时</button>
-                                <button type="button" class="btn btn-outline-success" id="chartTypeDaily" onclick="switchChartType('daily')">日K</button>
+                            <div class="chart-type-group">
+                                <button type="button" class="chart-type-btn active" id="chartTypeIntraday" onclick="switchChartType('intraday')">分时</button>
+                                <button type="button" class="chart-type-btn" id="chartTypeDaily" onclick="switchChartType('daily')">日K</button>
                             </div>
-                            <!-- 指标选择 -->
-                            <div id="indicatorButtons" class="btn-group btn-group-sm" style="display: none;">
-                                <button type="button" class="btn btn-outline-secondary active" data-indicator="ma" onclick="switchIndicator('ma', this)">MA</button>
-                                <button type="button" class="btn btn-outline-secondary" data-indicator="boll" onclick="switchIndicator('boll', this)">BOLL</button>
+                            <div id="indicatorButtons" class="chart-type-group indicator-group" style="display: none;">
+                                <button type="button" class="chart-type-btn active" data-indicator="ma" onclick="switchIndicator('ma', this)">MA</button>
+                                <button type="button" class="chart-type-btn" data-indicator="boll" onclick="switchIndicator('boll', this)">BOLL</button>
                             </div>
                         </div>
-                        <div class="d-flex gap-3 text-muted" style="font-size: 11px; font-family: 'JetBrains Mono', monospace;">
+                        <div class="d-flex gap-4 clock-row">
                             <span id="clock-bj">--:--:-- (北京)</span>
                             <span id="clock-ny">--:--:-- (美东)</span>
                             <span id="clock-utc">--:--:-- (UTC)</span>
@@ -550,10 +575,10 @@
                                 </div>
                             </div>
                             
-                            <!-- 右侧：当前价格和涨跌幅 -->
+                            <!-- 右侧：当前价格、日内涨跌幅 -->
                             <div class="text-end" style="flex: 0 0 auto;">
                                 <div class="market-price" id="quotePrice" style="color: #1a1a1a;">--</div>
-                                <div id="quoteChange" class="text-muted" style="font-size: 12px;">--</div>
+                                <div id="quoteDailyReturn" style="font-size: 12px; font-weight: 500;">--</div>
                             </div>
                         </div>
                         

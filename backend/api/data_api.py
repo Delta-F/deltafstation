@@ -1,5 +1,14 @@
 """
-数据管理API
+数据管理 API（前缀 /api/data）：
+
+- GET  /api/data/files           文件列表
+- POST /api/data/files           上传 CSV 或按 symbol 拉取数据
+- GET  /api/data/files/<filename>  文件详情/预览
+- DELETE /api/data/files/<filename>  删除文件
+- GET  /api/data/template        下载 CSV 模板
+- GET  /api/data/live/<symbol>    实时行情，?history=true 带当日历史
+- GET  /api/data/symbols/<symbol>/files  该标的对应数据文件信息
+- POST /api/data/symbols/<symbol>/files  按标的拉取并创建/更新数据文件
 """
 from flask import Blueprint, request, jsonify, send_file, current_app
 import os
@@ -7,6 +16,7 @@ import io
 import pandas as pd
 from datetime import datetime
 from backend.core.data_manager import DataManager
+from backend.core.live_data_manager import live_data_manager
 
 data_bp = Blueprint('data', __name__)
 
@@ -173,8 +183,6 @@ def handle_file(filename):
             return jsonify({'message': f'File {filename} deleted successfully'}), 200
     
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -193,11 +201,10 @@ def download_template():
     )
 
 
-@data_bp.route('/quotes/<symbol>', methods=['GET'])
+@data_bp.route('/live/<symbol>', methods=['GET'])
 def get_live_quote(symbol):
-    """获取实时行情 - GET /api/data/quotes/<symbol>"""
+    """获取实时行情 - GET /api/data/live/<symbol>"""
     try:
-        from backend.core.live_data_manager import live_data_manager
         include_history = request.args.get('history', 'false').lower() == 'true'
         quote = live_data_manager.get_quote(symbol, include_history=include_history)
         
@@ -211,23 +218,6 @@ def get_live_quote(symbol):
             'status': 'loading',
             'message': 'Quote not yet available, subscribing...'
         }), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@data_bp.route('/quotes/subscribe', methods=['POST'])
-def subscribe_quotes():
-    """订阅实时行情 - POST /api/data/quotes/subscribe"""
-    try:
-        data = request.get_json()
-        symbols = data.get('symbols', [])
-        if not symbols:
-            return jsonify({'error': 'No symbols provided'}), 400
-            
-        from backend.core.live_data_manager import live_data_manager
-        live_data_manager.subscribe(symbols)
-        
-        return jsonify({'message': f'Subscribed to {len(symbols)} symbols'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

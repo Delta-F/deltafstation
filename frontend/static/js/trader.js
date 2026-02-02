@@ -19,7 +19,7 @@ const TraderApp = {
         MAX_ORDERS_DISPLAY: 20,
         MAX_LOG_ENTRIES: 100,
         REFRESH_RATE_ACCOUNT: 3000,
-        REFRESH_RATE_MARKET: 5000
+        REFRESH_RATE_MARKET: 2000
     },
 
     // 2. 核心状态
@@ -92,7 +92,7 @@ const TraderApp = {
             if (hashSymbol) {
                 buySymbolInput.value = hashSymbol;
             } else if (!buySymbolInput.value) {
-                buySymbolInput.value = '000001.SS';
+                buySymbolInput.value = 'BTC-USD';
             }
             // 无论是否有初始值，都加载一次信息以初始化图表和价格
             this.market.loadStockInfo('buy');
@@ -124,7 +124,7 @@ const TraderApp = {
                 try {
                     const stock = TraderApp.state.marketData[symbol];
                     const needHistory = !stock.hasLoadedHistory;
-                    const url = `/api/data/quotes/${symbol}${needHistory ? '?history=true' : ''}`;
+                    const url = `/api/data/live/${symbol}${needHistory ? '?history=true' : ''}`;
                     
                     const response = await fetch(url);
                     if (!response.ok) return;
@@ -140,10 +140,6 @@ const TraderApp = {
                         if (data.high) stock.high = data.high;
                         if (data.low) stock.low = data.low;
                         if (data.history) stock.history = data.history;
-                        
-                        const prevClose = data.prev_close || stock.latest_price;
-                        stock.change = parseFloat((stock.latest_price - prevClose).toFixed(2));
-                        stock.changePercent = prevClose > 0 ? parseFloat(((stock.change / prevClose) * 100).toFixed(2)) : 0.00;
                         
                         const currentSymbol = $('quoteSymbol')?.textContent;
                         if (currentSymbol === symbol) {
@@ -163,7 +159,8 @@ const TraderApp = {
             
             const symbol = symbolInput.value.toUpperCase().trim();
             if (!symbol) return;
-            
+            symbolInput.value = symbol;
+
             if (!TraderApp.state.marketData[symbol]) {
                 TraderApp.state.marketData[symbol] = {
                     symbol: symbol,
@@ -196,7 +193,7 @@ const TraderApp = {
             }
 
             try {
-                const response = await fetch(`/api/data/quotes/${symbol}`);
+                const response = await fetch(`/api/data/live/${symbol}`);
                 if (response.ok) {
                     const data = await response.json();
                     if (data && !data.error && data.status !== 'loading') {
@@ -208,7 +205,6 @@ const TraderApp = {
                             open: data.open,
                             high: data.high,
                             low: data.low,
-                            prev_close: data.prev_close,
                             name: data.name || symbol
                         };
                         this.updateQuoteUI(TraderApp.state.marketData[symbol]);
@@ -233,11 +229,13 @@ const TraderApp = {
             
             const quoteSymbolEl = $('quoteSymbol');
             const currentShownSymbol = quoteSymbolEl ? quoteSymbolEl.textContent : '';
+            const newAssetType = TraderApp.utils.getAssetType(stock.symbol);
             
-            if (currentShownSymbol && currentShownSymbol !== '--' && currentShownSymbol !== stock.symbol) {
+            // 修复：初次加载或品种类型变更时，重新初始化图表轴
+            if (currentShownSymbol === '--' || currentShownSymbol === '') {
+                TraderApp.charts.initIntraday(stock.symbol);
+            } else if (currentShownSymbol !== stock.symbol) {
                 const oldAssetType = TraderApp.utils.getAssetType(currentShownSymbol);
-                const newAssetType = TraderApp.utils.getAssetType(stock.symbol);
-                
                 if (oldAssetType !== newAssetType) {
                     TraderApp.charts.initIntraday(stock.symbol);
                 } else {
@@ -252,15 +250,17 @@ const TraderApp = {
                 open: $('quoteOpen'),
                 high: $('quoteHigh'),
                 low: $('quoteLow'),
-                change: $('quoteChange')
+                dailyReturn: $('quoteDailyReturn')
             };
             
             if (els.symbol) els.symbol.textContent = stock.symbol || '--';
             if (els.name) els.name.textContent = stock.name || '--';
             if (els.price) {
                 const price = stock.latest_price || 0;
+                const open = stock.open;
+                const pct = (open && open > 0) ? (price - open) / open : 0;
                 els.price.textContent = '¥' + price.toFixed(2);
-                els.price.className = 'market-price ' + ((stock.change || 0) >= 0 ? 'price-up' : 'price-down');
+                els.price.className = 'market-price ' + (pct >= 0 ? 'price-up' : 'price-down');
             }
             if (els.open) els.open.textContent = stock.open ? '¥' + stock.open.toFixed(2) : '--';
             if (els.high) {
@@ -271,15 +271,18 @@ const TraderApp = {
                 els.low.textContent = stock.low ? '¥' + stock.low.toFixed(2) : '--';
                 els.low.className = stock.low >= (stock.open || 0) ? 'price-up' : 'price-down';
             }
-            if (els.change) {
-                const change = stock.change || 0;
-                const changePercent = stock.changePercent || 0;
-                const changeStr = (change >= 0 ? '+' : '') + change.toFixed(2) + 
-                                ' (' + (changePercent >= 0 ? '+' : '') + changePercent.toFixed(2) + '%)';
-                els.change.textContent = changeStr;
-                els.change.className = change >= 0 ? 'price-up' : 'price-down';
+            if (els.dailyReturn) {
+                const price = stock.latest_price || 0;
+                const open = stock.open;
+                if (open && open > 0) {
+                    const pct = ((price - open) / open * 100);
+                    els.dailyReturn.textContent = '日内 ' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+                    els.dailyReturn.className = (pct >= 0 ? 'price-up' : 'price-down');
+                } else {
+                    els.dailyReturn.textContent = '--';
+                    els.dailyReturn.className = 'text-muted';
+                }
             }
-            
             this.updateQuoteBoard(stock);
 
             if (TraderApp.state.currentChartType === 'daily' && stock.symbol) {
@@ -302,27 +305,6 @@ const TraderApp = {
             }
             
             TraderApp.charts.addIntradayPoint(stock.latest_price, stock.volume, stock.timestamp, stock.minute);
-            
-            // 跟随现价逻辑
-            const buyFollow = $('buyFollow');
-            const sellFollow = $('sellFollow');
-            const buySymbol = $('buySymbol')?.value.toUpperCase().trim();
-            const sellSymbol = $('sellSymbol')?.value.toUpperCase().trim();
-            
-            if (buyFollow?.checked && buySymbol === stock.symbol) {
-                const buyPriceInput = $('buyPrice');
-                if (buyPriceInput) {
-                    buyPriceInput.value = stock.latest_price.toFixed(2);
-                    TraderApp.ui.calculateEstimatedAmount('buy');
-                }
-            }
-            if (sellFollow?.checked && sellSymbol === stock.symbol) {
-                const sellPriceInput = $('sellPrice');
-                if (sellPriceInput) {
-                    sellPriceInput.value = stock.latest_price.toFixed(2);
-                    TraderApp.ui.calculateEstimatedAmount('sell');
-                }
-            }
         },
 
         updateQuoteBoard(stock) {
@@ -372,8 +354,6 @@ const TraderApp = {
             
             if (priceType === 'current') {
                 price = currentPrice;
-                const followCheck = $(type + 'Follow');
-                if (followCheck) followCheck.checked = true;
             } else if (priceType === 'bid1') {
                 price = currentPrice - spread;
             } else if (priceType === 'ask1') {
@@ -428,7 +408,7 @@ const TraderApp = {
             daily: { dates: [], candles: [] }
         },
 
-        initIntraday(symbol = '000001.SS') {
+        initIntraday(symbol = 'BTC-USD') {
             const canvas = $('intradayChart');
             if (!canvas || typeof Chart === 'undefined') return;
 
@@ -1168,7 +1148,6 @@ const TraderApp = {
 
         showCreateAccountModal() { new bootstrap.Modal($('createAccountModal')).show(); },
         clearLogs() { TraderApp.state.logs = []; this.updateLogs(); },
-        cancelFollow(type) { const chk = $(type + 'Follow'); if (chk) chk.checked = false; this.calculateEstimatedAmount(type); }
     }
 };
 
@@ -1193,7 +1172,6 @@ const stopSimulation = () => TraderApp.account.stop();
 const cancelOrder = (id) => TraderApp.account.cancelOrder(id);
 const clearLogs = () => TraderApp.ui.clearLogs();
 const loadSellPosition = () => TraderApp.account.loadSellPosition();
-const cancelFollow = (type) => TraderApp.ui.cancelFollow(type);
 
 // 启动应用
 document.addEventListener('DOMContentLoaded', () => TraderApp.init());

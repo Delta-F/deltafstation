@@ -51,9 +51,6 @@ class StdoutRedirector:
 if not isinstance(sys.stdout, StdoutRedirector):
     sys.stdout = StdoutRedirector(sys.stdout, global_log_queue)
 
-# 添加项目根目录到Python路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from backend.api.data_api import data_bp
 from backend.api.strategy_api import strategy_bp
 from backend.api.backtest_api import backtest_bp
