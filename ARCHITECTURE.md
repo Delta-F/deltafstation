@@ -20,7 +20,7 @@
   ├── 数据 API        backend/api/data_api.py
   ├── 策略 API       backend/api/strategy_api.py
   ├── 回测 API       backend/api/backtest_api.py
-  ├── 仿真 API       backend/api/simulation_api.py
+  ├── 仿真/账户 API   backend/api/simulation_api.py  # 创建、列表、状态、开启、停止、下单
   └── 日志流 (SSE)    backend/app.py (stdout pipe)
 
            │  业务调用
@@ -57,8 +57,8 @@
   - 由 `backtest_api` 调用，结果写入 `data/results/`
 
 - **SimulationEngine（仿真引擎）**
-  - 管理仿真账户、持仓、交易记录，支持纯手动和策略驱动
-  - 由 `simulation_api` 调用，记录写入 `data/simulations/`
+  - 基于 `deltafq`（EventEngine + yfinance 行情 + paper 交易网关），按 tick 撮合限价单；仅允许一个账户运行，内存维护运行中实例
+  - 由 `simulation_api` 调用，账户配置与列表持久化写入 `data/simulations/`
 
 - **策略管理**
   - 策略实现存放在 `data/strategies/*.py`，继承 `deltafq.BaseStrategy`

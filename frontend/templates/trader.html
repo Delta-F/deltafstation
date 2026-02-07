@@ -504,8 +504,8 @@
                 <div class="card trading-bottom-card account-card">
                     <div class="chart-card-header">
                         <span><i class="fas fa-wallet me-2"></i>交易账户</span>
-                        <button class="btn btn-sm btn-success" onclick="showCreateAccount()" id="createAccountBtn">
-                            <i class="fas fa-plus me-1"></i>创建账户
+                        <button class="btn btn-sm btn-primary" onclick="showManageAccount()" id="manageAccountBtn">
+                            <i class="fas fa-cog me-1"></i>管理账户
                         </button>
                     </div>
                     <div class="card-body">
@@ -514,8 +514,8 @@
                             <span id="accountId">--</span>
                         </div>
                         <div class="account-info">
-                            <small>券商</small>
-                            <span id="brokerName">DeltaFStation</span>
+                            <small>类型</small>
+                            <span id="brokerName">--</span>
                         </div>
                         <div class="account-info">
                             <small>费率</small>
@@ -716,41 +716,62 @@
         </div>
     </div>
 
-    <!-- 创建交易账户模态框 -->
-    <div class="modal fade" id="createAccountModal" tabindex="-1">
-        <div class="modal-dialog">
+    <!-- 管理账户模态框：选择已有 / 新建 -->
+    <div class="modal fade" id="manageAccountModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-wallet me-2"></i>创建交易账户</h5>
+                    <h5 class="modal-title"><i class="fas fa-wallet me-2"></i>管理账户</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="createAccountForm">
-                        <div class="mb-3">
-                            <label for="accountCapital" class="form-label">初始资金</label>
-                            <input type="number" class="form-control" id="accountCapital" value="1000000" required>
-                            <small class="text-muted">设置您的初始交易资金</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="accountCommission" class="form-label">手续费率</label>
-                            <input type="number" class="form-control" id="accountCommission" value="0.001" step="0.0001">
-                            <small class="text-muted">每笔交易的手续费率（默认0.1%）</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="accountSlippage" class="form-label">滑点</label>
-                            <input type="number" class="form-control" id="accountSlippage" value="0.0005" step="0.0001">
-                            <small class="text-muted">交易滑点（默认0.05%）</small>
-                        </div>
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>提示：</strong>这是手动交易账户，所有交易需要您手动操作。如需自动交易，请使用"运行策略"页面。
-                        </div>
-                    </form>
+                    <!-- 视图1：选择已有账户 -->
+                    <div id="manageAccountList">
+                        <p class="text-muted small mb-2">选择已有账户（点击即切换并开启运行）</p>
+                        <div id="manageAccountListBody" class="list-group list-group-flush mb-3" style="max-height: 280px; overflow-y: auto;"></div>
+                        <button type="button" class="btn btn-success w-100" onclick="switchManageView('form')">
+                            <i class="fas fa-plus me-1"></i>新建账户
+                        </button>
+                    </div>
+                    <!-- 视图2：新建账户表单 -->
+                    <div id="manageAccountForm" style="display: none;">
+                        <form id="createAccountForm">
+                            <div class="mb-3">
+                                <label for="accountName" class="form-label">账户名称</label>
+                                <input type="text" class="form-control" id="accountName" placeholder="例如：日常模拟" maxlength="32">
+                                <small class="text-muted">自定义名称，便于查找</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">账户类型</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="accountType" id="accountTypeLocal" value="local_paper" checked>
+                                    <label class="form-check-label" for="accountTypeLocal">本地模拟</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="accountType" id="accountTypeBroker" value="broker">
+                                    <label class="form-check-label" for="accountTypeBroker">券商实盘</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="accountCapital" class="form-label">初始资金</label>
+                                <input type="number" class="form-control" id="accountCapital" value="1000000">
+                            </div>
+                            <div class="mb-3">
+                                <label for="accountCommission" class="form-label">手续费率</label>
+                                <input type="number" class="form-control" id="accountCommission" value="0.001" step="0.0001">
+                            </div>
+                            <div class="mb-3">
+                                <label for="accountSlippage" class="form-label">滑点</label>
+                                <input type="number" class="form-control" id="accountSlippage" value="0.0005" step="0.0001">
+                            </div>
+                        </form>
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="createAccount()">
-                        <i class="fas fa-check me-1"></i>创建账户
+                <div class="modal-footer" id="manageAccountFooter">
+                    <button type="button" class="btn btn-secondary" onclick="switchManageView('list')" id="manageBackBtn" style="display: none;">返回</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" onclick="createAccount()" id="manageCreateBtn" style="display: none;">
+                        <i class="fas fa-check me-1"></i>创建
                     </button>
                 </div>
             </div>

@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-0.7.2-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-0.7.3-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -31,7 +31,7 @@ python run.py
 ## Core Features
 
 - 📉 Backtest Hub - Strategy creation, historical backtesting, performance analysis, and visual reports
-- 🧾 Manual Trading - Account management, buy/sell execution, and position & PnL tracking
+- 🧾 Manual Trading - Manage accounts (select or create), local simulation via deltafq tick matching, buy/sell execution, and position & PnL tracking
 - ⚡ Strategy Running - Automated trading, real-time monitoring, signal execution, and logs
 - 🤖 AI Assistant - Intelligent Q&A, usage guidance, and context-aware help
 

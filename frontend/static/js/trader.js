@@ -76,7 +76,8 @@ const TraderApp = {
         this.charts.initIntraday();
         this.ui.startClock(); // 启动独立时钟
         
-        // 加载活跃账户
+        // 加载账户列表与活跃账户
+        await this.account.refreshAccountList();
         await this.account.loadActive();
         
         // 启动定时器
@@ -872,6 +873,47 @@ const TraderApp = {
 
     // 7. 账户与交易管理模块
     account: {
+        async renderManageAccountList() {
+            const body = $('manageAccountListBody');
+            if (!body) return;
+            const { ok, data } = await apiRequest('/api/simulations');
+            body.innerHTML = '';
+            if (!ok || !data.simulations || data.simulations.length === 0) {
+                body.innerHTML = '<div class="list-group-item text-muted small">暂无账户，请新建</div>';
+                return;
+            }
+            data.simulations.forEach(s => {
+                const a = document.createElement('a');
+                a.href = 'javascript:void(0)';
+                a.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                a.innerHTML = `<span>${s.name || s.id}</span><span class="badge ${s.status === 'running' ? 'bg-success' : 'bg-secondary'}">${s.status === 'running' ? '运行中' : '已关闭'}</span>`;
+                a.onclick = async () => {
+                    await this.loadAccount(s.id);
+                    bootstrap.Modal.getInstance($('manageAccountModal'))?.hide();
+                };
+                body.appendChild(a);
+            });
+        },
+
+        async loadAccount(id) {
+            if (!id) { TraderApp.state.simulation = null; TraderApp.ui.updateAccountOverview(); return; }
+            const { ok, data } = await apiRequest(`/api/simulations/${id}`);
+            if (!ok || !data.simulation) return;
+            const sim = data.simulation;
+            if (sim.status !== 'running') {
+                const { ok: okStart, data: startData } = await apiRequest(`/api/simulations/${id}/start`, { method: 'POST' });
+                if (okStart && startData.simulation) {
+                    TraderApp.state.simulation = startData.simulation;
+                    TraderApp.ui.addLog(`已开启账户：${sim.name || sim.id}`, 'local');
+                } else {
+                    TraderApp.state.simulation = sim;
+                }
+            } else {
+                TraderApp.state.simulation = sim;
+            }
+            this.updateDisplay();
+        },
+
         async loadActive() {
             try {
                 const { ok, data } = await apiRequest('/api/simulations');
@@ -901,17 +943,13 @@ const TraderApp = {
         },
 
         updateDisplay() {
-            if (!TraderApp.state.simulation) return;
             TraderApp.ui.updateAccountOverview();
+            if (!TraderApp.state.simulation) return;
             TraderApp.ui.updatePositions();
             TraderApp.ui.updateTrades();
             TraderApp.ui.updateOrders();
-            
-            const createBtn = $('createAccountBtn');
             const stopBtn = $('stopSimulationBtn');
-            const isRunning = TraderApp.state.simulation.status === 'running';
-            if (createBtn) createBtn.disabled = isRunning;
-            if (stopBtn) stopBtn.disabled = !isRunning;
+            if (stopBtn) stopBtn.disabled = TraderApp.state.simulation.status !== 'running';
         },
 
         async submitOrder(type) {
@@ -938,23 +976,28 @@ const TraderApp = {
         },
 
         async create() {
+            const accountType = document.querySelector('input[name="accountType"]:checked')?.value || 'local_paper';
+            if (accountType === 'broker') {
+                showAlert('券商实盘暂未开通此功能', 'warning');
+                return;
+            }
+            const name = ($('accountName') && $('accountName').value || '').trim();
+            if (!name) { showAlert('请填写账户名称', 'warning'); return; }
             const initialCapital = parseFloat($('accountCapital').value);
             const commission = parseFloat($('accountCommission').value) || 0.001;
             const slippage = parseFloat($('accountSlippage').value) || 0.0005;
-            
             if (isNaN(initialCapital) || initialCapital <= 0) { showAlert('初始资金必须大于0', 'warning'); return; }
-            
             const { ok, data: result } = await apiRequest('/api/simulations', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ initial_capital: initialCapital, commission, slippage })
+                body: JSON.stringify({ account_type: accountType, name, initial_capital: initialCapital, commission, slippage })
             });
-            
             if (ok) {
-                TraderApp.state.simulation = { id: result.simulation_id, status: 'running', initial_capital: initialCapital, current_capital: initialCapital, positions: {}, trades: [] };
+                TraderApp.state.simulation = { id: result.simulation_id, name, status: 'running', initial_capital: initialCapital, current_capital: initialCapital, positions: {}, trades: [] };
                 showAlert('交易账户创建成功', 'success');
-                TraderApp.ui.addLog(`创建账户: 资金 ¥${initialCapital.toLocaleString()}`, '/api/simulations');
+                TraderApp.ui.addLog(`创建账户: ${name}，资金 ¥${initialCapital.toLocaleString()}`, '/api/simulations');
                 await this.updateStatus();
-                bootstrap.Modal.getInstance($('createAccountModal')).hide();
+                switchManageView('list');
+                bootstrap.Modal.getInstance($('manageAccountModal'))?.hide();
             } else showAlert(result.error || '创建失败', 'danger');
         },
 
@@ -1050,7 +1093,12 @@ const TraderApp = {
 
         updateAccountOverview() {
             const sim = TraderApp.state.simulation;
-            if (!sim) return;
+            if (!sim) {
+                if ($('accountId')) $('accountId').textContent = '--';
+                if ($('brokerName')) $('brokerName').textContent = '--';
+                if ($('commissionDisplay')) $('commissionDisplay').textContent = '--';
+                return;
+            }
             const initial = sim.initial_capital || 1000000;
             const available = (sim.current_capital || initial) - (sim.frozen_capital || 0);
             let posVal = 0;
@@ -1077,10 +1125,8 @@ const TraderApp = {
             statusEl.textContent = sim.status === 'running' ? '运行中' : '已关闭';
             statusEl.className = 'simulation-status ' + (sim.status === 'running' ? 'running' : 'stopped');
             
-            if ($('accountId')) {
-                const id = sim.id;
-                $('accountId').textContent = id.startsWith('demo') ? 'demo' : (id.match(/\d+/) ? 'df' + id.match(/\d+/)[0].padStart(4, '0') : id);
-            }
+            if ($('accountId')) $('accountId').textContent = sim.name || sim.id || '--';
+            if ($('brokerName')) $('brokerName').textContent = sim.account_type === 'broker' ? '券商实盘' : '本地模拟';
             if ($('commissionDisplay')) $('commissionDisplay').textContent = ((sim.commission || 0.001) * 100).toFixed(2) + '%';
         },
 
@@ -1146,7 +1192,12 @@ const TraderApp = {
             document.querySelector('.data-view-' + type)?.classList.remove('d-none');
         },
 
-        showCreateAccountModal() { new bootstrap.Modal($('createAccountModal')).show(); },
+        async showManageAccountModal() {
+            switchManageView('list');
+            await TraderApp.account.renderManageAccountList();
+            new bootstrap.Modal($('manageAccountModal')).show();
+        },
+        renderManageAccountList() { TraderApp.account.renderManageAccountList(); },
         clearLogs() { TraderApp.state.logs = []; this.updateLogs(); },
     }
 };
@@ -1166,7 +1217,24 @@ const setQuantity = (type, val, isPct) => TraderApp.market.setQuantity(type, val
 const switchChartType = (type) => TraderApp.charts.switchType(type);
 const switchIndicator = (ind, btn) => TraderApp.charts.switchIndicator(ind, btn);
 const switchDataView = (type, btn) => TraderApp.ui.switchDataView(type, btn);
-const showCreateAccount = () => TraderApp.ui.showCreateAccountModal();
+function showManageAccount() { TraderApp.ui.showManageAccountModal(); }
+function switchManageView(view) {
+    const listEl = $('manageAccountList');
+    const formEl = $('manageAccountForm');
+    const backBtn = $('manageBackBtn');
+    const createBtn = $('manageCreateBtn');
+    if (view === 'list') {
+        if (listEl) listEl.style.display = '';
+        if (formEl) formEl.style.display = 'none';
+        if (backBtn) backBtn.style.display = 'none';
+        if (createBtn) createBtn.style.display = 'none';
+    } else {
+        if (listEl) listEl.style.display = 'none';
+        if (formEl) formEl.style.display = 'block';
+        if (backBtn) backBtn.style.display = 'inline-block';
+        if (createBtn) createBtn.style.display = 'inline-block';
+    }
+}
 const createAccount = () => TraderApp.account.create();
 const stopSimulation = () => TraderApp.account.stop();
 const cancelOrder = (id) => TraderApp.account.cancelOrder(id);
