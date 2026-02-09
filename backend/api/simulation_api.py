@@ -25,11 +25,24 @@ def _sim_folder():
 def _config_path(sid):
     return os.path.join(_sim_folder(), f"{sid}.json")
 
-def _name_to_id(name):
-    """用户输入名称转成唯一 id（仅字母数字下划线横线，文件名安全）。"""
-    s = re.sub(r'[^a-zA-Z0-9_\-]', '_', (name or '').strip())
-    s = s[:48].strip('_')
-    return s or f"sim_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+def _generate_sim_id():
+    """统一生成 sim_年月日001 格式的唯一 ID。"""
+    folder = _sim_folder()
+    prefix = f"sim_{datetime.now().strftime('%Y%m%d')}"
+    if not os.path.exists(folder):
+        return f"{prefix}001"
+    
+    # 查找当日已存在的 sim_YYYYMMDDxxx.json 文件
+    pattern = re.compile(rf"^{prefix}(\d{{3,}})\.json$")
+    max_num = 0
+    for f in os.listdir(folder):
+        match = pattern.match(f)
+        if match:
+            num = int(match.group(1))
+            if num > max_num:
+                max_num = num
+    
+    return f"{prefix}{max_num + 1:03d}"
 
 
 def _stop_others_except(account_id: str) -> None:
@@ -55,15 +68,18 @@ def start_simulation():
     data = request.get_json() or {}
     if data.get('account_type') == 'broker':
         return jsonify({'error': '券商实盘暂未开通此功能'}), 400
-    name = (data.get('name') or '').strip()
-    if not name:
-        return jsonify({'error': '请填写账户名称'}), 400
+    
+    # 文件名/ID 统一按规则生成
+    account_id = _generate_sim_id()
+    
+    # 账户显示名称：优先使用用户输入，否则使用 ID
+    name = (data.get('name') or '').strip() or account_id
+    
     if not data.get('initial_capital'):
         return jsonify({'error': 'Missing required field: initial_capital'}), 400
 
-    account_id = _name_to_id(name)
     if os.path.exists(_config_path(account_id)):
-        return jsonify({'error': '账户名称已存在'}), 400
+        return jsonify({'error': '账户 ID 冲突，请重试'}), 400
 
     capital = float(data['initial_capital'])
     commission = float(data.get('commission', 0.001))
@@ -100,6 +116,23 @@ def stop_simulation(simulation_id):
     with open(_config_path(simulation_id), 'w', encoding='utf-8') as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
     return jsonify({'simulation': config})
+
+
+@simulation_bp.route('/<simulation_id>', methods=['DELETE'])
+def delete_simulation(simulation_id):
+    path = _config_path(simulation_id)
+    if not os.path.exists(path):
+        return jsonify({'error': 'Simulation not found'}), 404
+    
+    # 停止运行中的实例
+    if SimulationEngine.is_running(simulation_id):
+        SimulationEngine.stop(simulation_id)
+    
+    try:
+        os.remove(path)
+        return jsonify({'message': 'Simulation deleted'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @simulation_bp.route('/<simulation_id>/start', methods=['POST'])
@@ -195,3 +228,17 @@ def execute_trade(simulation_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 400
     return jsonify({'message': 'Order submitted', 'order_id': order_id})
+
+
+@simulation_bp.route('/<simulation_id>/orders/<order_id>', methods=['DELETE'])
+def cancel_trade_order(simulation_id, order_id):
+    if not SimulationEngine.is_running(simulation_id):
+        return jsonify({'error': 'Simulation is not running'}), 400
+    try:
+        success = SimulationEngine.cancel_order(simulation_id, order_id)
+        if success:
+            return jsonify({'message': 'Order cancelled'})
+        else:
+            return jsonify({'error': 'Failed to cancel order (maybe already filled or not pending)'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

@@ -18,8 +18,8 @@ const TraderApp = {
         MAX_TRADES_DISPLAY: 50,
         MAX_ORDERS_DISPLAY: 20,
         MAX_LOG_ENTRIES: 100,
-        REFRESH_RATE_ACCOUNT: 3000,
-        REFRESH_RATE_MARKET: 2000
+        REFRESH_RATE_ACCOUNT: 5000,
+        REFRESH_RATE_MARKET: 5000
     },
 
     // 2. 核心状态
@@ -49,13 +49,20 @@ const TraderApp = {
         },
 
         validateOrderForm(symbol, price, quantity) {
-            if (!symbol || !price || !quantity || quantity < TraderApp.CONSTANTS.MIN_QUANTITY) {
-                showAlert('请填写完整信息，数量至少100股', 'warning');
-                return false;
-            }
-            if (quantity % TraderApp.CONSTANTS.QUANTITY_STEP !== 0) {
-                showAlert('数量必须是100的整数倍', 'warning');
-                return false;
+            if (!symbol) { showAlert('请输入标的代码', 'warning'); return false; }
+            if (!price || price <= 0) { showAlert('请输入有效的价格', 'warning'); return false; }
+            if (!quantity || quantity <= 0) { showAlert('请输入有效的数量', 'warning'); return false; }
+
+            const assetType = this.getAssetType(symbol);
+            if (assetType === 'A-Share') {
+                if (quantity < TraderApp.CONSTANTS.MIN_QUANTITY) {
+                    showAlert(`A股交易数量至少${TraderApp.CONSTANTS.MIN_QUANTITY}股`, 'warning');
+                    return false;
+                }
+                if (quantity % TraderApp.CONSTANTS.QUANTITY_STEP !== 0) {
+                    showAlert('A股交易数量必须是100的整数倍', 'warning');
+                    return false;
+                }
             }
             return true;
         },
@@ -76,8 +83,7 @@ const TraderApp = {
         this.charts.initIntraday();
         this.ui.startClock(); // 启动独立时钟
         
-        // 加载账户列表与活跃账户
-        await this.account.refreshAccountList();
+        // 加载活跃账户
         await this.account.loadActive();
         
         // 启动定时器
@@ -162,6 +168,9 @@ const TraderApp = {
             if (!symbol) return;
             symbolInput.value = symbol;
 
+            const symbolChanged = symbolInput.getAttribute('data-last-symbol') !== symbol;
+            symbolInput.setAttribute('data-last-symbol', symbol);
+
             if (!TraderApp.state.marketData[symbol]) {
                 TraderApp.state.marketData[symbol] = {
                     symbol: symbol,
@@ -176,14 +185,26 @@ const TraderApp = {
             if (type === 'buy') {
                 const buyPriceInput = $('buyPrice');
                 const buyNameInput = $('buyName');
-                if (buyPriceInput && !buyPriceInput.value && price > 0) buyPriceInput.value = price.toFixed(2);
+                if (buyPriceInput) {
+                    if (symbolChanged) {
+                        buyPriceInput.value = price > 0 ? price.toFixed(2) : '';
+                    } else if (!buyPriceInput.value && price > 0) {
+                        buyPriceInput.value = price.toFixed(2);
+                    }
+                }
                 // 标的名称默认直接显示投资标的（代码），后续有字典再做映射
                 if (buyNameInput) buyNameInput.value = symbol;
                 TraderApp.ui.calculateEstimatedAmount('buy');
             } else {
                 const sellPriceInput = $('sellPrice');
-                if (sellPriceInput && !sellPriceInput.value && price > 0) sellPriceInput.value = price.toFixed(2);
-                 TraderApp.ui.calculateEstimatedAmount('sell');
+                if (sellPriceInput) {
+                    if (symbolChanged) {
+                        sellPriceInput.value = price > 0 ? price.toFixed(2) : '';
+                    } else if (!sellPriceInput.value && price > 0) {
+                        sellPriceInput.value = price.toFixed(2);
+                    }
+                }
+                TraderApp.ui.calculateEstimatedAmount('sell');
             }
             
             this.updateQuoteUI(stock);
@@ -879,20 +900,79 @@ const TraderApp = {
             const { ok, data } = await apiRequest('/api/simulations');
             body.innerHTML = '';
             if (!ok || !data.simulations || data.simulations.length === 0) {
-                body.innerHTML = '<div class="list-group-item text-muted small">暂无账户，请新建</div>';
+                body.innerHTML = '<div class="list-group-item text-muted small text-center py-3">暂无账户，请新建</div>';
                 return;
             }
             data.simulations.forEach(s => {
-                const a = document.createElement('a');
-                a.href = 'javascript:void(0)';
-                a.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-                a.innerHTML = `<span>${s.name || s.id}</span><span class="badge ${s.status === 'running' ? 'bg-success' : 'bg-secondary'}">${s.status === 'running' ? '运行中' : '已关闭'}</span>`;
-                a.onclick = async () => {
+                const div = document.createElement('div');
+                div.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2';
+                div.style.cursor = 'pointer';
+                
+                const isRunning = s.status === 'running';
+                
+                // Left side: Name + Status Badge
+                const leftDiv = document.createElement('div');
+                leftDiv.className = 'd-flex align-items-center gap-2 flex-grow-1';
+                leftDiv.innerHTML = `
+                    <span class="fw-500 text-dark" style="font-size: 14px;">${s.name || s.id}</span>
+                    ${isRunning 
+                        ? '<span class="badge bg-success bg-opacity-10 text-success rounded-pill" style="font-size: 11px; font-weight: 500;">运行中</span>' 
+                        : '<span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill" style="font-size: 11px; font-weight: 500;">已停止</span>'}
+                `;
+                leftDiv.onclick = async () => {
                     await this.loadAccount(s.id);
                     bootstrap.Modal.getInstance($('manageAccountModal'))?.hide();
                 };
-                body.appendChild(a);
+
+                div.appendChild(leftDiv);
+
+                // Right side: Action Buttons
+                const rightDiv = document.createElement('div');
+                rightDiv.className = 'd-flex align-items-center gap-1';
+
+                // Stop Button (if running)
+                if (isRunning) {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-icon-only text-danger stop-account-btn';
+                    btn.title = '停止账户';
+                    btn.innerHTML = '<i class="fas fa-power-off"></i>';
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        this.stop(s.id);
+                    };
+                    rightDiv.appendChild(btn);
+                }
+
+                // Delete Button
+                const delBtn = document.createElement('button');
+                delBtn.className = 'btn btn-icon-only text-muted delete-account-btn';
+                delBtn.title = '删除账户';
+                delBtn.innerHTML = '<i class="fas fa-trash-alt" style="font-size: 13px;"></i>';
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.deleteAccount(s.id);
+                };
+                rightDiv.appendChild(delBtn);
+
+                div.appendChild(rightDiv);
+
+                body.appendChild(div);
             });
+        },
+
+        async deleteAccount(id) {
+            if (!confirm('确定要删除该账户吗？此操作不可恢复。')) return;
+            const { ok, data } = await apiRequest(`/api/simulations/${id}`, { method: 'DELETE' });
+            if (ok) {
+                // If deleted active account, clear state
+                if (TraderApp.state.simulation && TraderApp.state.simulation.id === id) {
+                    TraderApp.state.simulation = null;
+                    this.updateDisplay();
+                }
+                this.renderManageAccountList();
+            } else {
+                showAlert(data.error || '删除失败', 'danger');
+            }
         },
 
         async loadAccount(id) {
@@ -937,6 +1017,10 @@ const TraderApp = {
                 const { ok, data } = await apiRequest(`/api/simulations/${TraderApp.state.simulation.id}`);
                 if (ok && data.simulation) {
                     TraderApp.state.simulation = { ...TraderApp.state.simulation, ...data.simulation };
+                    // 修复：如果后端返回的数据中没有 orders（如已停止），则清空前端缓存的 orders
+                    if (!data.simulation.orders) {
+                        TraderApp.state.simulation.orders = [];
+                    }
                     this.updateDisplay();
                 }
             } catch (error) { console.error('Error updating simulation status:', error); }
@@ -944,12 +1028,24 @@ const TraderApp = {
 
         updateDisplay() {
             TraderApp.ui.updateAccountOverview();
+            
+            // 更新主按钮状态
+            const btn = $('accountActionBtn');
+            if (btn) {
+                const isRunning = TraderApp.state.simulation && TraderApp.state.simulation.status === 'running';
+                if (isRunning) {
+                    btn.className = 'btn btn-sm btn-danger w-100 mt-auto';
+                    btn.innerHTML = '<i class="fas fa-power-off me-1"></i>关闭账户';
+                } else {
+                    btn.className = 'btn btn-sm btn-primary w-100 mt-auto';
+                    btn.innerHTML = '<i class="fas fa-play me-1"></i>启动账户';
+                }
+            }
+
             if (!TraderApp.state.simulation) return;
             TraderApp.ui.updatePositions();
             TraderApp.ui.updateTrades();
             TraderApp.ui.updateOrders();
-            const stopBtn = $('stopSimulationBtn');
-            if (stopBtn) stopBtn.disabled = TraderApp.state.simulation.status !== 'running';
         },
 
         async submitOrder(type) {
@@ -962,6 +1058,26 @@ const TraderApp = {
             
             if (!TraderApp.utils.validateOrderForm(symbol, price, qty)) return;
             
+            // 增加资金/持仓校验
+            const sim = TraderApp.state.simulation;
+            if (type === 'buy') {
+                const initial = sim.initial_capital || 1000000;
+                const currentCash = sim.current_capital !== undefined ? sim.current_capital : initial;
+                const available = currentCash - (sim.frozen_capital || 0);
+                const cost = price * qty * (1 + (sim.commission || 0.001)); // 预估含手续费
+                if (cost > available) {
+                    showAlert(`资金不足，可用: ¥${available.toLocaleString()}，需要: ¥${cost.toLocaleString()}`, 'warning');
+                    return;
+                }
+            } else {
+                // 卖出校验：检查持仓
+                const posQty = sim.positions?.[symbol]?.quantity || 0;
+                if (qty > posQty) {
+                    showAlert(`持仓不足，可用: ${posQty}，卖出: ${qty}`, 'warning');
+                    return;
+                }
+            }
+
             const { ok, data: result } = await apiRequest(`/api/simulations/${TraderApp.state.simulation.id}/trades`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ symbol, action: type, quantity: qty, price })
@@ -970,7 +1086,8 @@ const TraderApp = {
             if (ok) {
                 showAlert(`${type === 'buy' ? '买入' : '卖出'}委托已提交`, 'success');
                 TraderApp.ui.addLog(`${type === 'buy' ? '买入' : '卖出'}提交: ${symbol} ${qty}股 @ ¥${price.toFixed(2)}`, `/api/simulations/${TraderApp.state.simulation.id}/trades`);
-                $(type === 'buy' ? 'buyForm' : 'sellForm').reset();
+                // 移除自动重置，方便连续下单
+                // $(type === 'buy' ? 'buyForm' : 'sellForm').reset();
                 await this.updateStatus();
             } else showAlert(result.error || '交易失败', 'danger');
         },
@@ -1001,16 +1118,42 @@ const TraderApp = {
             } else showAlert(result.error || '创建失败', 'danger');
         },
 
-        async stop() {
-            if (!TraderApp.state.simulation) return;
-            if (!confirm('确定要关闭交易账户吗？')) return;
-            const { ok } = await apiRequest(`/api/simulations/${TraderApp.state.simulation.id}`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'stopped' })
-            });
-            if (ok) {
-                showAlert('账户已关闭', 'success'); TraderApp.ui.addLog('关闭交易账户');
-                TraderApp.state.simulation.status = 'stopped'; this.updateDisplay();
-            }
+        stop(targetId) {
+            const sim = targetId ? { id: targetId } : TraderApp.state.simulation;
+            if (!sim || !sim.id) return;
+            
+            const modalEl = document.getElementById('closeAccountModal');
+            if (!modalEl) return;
+            const modal = new bootstrap.Modal(modalEl);
+            const confirmBtn = document.getElementById('confirmCloseBtn');
+            
+            // Remove previous event listeners by cloning or reassigning onclick
+            confirmBtn.onclick = async () => {
+                modal.hide();
+                const { ok } = await apiRequest(`/api/simulations/${sim.id}`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'stopped' })
+                });
+                if (ok) {
+                    showAlert('账户已关闭', 'success'); 
+                    TraderApp.ui.addLog(`关闭账户: ${sim.name || sim.id || '未知'}`);
+                    
+                    // Update Active Account State if matched
+                    if (TraderApp.state.simulation && TraderApp.state.simulation.id === sim.id) {
+                        TraderApp.state.simulation.status = 'stopped';
+                        // 停止后清空所有交易数据
+                        TraderApp.state.simulation.positions = {};
+                        TraderApp.state.simulation.trades = [];
+                        TraderApp.state.simulation.orders = [];
+                        TraderApp.state.simulation.frozen_capital = 0;
+                        TraderApp.account.updateDisplay();
+                    }
+                    // Refresh List if open
+                    if ($('manageAccountModal').classList.contains('show')) {
+                        TraderApp.account.renderManageAccountList();
+                    }
+                }
+            };
+            modal.show();
         },
 
         quickSell(symbol, qty) {
@@ -1035,8 +1178,18 @@ const TraderApp = {
             TraderApp.market.updateQuoteUI(TraderApp.state.marketData[sym] || { symbol: sym, latest_price: price });
         },
 
-        cancelOrder(id) {
-            showAlert('目前仿真模式暂不支持手动撤单，请等待自动撮合', 'info');
+        async cancelOrder(id) {
+            if (!confirm('确定要撤销该委托吗？')) return;
+            const { ok, data } = await apiRequest(`/api/simulations/${TraderApp.state.simulation.id}/orders/${id}`, {
+                method: 'DELETE'
+            });
+            if (ok) {
+                showAlert('撤单成功', 'success');
+                TraderApp.ui.addLog(`撤销订单: ${id}`);
+                await this.updateStatus();
+            } else {
+                showAlert(data.error || '撤单失败', 'danger');
+            }
         }
     },
 
@@ -1100,14 +1253,16 @@ const TraderApp = {
                 return;
             }
             const initial = sim.initial_capital || 1000000;
-            const available = (sim.current_capital || initial) - (sim.frozen_capital || 0);
+            const currentCash = sim.current_capital !== undefined ? sim.current_capital : initial;
+            const available = currentCash - (sim.frozen_capital || 0);
             let posVal = 0;
             if (sim.positions) {
                 Object.entries(sim.positions).forEach(([sym, pos]) => {
                     posVal += Math.abs(pos.quantity) * (TraderApp.market.getCurrentPrice(sym) || pos.avg_price || 0);
                 });
             }
-            const total = available + posVal;
+            // 修正：总资产 = 当前现金 + 持仓市值 (冻结资金属于现金的一部分，不应扣除)
+            const total = currentCash + posVal;
             const pnl = total - initial;
             const ret = ((pnl / initial) * 100).toFixed(2);
             
@@ -1142,7 +1297,7 @@ const TraderApp = {
                 const curP = TraderApp.market.getCurrentPrice(sym) || pos.avg_price || 0;
                 const pnl = (curP - pos.avg_price) * qty;
                 const rate = pos.avg_price > 0 ? ((curP - pos.avg_price) / pos.avg_price * 100).toFixed(2) : '0.00';
-                return `<tr><td>${sym}</td><td>${TraderApp.state.marketData[sym]?.name || sym}</td><td>${qty}</td><td>¥${pos.avg_price.toFixed(2)}</td><td class="${rate >= 0 ? 'price-up' : 'price-down'}">¥${curP.toFixed(2)}</td><td class="position-profit ${rate >= 0 ? 'positive' : 'negative'}">${pnl >= 0 ? '+' : ''}¥${pnl.toFixed(2)}</td><td class="position-profit ${rate >= 0 ? 'positive' : 'negative'}">${rate >= 0 ? '+' : ''}${rate}%</td><td>¥${(qty * curP).toFixed(2)}</td><td><button class="btn-action" onclick="quickSell('${sym}', ${qty})"><i class="fas fa-arrow-down"></i></button></td></tr>`;
+                return `<tr><td>${sym}</td><td>${sym}</td><td>${qty}</td><td>¥${pos.avg_price.toFixed(2)}</td><td class="${rate >= 0 ? 'price-up' : 'price-down'}">¥${curP.toFixed(2)}</td><td class="position-profit ${rate >= 0 ? 'positive' : 'negative'}">${pnl >= 0 ? '+' : ''}¥${pnl.toFixed(2)}</td><td class="position-profit ${rate >= 0 ? 'positive' : 'negative'}">${rate >= 0 ? '+' : ''}${rate}%</td><td>¥${(qty * curP).toFixed(2)}</td><td><button class="btn-action" onclick="quickSell('${sym}', ${qty})"><i class="fas fa-arrow-down"></i></button></td></tr>`;
             }).join('');
             body.innerHTML = rows || renderEmptyState(9, 'fa-inbox', '暂无持仓');
             this.updateSellSelect();
@@ -1150,26 +1305,80 @@ const TraderApp = {
 
         updateSellSelect() {
             const sel = $('sellPositionSelect'); if (!sel) return;
-            sel.innerHTML = '<option value="">请选择持仓</option>' + Object.entries(TraderApp.state.simulation?.positions || {}).filter(([_, p]) => Math.abs(p.quantity) > 0).map(([s, p]) => `<option value="${s}">${s} ${TraderApp.state.marketData[s]?.name || s} (${Math.abs(p.quantity)}股)</option>`).join('');
+            const currentVal = sel.value; // 记录当前选中值
+            
+            sel.innerHTML = '<option value="">请选择持仓</option>' + 
+                Object.entries(TraderApp.state.simulation?.positions || {})
+                    .filter(([_, p]) => Math.abs(p.quantity) > 0)
+                    .map(([s, p]) => `<option value="${s}">${s} ${TraderApp.state.marketData[s]?.name || s} (${Math.abs(p.quantity)}股)</option>`)
+                    .join('');
+            
+            // 尝试恢复选中值（如果该持仓仍存在）
+            if (currentVal && sel.querySelector(`option[value="${currentVal}"]`)) {
+                sel.value = currentVal;
+            }
         },
 
         updateTrades() {
             const body = $('tradesTableBody'); if (!body) return;
             const ts = TraderApp.state.simulation?.trades || [];
             if (ts.length === 0) { body.innerHTML = renderEmptyState(9, 'fa-check-circle', '暂无成交'); return; }
-            body.innerHTML = ts.slice().reverse().slice(0, TraderApp.CONSTANTS.MAX_TRADES_DISPLAY).map((t, i) => {
+            
+            // 按时间倒序
+            const sortedTrades = ts.slice().reverse().slice(0, TraderApp.CONSTANTS.MAX_TRADES_DISPLAY);
+            
+            body.innerHTML = sortedTrades.map((t, i) => {
                 const amt = (t.price || 0) * (t.quantity || 0);
-                return `<tr><td>${(TraderApp.CONSTANTS.BASE_ID + ts.length - i - 1).toString().padStart(8, '0')}</td><td>${TraderApp.utils.generateOrderId(t, ts.length - i - 1).toString().padStart(8, '0')}</td><td>${t.symbol}</td><td>${TraderApp.state.marketData[t.symbol]?.name || t.symbol}</td><td><span class="direction-badge ${t.action}">${t.action === 'buy' ? '买入' : '卖出'}</span></td><td>¥${(t.price || 0).toFixed(2)}</td><td>${t.quantity}</td><td>¥${amt.toFixed(2)}</td><td>${formatDateTime(t.date || t.timestamp)}</td></tr>`;
+                const timeStr = new Date(t.timestamp).toLocaleTimeString('zh-CN', { hour12: false });
+                const directionText = t.action === 'buy' ? '买入' : '卖出';
+                const tradeId = 'sim_' + (ts.length - i).toString().padStart(6, '0'); // 成交号规则 sim_000001
+                
+                return `<tr>
+                    <td>${tradeId}</td>
+                    <td>${t.order_id || '--'}</td>
+                    <td>${t.symbol}</td>
+                    <td>${t.symbol}</td> <!-- 名称直接等于代码 -->
+                    <td><span class="direction-badge ${t.action}">${directionText}</span></td>
+                    <td>¥${(t.price || 0).toFixed(2)}</td>
+                    <td>${t.quantity}</td>
+                    <td>¥${amt.toFixed(2)}</td>
+                    <td>${timeStr}</td>
+                </tr>`;
             }).join('');
         },
 
         updateOrders() {
             const body = $('ordersTableBody'); if (!body) return;
-            const ts = TraderApp.state.simulation?.trades || [];
-            if (ts.length === 0) { body.innerHTML = renderEmptyState(10, 'fa-list-alt', '暂无委托'); return; }
-            body.innerHTML = ts.slice().reverse().slice(0, TraderApp.CONSTANTS.MAX_ORDERS_DISPLAY).map((t, i) => {
-                const oid = TraderApp.utils.generateOrderId(t, ts.length - i - 1).toString().padStart(8, '0');
-                return `<tr><td>${oid}</td><td>${t.symbol}</td><td>${TraderApp.state.marketData[t.symbol]?.name || t.symbol}</td><td><span class="direction-badge ${t.action}">${t.action === 'buy' ? '买入' : '卖出'}</span></td><td>¥${(t.price || 0).toFixed(2)}</td><td>${t.quantity}</td><td>${t.quantity}</td><td><span class="order-status filled">全部成交</span></td><td>${formatDateTime(t.date || t.timestamp)}</td><td><button class="btn-action" onclick="cancelOrder('${t.order_id || oid}')"><i class="fas fa-times"></i></button></td></tr>`;
+            const orders = TraderApp.state.simulation?.orders || [];
+            if (orders.length === 0) { body.innerHTML = renderEmptyState(10, 'fa-list-alt', '暂无委托'); return; }
+            
+            // 按时间倒序
+            const sortedOrders = orders.slice().reverse().slice(0, TraderApp.CONSTANTS.MAX_ORDERS_DISPLAY);
+            
+            body.innerHTML = sortedOrders.map(o => {
+                const isBuy = o.action === 'buy';
+                const statusMap = { 'pending': '已报', 'executed': '全部成交', 'cancelled': '已撤单' };
+                const statusClass = { 'pending': 'text-primary', 'executed': 'text-success', 'cancelled': 'text-muted' };
+                const filledQty = o.status === 'executed' ? o.quantity : 0; 
+                const timeStr = new Date(o.time).toLocaleTimeString('zh-CN', { hour12: false });
+
+                let actionBtn = '';
+                if (o.status === 'pending') {
+                    actionBtn = `<button class="btn-action text-danger" onclick="cancelOrder('${o.id}')" title="撤单"><i class="fas fa-times"></i></button>`;
+                }
+                
+                return `<tr>
+                    <td>${o.id}</td>
+                    <td>${o.symbol}</td>
+                    <td>${o.symbol}</td> <!-- 名称直接等于代码 -->
+                    <td><span class="direction-badge ${o.action}">${isBuy ? '买入' : '卖出'}</span></td>
+                    <td>¥${(o.price || 0).toFixed(2)}</td>
+                    <td>${o.quantity}</td>
+                    <td>${filledQty}</td>
+                    <td><span class="${statusClass[o.status] || ''}">${statusMap[o.status] || o.status}</span></td>
+                    <td>${timeStr}</td>
+                    <td>${actionBtn}</td>
+                </tr>`;
             }).join('');
         },
 
@@ -1235,6 +1444,15 @@ function switchManageView(view) {
         if (createBtn) createBtn.style.display = 'inline-block';
     }
 }
+// 统一账户操作入口
+const handleAccountAction = () => {
+    if (TraderApp.state.simulation && TraderApp.state.simulation.status === 'running') {
+        TraderApp.account.stop();
+    } else {
+        showManageAccount();
+    }
+};
+
 const createAccount = () => TraderApp.account.create();
 const stopSimulation = () => TraderApp.account.stop();
 const cancelOrder = (id) => TraderApp.account.cancelOrder(id);
