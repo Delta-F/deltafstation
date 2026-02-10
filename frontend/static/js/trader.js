@@ -1,34 +1,33 @@
 /**
- * DeltaFStation 交易页面核心模块
+ * 交易页核心 (trader.js)
  *
- * 采用模块化架构：
- * - State: 全局状态管理
- * - Market: 行情数据流与实时订阅
- * - Charts: Chart.js 封装与 K 线绘制
- * - Account: 仿真账户、订单、成交与持仓管理
- * - UI: 界面事件绑定与实时更新
+ * 模块顺序：CONSTANTS → state → utils → market → charts → account → ui → init
+ *   CONSTANTS  常量（数量步长、刷新间隔等）
+ *   state      全局状态（当前账户、行情缓存、图表类型、定时器）
+ *   utils      工具（委托校验、资产类型判断）
+ *   market     行情（轮询、标的加载、盘口/报价、买一卖一/数量快捷）
+ *   charts     图表（分时初始化·加点、日K·MA/BOLL、切换与交互）
+ *   account    账户（列表·启停·删除、加载·刷新、下单·撤单·持仓快捷卖）
+ *   ui         界面（布局同步、事件绑定、时钟、总览/持仓/成交/委托表格、管理弹窗）
+ *   init       初始化入口
  */
-
 const TraderApp = {
-    // 1. 常量配置
+    /** 全局常量配置：数量步长、展示条数、轮询刷新间隔等。 */
     CONSTANTS: {
         MIN_QUANTITY: 100,
         QUANTITY_STEP: 100,
-        BASE_ID: 10000000,
         MAX_TRADES_DISPLAY: 50,
         MAX_ORDERS_DISPLAY: 20,
-        MAX_LOG_ENTRIES: 100,
         REFRESH_RATE_ACCOUNT: 5000,
         REFRESH_RATE_MARKET: 5000
     },
 
-    // 2. 核心状态
+    /** 全局运行状态：当前账户、行情缓存、图表偏好与定时器句柄。 */
     state: {
         simulation: null,
         marketData: {},
         orders: [],
         trades: [],
-        logs: [],
         currentChartType: 'intraday',
         currentIndicator: 'ma',
         timers: {
@@ -38,35 +37,30 @@ const TraderApp = {
         }
     },
 
-    // 3. 工具方法
+    /** 工具方法：下单参数校验、资产类型识别等。 */
     utils: {
-        generateOrderId(trade, index) {
-            if (trade.order_id) {
-                const num = parseInt(String(trade.order_id).match(/\d+/)?.[0] || 0);
-                if (num >= TraderApp.CONSTANTS.BASE_ID && num <= 99999999) return num;
-            }
-            return TraderApp.CONSTANTS.BASE_ID + index;
-        },
-
+        /** 校验标的、价格、数量（股票按100股整数倍；加密货币不限制手数），无效则弹窗并返回 false。 */
         validateOrderForm(symbol, price, quantity) {
             if (!symbol) { showAlert('请输入标的代码', 'warning'); return false; }
             if (!price || price <= 0) { showAlert('请输入有效的价格', 'warning'); return false; }
             if (!quantity || quantity <= 0) { showAlert('请输入有效的数量', 'warning'); return false; }
 
             const assetType = this.getAssetType(symbol);
-            if (assetType === 'A-Share') {
+            const isStock = assetType === 'A-Share' || assetType === 'US-Stock';
+            if (isStock) {
                 if (quantity < TraderApp.CONSTANTS.MIN_QUANTITY) {
-                    showAlert(`A股交易数量至少${TraderApp.CONSTANTS.MIN_QUANTITY}股`, 'warning');
+                    showAlert(`股票交易数量至少${TraderApp.CONSTANTS.MIN_QUANTITY}股`, 'warning');
                     return false;
                 }
                 if (quantity % TraderApp.CONSTANTS.QUANTITY_STEP !== 0) {
-                    showAlert('A股交易数量必须是100的整数倍', 'warning');
+                    showAlert('股票交易数量必须是100的整数倍', 'warning');
                     return false;
                 }
             }
             return true;
         },
 
+        /** 根据标的代码返回资产类型：A-Share / US-Stock / Crypto。 */
         getAssetType(symbol) {
             if (!symbol) return 'Crypto';
             const s = symbol.toUpperCase();
@@ -76,46 +70,12 @@ const TraderApp = {
         }
     },
 
-                            // 4. 初始化入口
-    async init() {
-        console.log('TraderApp initializing...');
-        this.ui.initListeners();
-        this.charts.initIntraday();
-        this.ui.startClock(); // 启动独立时钟
-        
-        // 加载活跃账户
-        await this.account.loadActive();
-        
-        // 启动定时器
-        this.state.timers.account = setInterval(() => {
-            if (this.state.simulation) this.account.updateStatus();
-        }, this.CONSTANTS.REFRESH_RATE_ACCOUNT);
-        
-        // 设置默认标的并启动行情更新
-        const buySymbolInput = $('buySymbol');
-        if (buySymbolInput) {
-            // 优先从 URL Hash 中获取标的，无则使用默认值
-            const hashSymbol = window.location.hash.substring(1).toUpperCase().trim();
-            if (hashSymbol) {
-                buySymbolInput.value = hashSymbol;
-            } else if (!buySymbolInput.value) {
-                buySymbolInput.value = 'BTC-USD';
-            }
-            // 无论是否有初始值，都加载一次信息以初始化图表和价格
-            this.market.loadStockInfo('buy');
-        }
-        
-        this.market.startUpdateLoop();
-    },
-
-    // 5. 行情管理模块
+    /** 行情模块：订阅与轮询、标的加载、报价区与盘口更新。 */
     market: {
+        /** 启动行情定时轮询，拉取已订阅标的并刷新当前报价。 */
         async startUpdateLoop() {
             if (TraderApp.state.timers.market) clearInterval(TraderApp.state.timers.market);
-            
-            // 立即执行一次
             await this.updateAll();
-            
             TraderApp.state.timers.market = setInterval(async () => {
                 await this.updateAll();
                 const currentSymbol = $('quoteSymbol')?.textContent;
@@ -125,6 +85,7 @@ const TraderApp = {
             }, TraderApp.CONSTANTS.REFRESH_RATE_MARKET);
         },
 
+        /** 并发请求所有已订阅标的的 live 数据并更新 marketData、报价区。 */
         async updateAll() {
             const symbols = Object.keys(TraderApp.state.marketData);
             const updatePromises = symbols.map(async (symbol) => {
@@ -160,6 +121,7 @@ const TraderApp = {
             await Promise.all(updatePromises);
         },
 
+        /** 根据买卖侧输入框加载标的信息并更新报价、价格输入、URL hash。 */
         async loadStockInfo(type) {
             const symbolInput = $(type === 'buy' ? 'buySymbol' : 'sellSymbol');
             if (!symbolInput) return;
@@ -182,70 +144,36 @@ const TraderApp = {
             const stock = TraderApp.state.marketData[symbol];
             const price = stock.latest_price || 0;
             
-            if (type === 'buy') {
-                const buyPriceInput = $('buyPrice');
-                const buyNameInput = $('buyName');
-                if (buyPriceInput) {
-                    if (symbolChanged) {
-                        buyPriceInput.value = price > 0 ? price.toFixed(2) : '';
-                    } else if (!buyPriceInput.value && price > 0) {
-                        buyPriceInput.value = price.toFixed(2);
-                    }
-                }
-                // 标的名称默认直接显示投资标的（代码），后续有字典再做映射
-                if (buyNameInput) buyNameInput.value = symbol;
-                TraderApp.ui.calculateEstimatedAmount('buy');
-            } else {
-                const sellPriceInput = $('sellPrice');
-                if (sellPriceInput) {
-                    if (symbolChanged) {
-                        sellPriceInput.value = price > 0 ? price.toFixed(2) : '';
-                    } else if (!sellPriceInput.value && price > 0) {
-                        sellPriceInput.value = price.toFixed(2);
-                    }
-                }
-                TraderApp.ui.calculateEstimatedAmount('sell');
+            const priceInput = $(type === 'buy' ? 'buyPrice' : 'sellPrice');
+            if (priceInput) {
+                if (symbolChanged) priceInput.value = price > 0 ? price.toFixed(2) : '';
+                else if (!priceInput.value && price > 0) priceInput.value = price.toFixed(2);
             }
-            
+            if (type === 'buy' && $('buyName')) $('buyName').value = symbol;
+            TraderApp.ui.calculateEstimatedAmount(type);
             this.updateQuoteUI(stock);
-            
-            // 更新 URL Hash 记录当前标的
-            if (type === 'buy') {
-                window.location.hash = symbol;
-            }
+            if (type === 'buy') window.location.hash = symbol;
 
             try {
                 const response = await fetch(`/api/data/live/${symbol}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data && !data.error && data.status !== 'loading') {
-                        TraderApp.state.marketData[symbol] = {
-                            ...TraderApp.state.marketData[symbol],
-                            latest_price: data.price,
-                            timestamp: data.timestamp,
-                            minute: data.minute,
-                            open: data.open,
-                            high: data.high,
-                            low: data.low,
-                            name: data.name || symbol
-                        };
-                        this.updateQuoteUI(TraderApp.state.marketData[symbol]);
-                        
-                        if (type === 'buy') {
-                            if ($('buyPrice') && (!$('buyPrice').value || $('buyPrice').value == '0.00')) 
-                                $('buyPrice').value = data.price.toFixed(2);
-                        } else {
-                            if ($('sellPrice') && (!$('sellPrice').value || $('sellPrice').value == '0.00')) 
-                                $('sellPrice').value = data.price.toFixed(2);
-                        }
-                        TraderApp.ui.calculateEstimatedAmount(type);
-                    }
-                }
+                if (!response.ok) return;
+                const data = await response.json();
+                if (!data || data.error || data.status === 'loading') return;
+                TraderApp.state.marketData[symbol] = {
+                    ...TraderApp.state.marketData[symbol],
+                    latest_price: data.price, timestamp: data.timestamp, minute: data.minute,
+                    open: data.open, high: data.high, low: data.low, name: data.name || symbol
+                };
+                this.updateQuoteUI(TraderApp.state.marketData[symbol]);
+                const priceEl = $(type === 'buy' ? 'buyPrice' : 'sellPrice');
+                if (priceEl && (!priceEl.value || priceEl.value === '0.00')) priceEl.value = data.price.toFixed(2);
+                TraderApp.ui.calculateEstimatedAmount(type);
             } catch (e) {
                 console.error('Failed to fetch quote during loadStockInfo:', e);
             }
         },
 
+        /** 将 stock 数据写入行情区（代码、名称、今开最高最低、现价、涨跌幅、盘口）并驱动分时/日 K。 */
         updateQuoteUI(stock) {
             if (!stock) return;
             
@@ -253,7 +181,6 @@ const TraderApp = {
             const currentShownSymbol = quoteSymbolEl ? quoteSymbolEl.textContent : '';
             const newAssetType = TraderApp.utils.getAssetType(stock.symbol);
             
-            // 修复：初次加载或品种类型变更时，重新初始化图表轴
             if (currentShownSymbol === '--' || currentShownSymbol === '') {
                 TraderApp.charts.initIntraday(stock.symbol);
             } else if (currentShownSymbol !== stock.symbol) {
@@ -329,6 +256,7 @@ const TraderApp = {
             TraderApp.charts.addIntradayPoint(stock.latest_price, stock.volume, stock.timestamp, stock.minute);
         },
 
+        /** 用当前价 ± 档位更新买卖五档盘口（模拟量）。 */
         updateQuoteBoard(stock) {
             const currentPrice = stock.latest_price || 0;
             const spread = 0.01;
@@ -355,6 +283,7 @@ const TraderApp = {
             }
         },
 
+        /** 按买一/现价/卖一填入买卖侧价格输入框。 */
         setPrice(type, priceType) {
             const symbolInput = (type === 'buy' ? $('buySymbol') : $('sellSymbol'));
             const symbol = symbolInput ? symbolInput.value : '';
@@ -386,10 +315,20 @@ const TraderApp = {
             TraderApp.ui.calculateEstimatedAmount(type);
         },
 
+        /** 按比例或固定值设置买卖数量（股票按100股取整，加密货币按单位数量）。 */
         setQuantity(type, val, isPercent = false) {
             let quantity = 0;
+            const symbolInputId = type === 'buy' ? 'buySymbol' : 'sellSymbol';
+            const symbol = ($(symbolInputId)?.value || '').toUpperCase().trim();
+            const assetType = TraderApp.utils.getAssetType(symbol);
+            const isStock = assetType === 'A-Share' || assetType === 'US-Stock';
             
             if (isPercent) {
+                // 兼容两种调用方式：
+                //  - HTML 传入 0.25 / 0.5 / 1.0 表示 25% / 50% / 100%
+                //  - 也支持传入 25 / 50 / 100 表示百分比
+                const ratio = val > 1 ? (val / 100) : val;
+
                 if (type === 'buy') {
                     const price = parseFloat($('buyPrice').value) || 0;
                     if (price <= 0) {
@@ -399,13 +338,18 @@ const TraderApp = {
                     const available = TraderApp.state.simulation ? TraderApp.state.simulation.current_capital : 0;
                     const commission = TraderApp.state.simulation ? TraderApp.state.simulation.commission : 0.001;
                     const maxQty = Math.floor(available / (price * (1 + commission)));
-                    quantity = Math.floor((maxQty * val) / 100) * 100;
+                    const baseQty = Math.floor(maxQty * ratio);
+                    quantity = isStock ? Math.floor(baseQty / TraderApp.CONSTANTS.QUANTITY_STEP) * TraderApp.CONSTANTS.QUANTITY_STEP : baseQty;
                 } else {
-                    const available = parseInt($('sellAvailable').value) || 0;
-                    quantity = Math.floor((available * val) / 100) * 100;
+                    const available = parseInt($('sellAvailable')?.dataset.rawQty || $('sellAvailable')?.value) || 0;
+                    const baseQty = Math.floor(available * ratio);
+                    quantity = isStock ? Math.floor(baseQty / TraderApp.CONSTANTS.QUANTITY_STEP) * TraderApp.CONSTANTS.QUANTITY_STEP : baseQty;
                 }
             } else if (type === 'sell' && val === 'all') {
-                quantity = parseInt($('sellAvailable').value) || 0;
+                const available = parseInt($('sellAvailable')?.dataset.rawQty || $('sellAvailable')?.value) || 0;
+                quantity = isStock
+                    ? Math.floor(available / TraderApp.CONSTANTS.QUANTITY_STEP) * TraderApp.CONSTANTS.QUANTITY_STEP
+                    : available;
             } else {
                 quantity = val;
             }
@@ -414,22 +358,31 @@ const TraderApp = {
             TraderApp.ui.calculateEstimatedAmount(type);
         },
 
+        /** 返回指定标的的最新价，无则 0。 */
         getCurrentPrice(sym) {
             return TraderApp.state.marketData[sym]?.latest_price || 0;
         }
     },
 
-    // 6. 图表管理模块
+    /** 图表模块：分时/日 K 数据管理、MA/BOLL 计算与绘制及鼠标交互。 */
     charts: {
-        instance: {
-            intraday: null,
-            daily: null
-        },
+        instance: { intraday: null, daily: null },
         data: {
             intraday: { labels: [], prices: [], vwap: [], volumes: [] },
             daily: { dates: [], candles: [] }
         },
 
+        /** 按资产类型返回分时时间轴区间（A 股/美股/加密货币）。 */
+        getTimeAxisConfig(assetType) {
+            const configs = {
+                'A-Share': [{ start: '09:30', end: '11:30' }, { start: '13:00', end: '15:00' }],
+                'US-Stock': [{ start: '09:30', end: '16:00' }],
+                'Crypto': [{ start: '00:00', end: '23:59' }]
+            };
+            return configs[assetType] || configs['Crypto'];
+        },
+
+        /** 初始化分时图：时间轴、价格/均价/成交量数据集与 Chart 实例。 */
         initIntraday(symbol = 'BTC-USD') {
             const canvas = $('intradayChart');
             if (!canvas || typeof Chart === 'undefined') return;
@@ -514,7 +467,6 @@ const TraderApp = {
                                 }
                             }
                         },
-                        // 先定义成交量轴（stack 内先定义的在下），再定义价格轴在上
                         yVolume: {
                             type: 'linear',
                             position: 'left',
@@ -534,7 +486,6 @@ const TraderApp = {
                                 font: { size: 8 },
                                 maxTicksLimit: 3,
                                 callback: (v, index, ticks) => {
-                                    // 隐藏最上方的刻度数值，防止与价格轴标签重合
                                     if (index === ticks.length - 1) return '';
                                     if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
                                     if (v >= 1000) return (v / 1000).toFixed(0) + 'K';
@@ -565,25 +516,14 @@ const TraderApp = {
             });
         },
 
-        getTimeAxisConfig(assetType) {
-            const configs = {
-                // 已恢复为各市场本地时间，由后端负责归一化 minute 字段
-                'A-Share': [{ start: '09:30', end: '11:30' }, { start: '13:00', end: '15:00' }],
-                'US-Stock': [{ start: '09:30', end: '16:00' }],
-                'Crypto': [{ start: '00:00', end: '23:59' }]
-            };
-            return configs[assetType] || configs['Crypto'];
-        },
-
+        /** 向分时图追加一个 tick（价格、增量成交量、VWAP 及前填）。 */
         addIntradayPoint(price, totalVolume = 0, timestamp = null, minute = null) {
             if (!this.instance.intraday || !price) return;
             
-            let timeStr = minute;
-            if (!timeStr) {
-                const tickTime = timestamp ? new Date(timestamp) : new Date();
-                // 恢复为本地时间，以匹配各市场本地分钟轴
-                timeStr = `${String(tickTime.getHours()).padStart(2, '0')}:${String(tickTime.getMinutes()).padStart(2, '0')}`;
-            }
+            const timeStr = minute || (() => {
+                const t = timestamp ? new Date(timestamp) : new Date();
+                return `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+            })();
             
             const idx = this.data.intraday.timeToIndexMap[timeStr];
             if (idx === undefined) return;
@@ -619,6 +559,7 @@ const TraderApp = {
             this.instance.intraday.update('none');
         },
 
+        /** 清空分时与日 K 数据并刷新图表。 */
         resetData() {
             if (!this.data.intraday.prices) return;
             const currentSymbol = $('quoteSymbol')?.textContent;
@@ -635,7 +576,7 @@ const TraderApp = {
             if (this.instance.intraday) this.instance.intraday.update();
         },
 
-        /** 拉取当前标的的日K数据：先读本地 data/raw，无则 POST 拉取并保存，再 GET 完整数据。仅展示近半年。 */
+        /** 拉取近半年日 K（GET/POST 文件接口），返回 { dates, candles }。 */
         async loadDailyKData(symbol) {
             if (!symbol) return null;
             const sym = symbol.toUpperCase().trim();
@@ -681,6 +622,7 @@ const TraderApp = {
             return dates.length ? { dates, candles } : null;
         },
 
+        /** 切换分时/日 K 展示并刷新日 K 数据与蜡烛图。 */
         async switchType(type) {
             TraderApp.state.currentChartType = type;
             const intradayBtn = $('chartTypeIntraday');
@@ -718,6 +660,7 @@ const TraderApp = {
             }
         },
 
+        /** 切换 MA/BOLL 指标并重绘日 K。 */
         switchIndicator(indicator, btn) {
             TraderApp.state.currentIndicator = indicator;
             const indicatorButtons = $('indicatorButtons');
@@ -728,6 +671,7 @@ const TraderApp = {
             if ($('dailyChart')?.style.display !== 'none') this.drawCandlestick();
         },
 
+        /** 计算指定周期的收盘价简单移动平均。 */
         calculateMA(candles, period) {
             const ma = [];
             for (let i = 0; i < candles.length; i++) {
@@ -741,6 +685,7 @@ const TraderApp = {
             return ma;
         },
 
+        /** 计算布林带中轨、上轨、下轨。 */
         calculateBOLL(candles, period = 20, stdDev = 2) {
             const ma = this.calculateMA(candles, period);
             const upper = [], lower = [];
@@ -760,6 +705,7 @@ const TraderApp = {
             return { middle: ma, upper, lower };
         },
 
+        /** 在 canvas 上绘制日 K 蜡烛图及当前指标（MA 或 BOLL）。 */
         drawCandlestick() {
             const canvas = $('dailyChart');
             const candles = this.data.daily.candles;
@@ -854,6 +800,7 @@ const TraderApp = {
             this.setupDailyChartInteraction();
         },
 
+        /** 绑定日 K 图 mousemove/mouseleave，显示当日 OHLC tooltip。 */
         setupDailyChartInteraction() {
             const canvas = $('dailyChart');
             const tooltipEl = $('dailyChartTooltip');
@@ -892,8 +839,22 @@ const TraderApp = {
         }
     },
 
-    // 7. 账户与交易管理模块
+    /** 账户模块：账户列表管理、启停/删除、状态刷新与下单/撤单。 */
     account: {
+        _pendingConfirm: { id: null, action: null },
+
+        /** 计算某标的的可卖数量：持仓数量减去未完成卖出委托数量。 */
+        getAvailableSellQuantity(symbol) {
+            const sim = TraderApp.state.simulation;
+            if (!sim?.positions?.[symbol]) return 0;
+            const total = Math.abs(sim.positions[symbol].quantity);
+            const pendingSell = (sim.orders || [])
+                .filter(o => o.symbol === symbol && o.action === 'sell' && o.status === 'pending')
+                .reduce((sum, o) => sum + (o.quantity || 0), 0);
+            return Math.max(total - pendingSell, 0);
+        },
+
+        /** 拉取仿真列表并渲染管理弹窗内的账户行（含行内停止/删除确认）。 */
         async renderManageAccountList() {
             const body = $('manageAccountListBody');
             if (!body) return;
@@ -903,14 +864,13 @@ const TraderApp = {
                 body.innerHTML = '<div class="list-group-item text-muted small text-center py-3">暂无账户，请新建</div>';
                 return;
             }
+            const pending = this._pendingConfirm;
             data.simulations.forEach(s => {
                 const div = document.createElement('div');
                 div.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2';
                 div.style.cursor = 'pointer';
-                
                 const isRunning = s.status === 'running';
-                
-                // Left side: Name + Status Badge
+
                 const leftDiv = document.createElement('div');
                 leftDiv.className = 'd-flex align-items-center gap-2 flex-grow-1';
                 leftDiv.innerHTML = `
@@ -920,48 +880,92 @@ const TraderApp = {
                         : '<span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill" style="font-size: 11px; font-weight: 500;">已停止</span>'}
                 `;
                 leftDiv.onclick = async () => {
+                    if (pending.id) return;
                     await this.loadAccount(s.id);
                     bootstrap.Modal.getInstance($('manageAccountModal'))?.hide();
                 };
-
                 div.appendChild(leftDiv);
 
-                // Right side: Action Buttons
                 const rightDiv = document.createElement('div');
-                rightDiv.className = 'd-flex align-items-center gap-1';
+                rightDiv.className = 'd-flex align-items-center gap-2';
 
-                // Stop Button (if running)
-                if (isRunning) {
-                    const btn = document.createElement('button');
-                    btn.className = 'btn btn-icon-only text-danger stop-account-btn';
-                    btn.title = '停止账户';
-                    btn.innerHTML = '<i class="fas fa-power-off"></i>';
-                    btn.onclick = (e) => {
+                if (pending.id === s.id && pending.action === 'stop') {
+                    rightDiv.className = 'd-flex align-items-center gap-2 account-inline-confirm';
+                    rightDiv.innerHTML = '<span class="account-inline-confirm-text">确定停止当前账户？</span><button type="button" class="btn btn-sm btn-danger account-inline-btn">确定</button><button type="button" class="btn btn-sm btn-outline-secondary account-inline-btn">取消</button>';
+                    rightDiv.querySelector('.btn-danger').onclick = async (e) => {
                         e.stopPropagation();
-                        this.stop(s.id);
+                        await this.doStopAccount(s.id);
+                        this._pendingConfirm = { id: null, action: null };
+                        await this.renderManageAccountList();
                     };
-                    rightDiv.appendChild(btn);
+                    rightDiv.querySelector('.btn-outline-secondary').onclick = (e) => {
+                        e.stopPropagation();
+                        this._pendingConfirm = { id: null, action: null };
+                        this.renderManageAccountList();
+                    };
+                } else if (pending.id === s.id && pending.action === 'delete') {
+                    rightDiv.className = 'd-flex align-items-center gap-2 account-inline-confirm';
+                    rightDiv.innerHTML = '<span class="account-inline-confirm-text">确定删除？此操作不可恢复。</span><button type="button" class="btn btn-sm btn-danger account-inline-btn">确定</button><button type="button" class="btn btn-sm btn-outline-secondary account-inline-btn">取消</button>';
+                    rightDiv.querySelector('.btn-danger').onclick = async (e) => {
+                        e.stopPropagation();
+                        this._pendingConfirm = { id: null, action: null };
+                        await this.deleteAccount(s.id, true);
+                    };
+                    rightDiv.querySelector('.btn-outline-secondary').onclick = (e) => {
+                        e.stopPropagation();
+                        this._pendingConfirm = { id: null, action: null };
+                        this.renderManageAccountList();
+                    };
+                } else {
+                    if (isRunning) {
+                        const btn = document.createElement('button');
+                        btn.className = 'btn btn-icon-only text-danger stop-account-btn';
+                        btn.title = '停止账户';
+                        btn.innerHTML = '<i class="fas fa-power-off"></i>';
+                        btn.onclick = async (e) => {
+                            e.stopPropagation();
+                            this._pendingConfirm = { id: s.id, action: 'stop' };
+                            await this.renderManageAccountList();
+                        };
+                        rightDiv.appendChild(btn);
+                    }
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'btn btn-icon-only text-muted delete-account-btn';
+                    delBtn.title = '删除账户';
+                    delBtn.innerHTML = '<i class="fas fa-trash-alt" style="font-size: 13px;"></i>';
+                    delBtn.onclick = async (e) => {
+                        e.stopPropagation();
+                        this._pendingConfirm = { id: s.id, action: 'delete' };
+                        await this.renderManageAccountList();
+                    };
+                    rightDiv.appendChild(delBtn);
                 }
-
-                // Delete Button
-                const delBtn = document.createElement('button');
-                delBtn.className = 'btn btn-icon-only text-muted delete-account-btn';
-                delBtn.title = '删除账户';
-                delBtn.innerHTML = '<i class="fas fa-trash-alt" style="font-size: 13px;"></i>';
-                delBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    this.deleteAccount(s.id);
-                };
-                rightDiv.appendChild(delBtn);
-
                 div.appendChild(rightDiv);
-
                 body.appendChild(div);
             });
         },
 
-        async deleteAccount(id) {
-            if (!confirm('确定要删除该账户吗？此操作不可恢复。')) return;
+        /** 调用 PUT 停止指定账户并更新本地状态与界面。 */
+        async doStopAccount(id) {
+            const { ok } = await apiRequest(`/api/simulations/${id}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'stopped' })
+            });
+            if (ok) {
+                showAlert('账户已关闭', 'success');
+                if (TraderApp.state.simulation && TraderApp.state.simulation.id === id) {
+                    TraderApp.state.simulation.status = 'stopped';
+                    TraderApp.state.simulation.positions = {};
+                    TraderApp.state.simulation.trades = [];
+                    TraderApp.state.simulation.orders = [];
+                    TraderApp.state.simulation.frozen_capital = 0;
+                    this.updateDisplay();
+                }
+            }
+        },
+
+        /** 删除账户配置（可选跳过确认），若为当前账户则清空 state 并刷新列表。 */
+        async deleteAccount(id, skipConfirm = false) {
+            if (!skipConfirm && !confirm('确定要删除该账户吗？此操作不可恢复。')) return;
             const { ok, data } = await apiRequest(`/api/simulations/${id}`, { method: 'DELETE' });
             if (ok) {
                 // If deleted active account, clear state
@@ -975,6 +979,7 @@ const TraderApp = {
             }
         },
 
+        /** 加载指定账户详情，若未运行则尝试启动，并刷新总览/持仓/委托/成交。 */
         async loadAccount(id) {
             if (!id) { TraderApp.state.simulation = null; TraderApp.ui.updateAccountOverview(); return; }
             const { ok, data } = await apiRequest(`/api/simulations/${id}`);
@@ -984,7 +989,6 @@ const TraderApp = {
                 const { ok: okStart, data: startData } = await apiRequest(`/api/simulations/${id}/start`, { method: 'POST' });
                 if (okStart && startData.simulation) {
                     TraderApp.state.simulation = startData.simulation;
-                    TraderApp.ui.addLog(`已开启账户：${sim.name || sim.id}`, 'local');
                 } else {
                     TraderApp.state.simulation = sim;
                 }
@@ -994,6 +998,7 @@ const TraderApp = {
             this.updateDisplay();
         },
 
+        /** 页面加载时拉取运行中的手动账户并设为当前 simulation。 */
         async loadActive() {
             try {
                 const { ok, data } = await apiRequest('/api/simulations');
@@ -1004,20 +1009,19 @@ const TraderApp = {
                         if (okDetail && detailData.simulation) {
                             TraderApp.state.simulation = detailData.simulation;
                             this.updateDisplay();
-                            TraderApp.ui.addLog('已恢复活跃交易账户', 'local');
                         }
                     }
                 }
             } catch (error) { console.error('Error loading active simulations:', error); }
         },
 
+        /** 拉取当前账户最新状态并合并到 state，刷新界面。 */
         async updateStatus() {
             if (!TraderApp.state.simulation) return;
             try {
                 const { ok, data } = await apiRequest(`/api/simulations/${TraderApp.state.simulation.id}`);
                 if (ok && data.simulation) {
                     TraderApp.state.simulation = { ...TraderApp.state.simulation, ...data.simulation };
-                    // 修复：如果后端返回的数据中没有 orders（如已停止），则清空前端缓存的 orders
                     if (!data.simulation.orders) {
                         TraderApp.state.simulation.orders = [];
                     }
@@ -1026,16 +1030,15 @@ const TraderApp = {
             } catch (error) { console.error('Error updating simulation status:', error); }
         },
 
+        /** 刷新总览、主按钮、持仓表、成交表、委托表。 */
         updateDisplay() {
             TraderApp.ui.updateAccountOverview();
-            
-            // 更新主按钮状态
             const btn = $('accountActionBtn');
             if (btn) {
                 const isRunning = TraderApp.state.simulation && TraderApp.state.simulation.status === 'running';
                 if (isRunning) {
-                    btn.className = 'btn btn-sm btn-danger w-100 mt-auto';
-                    btn.innerHTML = '<i class="fas fa-power-off me-1"></i>关闭账户';
+                    btn.className = 'btn btn-sm btn-outline-secondary w-100 mt-auto';
+                    btn.innerHTML = '<i class="fas fa-th-list me-1"></i>管理账户';
                 } else {
                     btn.className = 'btn btn-sm btn-primary w-100 mt-auto';
                     btn.innerHTML = '<i class="fas fa-play me-1"></i>启动账户';
@@ -1048,6 +1051,7 @@ const TraderApp = {
             TraderApp.ui.updateOrders();
         },
 
+        /** 校验后提交买卖限价单并刷新状态。 */
         async submitOrder(type) {
             if (!TraderApp.state.simulation || TraderApp.state.simulation.status !== 'running') {
                 showAlert('请先创建并运行交易账户', 'warning'); return;
@@ -1057,8 +1061,6 @@ const TraderApp = {
             const qty = parseInt($(type === 'buy' ? 'buyQuantity' : 'sellQuantity').value);
             
             if (!TraderApp.utils.validateOrderForm(symbol, price, qty)) return;
-            
-            // 增加资金/持仓校验
             const sim = TraderApp.state.simulation;
             if (type === 'buy') {
                 const initial = sim.initial_capital || 1000000;
@@ -1070,10 +1072,9 @@ const TraderApp = {
                     return;
                 }
             } else {
-                // 卖出校验：检查持仓
-                const posQty = sim.positions?.[symbol]?.quantity || 0;
-                if (qty > posQty) {
-                    showAlert(`持仓不足，可用: ${posQty}，卖出: ${qty}`, 'warning');
+                const available = this.getAvailableSellQuantity(symbol);
+                if (qty > available) {
+                    showAlert(`持仓不足，可卖: ${available}，卖出: ${qty}`, 'warning');
                     return;
                 }
             }
@@ -1085,13 +1086,11 @@ const TraderApp = {
             
             if (ok) {
                 showAlert(`${type === 'buy' ? '买入' : '卖出'}委托已提交`, 'success');
-                TraderApp.ui.addLog(`${type === 'buy' ? '买入' : '卖出'}提交: ${symbol} ${qty}股 @ ¥${price.toFixed(2)}`, `/api/simulations/${TraderApp.state.simulation.id}/trades`);
-                // 移除自动重置，方便连续下单
-                // $(type === 'buy' ? 'buyForm' : 'sellForm').reset();
                 await this.updateStatus();
             } else showAlert(result.error || '交易失败', 'danger');
         },
 
+        /** 根据新建表单创建仿真账户（不自动启动），成功后刷新列表。 */
         async create() {
             const accountType = document.querySelector('input[name="accountType"]:checked')?.value || 'local_paper';
             if (accountType === 'broker') {
@@ -1106,56 +1105,16 @@ const TraderApp = {
             if (isNaN(initialCapital) || initialCapital <= 0) { showAlert('初始资金必须大于0', 'warning'); return; }
             const { ok, data: result } = await apiRequest('/api/simulations', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ account_type: accountType, name, initial_capital: initialCapital, commission, slippage })
+                body: JSON.stringify({ account_type: accountType, name, initial_capital: initialCapital, commission, slippage, start: false })
             });
             if (ok) {
-                TraderApp.state.simulation = { id: result.simulation_id, name, status: 'running', initial_capital: initialCapital, current_capital: initialCapital, positions: {}, trades: [] };
                 showAlert('交易账户创建成功', 'success');
-                TraderApp.ui.addLog(`创建账户: ${name}，资金 ¥${initialCapital.toLocaleString()}`, '/api/simulations');
-                await this.updateStatus();
                 switchManageView('list');
-                bootstrap.Modal.getInstance($('manageAccountModal'))?.hide();
+                await this.renderManageAccountList();
             } else showAlert(result.error || '创建失败', 'danger');
         },
 
-        stop(targetId) {
-            const sim = targetId ? { id: targetId } : TraderApp.state.simulation;
-            if (!sim || !sim.id) return;
-            
-            const modalEl = document.getElementById('closeAccountModal');
-            if (!modalEl) return;
-            const modal = new bootstrap.Modal(modalEl);
-            const confirmBtn = document.getElementById('confirmCloseBtn');
-            
-            // Remove previous event listeners by cloning or reassigning onclick
-            confirmBtn.onclick = async () => {
-                modal.hide();
-                const { ok } = await apiRequest(`/api/simulations/${sim.id}`, {
-                    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'stopped' })
-                });
-                if (ok) {
-                    showAlert('账户已关闭', 'success'); 
-                    TraderApp.ui.addLog(`关闭账户: ${sim.name || sim.id || '未知'}`);
-                    
-                    // Update Active Account State if matched
-                    if (TraderApp.state.simulation && TraderApp.state.simulation.id === sim.id) {
-                        TraderApp.state.simulation.status = 'stopped';
-                        // 停止后清空所有交易数据
-                        TraderApp.state.simulation.positions = {};
-                        TraderApp.state.simulation.trades = [];
-                        TraderApp.state.simulation.orders = [];
-                        TraderApp.state.simulation.frozen_capital = 0;
-                        TraderApp.account.updateDisplay();
-                    }
-                    // Refresh List if open
-                    if ($('manageAccountModal').classList.contains('show')) {
-                        TraderApp.account.renderManageAccountList();
-                    }
-                }
-            };
-            modal.show();
-        },
-
+        /** 切到卖出 Tab 并填入指定标的与数量。 */
         quickSell(symbol, qty) {
             $('sell-tab').click();
             setTimeout(() => {
@@ -1166,18 +1125,24 @@ const TraderApp = {
             }, 100);
         },
 
+        /** 根据卖出持仓下拉框选中项填充卖出标的、可卖数量与价格（可卖数量已扣除挂单）。 */
         loadSellPosition() {
             const sym = $('sellPositionSelect').value;
             if (!sym || !TraderApp.state.simulation?.positions?.[sym]) return;
             const pos = TraderApp.state.simulation.positions[sym];
             const price = TraderApp.market.getCurrentPrice(sym) || pos.avg_price || 0;
+            const available = this.getAvailableSellQuantity(sym);
             $('sellSymbol').value = sym;
-            $('sellAvailable').value = Math.abs(pos.quantity) + ' 股';
+            if ($('sellAvailable')) {
+                $('sellAvailable').value = available;
+                $('sellAvailable').dataset.rawQty = String(available);
+            }
             $('sellPrice').value = price.toFixed(2);
             TraderApp.ui.calculateEstimatedAmount('sell');
             TraderApp.market.updateQuoteUI(TraderApp.state.marketData[sym] || { symbol: sym, latest_price: price });
         },
 
+        /** 确认后撤销指定委托并刷新状态。 */
         async cancelOrder(id) {
             if (!confirm('确定要撤销该委托吗？')) return;
             const { ok, data } = await apiRequest(`/api/simulations/${TraderApp.state.simulation.id}/orders/${id}`, {
@@ -1185,7 +1150,6 @@ const TraderApp = {
             });
             if (ok) {
                 showAlert('撤单成功', 'success');
-                TraderApp.ui.addLog(`撤销订单: ${id}`);
                 await this.updateStatus();
             } else {
                 showAlert(data.error || '撤单失败', 'danger');
@@ -1193,21 +1157,33 @@ const TraderApp = {
         }
     },
 
-    // 8. UI 交互与显示模块
+    /** 界面模块：布局同步、事件绑定、时钟与各表格/弹窗渲染。 */
     ui: {
+        /** 以左侧买卖卡片高度同步右侧行情卡高度，保证分时图与买卖区等高。 */
+        syncChartCardHeight() {
+            const formCard = document.querySelector('.trading-left-panel .trade-form-card');
+            const chartCard = document.querySelector('.trading-right-panel > .card.flex-fill');
+            if (formCard && chartCard) {
+                const h = formCard.offsetHeight;
+                chartCard.style.height = h ? `${h}px` : '';
+                chartCard.style.maxHeight = h ? `${h}px` : '';
+            }
+        },
+
+        /** 绑定买卖/新建/管理/撤单/分时日K/持仓选择等事件。 */
         initListeners() {
             ['buy', 'sell'].forEach(type => {
                 $(`${type}Price`)?.addEventListener('input', () => this.calculateEstimatedAmount(type));
                 $(`${type}Quantity`)?.addEventListener('input', () => this.calculateEstimatedAmount(type));
             });
             window.addEventListener('resize', () => {
+                this.syncChartCardHeight();
                 if (TraderApp.state.currentChartType === 'daily') TraderApp.charts.drawCandlestick();
             });
             window.addEventListener('beforeunload', () => {
                 Object.values(TraderApp.state.timers).forEach(t => t && clearInterval(t));
             });
 
-            // 监听 URL Hash 变化，实现改 URL 即改标的
             window.addEventListener('hashchange', () => {
                 const hashSymbol = window.location.hash.substring(1).toUpperCase().trim();
                 const buySymbolInput = $('buySymbol');
@@ -1218,6 +1194,7 @@ const TraderApp = {
             });
         },
 
+        /** 每秒更新页面顶部时间显示。 */
         startClock() {
             if (TraderApp.state.timers.clock) clearInterval(TraderApp.state.timers.clock);
             TraderApp.state.timers.clock = setInterval(() => {
@@ -1238,12 +1215,14 @@ const TraderApp = {
             }, 1000);
         },
 
+        /** 根据价格与数量计算并显示预估金额。 */
         calculateEstimatedAmount(type) {
             const p = parseFloat($(`${type}Price`).value) || 0;
             const q = parseInt($(`${type}Quantity`).value) || 0;
             $(`${type}EstimatedAmount`).textContent = '¥' + (p * q).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
         },
 
+        /** 用 state 中的现金与总资产更新顶部总览区域。 */
         updateAccountOverview() {
             const sim = TraderApp.state.simulation;
             if (!sim) {
@@ -1261,7 +1240,6 @@ const TraderApp = {
                     posVal += Math.abs(pos.quantity) * (TraderApp.market.getCurrentPrice(sym) || pos.avg_price || 0);
                 });
             }
-            // 修正：总资产 = 当前现金 + 持仓市值 (冻结资金属于现金的一部分，不应扣除)
             const total = currentCash + posVal;
             const pnl = total - initial;
             const ret = ((pnl / initial) * 100).toFixed(2);
@@ -1285,6 +1263,7 @@ const TraderApp = {
             if ($('commissionDisplay')) $('commissionDisplay').textContent = ((sim.commission || 0.001) * 100).toFixed(2) + '%';
         },
 
+        /** 用 state.positions 渲染持仓表并同步卖出下拉选项。 */
         updatePositions() {
             const body = $('positionTableBody'); if (!body) return;
             const sim = TraderApp.state.simulation;
@@ -1303,41 +1282,41 @@ const TraderApp = {
             this.updateSellSelect();
         },
 
+        /** 用持仓列表填充卖出 Tab 的标的下拉框。 */
         updateSellSelect() {
             const sel = $('sellPositionSelect'); if (!sel) return;
-            const currentVal = sel.value; // 记录当前选中值
-            
+            const currentVal = sel.value;
             sel.innerHTML = '<option value="">请选择持仓</option>' + 
                 Object.entries(TraderApp.state.simulation?.positions || {})
                     .filter(([_, p]) => Math.abs(p.quantity) > 0)
                     .map(([s, p]) => `<option value="${s}">${s} ${TraderApp.state.marketData[s]?.name || s} (${Math.abs(p.quantity)}股)</option>`)
                     .join('');
             
-            // 尝试恢复选中值（如果该持仓仍存在）
             if (currentVal && sel.querySelector(`option[value="${currentVal}"]`)) {
                 sel.value = currentVal;
             }
         },
 
+        /** 用 state.trades 渲染成交表。 */
         updateTrades() {
             const body = $('tradesTableBody'); if (!body) return;
             const ts = TraderApp.state.simulation?.trades || [];
             if (ts.length === 0) { body.innerHTML = renderEmptyState(9, 'fa-check-circle', '暂无成交'); return; }
             
-            // 按时间倒序
             const sortedTrades = ts.slice().reverse().slice(0, TraderApp.CONSTANTS.MAX_TRADES_DISPLAY);
             
             body.innerHTML = sortedTrades.map((t, i) => {
                 const amt = (t.price || 0) * (t.quantity || 0);
-                const timeStr = new Date(t.timestamp).toLocaleTimeString('zh-CN', { hour12: false });
+                const iso = typeof t.timestamp === 'string' && !/Z|[+-]\d{2}:?\d{2}$/.test(t.timestamp) ? t.timestamp + 'Z' : t.timestamp;
+                const timeStr = new Date(iso).toLocaleTimeString('zh-CN', { hour12: false, timeZone: 'Asia/Shanghai' });
                 const directionText = t.action === 'buy' ? '买入' : '卖出';
-                const tradeId = 'sim_' + (ts.length - i).toString().padStart(6, '0'); // 成交号规则 sim_000001
+                const tradeId = 'sim_' + (ts.length - i).toString().padStart(6, '0');
                 
                 return `<tr>
                     <td>${tradeId}</td>
                     <td>${t.order_id || '--'}</td>
                     <td>${t.symbol}</td>
-                    <td>${t.symbol}</td> <!-- 名称直接等于代码 -->
+                    <td>${t.symbol}</td>
                     <td><span class="direction-badge ${t.action}">${directionText}</span></td>
                     <td>¥${(t.price || 0).toFixed(2)}</td>
                     <td>${t.quantity}</td>
@@ -1347,12 +1326,12 @@ const TraderApp = {
             }).join('');
         },
 
+        /** 用 state.orders 渲染委托表并绑定撤单按钮。 */
         updateOrders() {
             const body = $('ordersTableBody'); if (!body) return;
             const orders = TraderApp.state.simulation?.orders || [];
             if (orders.length === 0) { body.innerHTML = renderEmptyState(10, 'fa-list-alt', '暂无委托'); return; }
             
-            // 按时间倒序
             const sortedOrders = orders.slice().reverse().slice(0, TraderApp.CONSTANTS.MAX_ORDERS_DISPLAY);
             
             body.innerHTML = sortedOrders.map(o => {
@@ -1370,7 +1349,7 @@ const TraderApp = {
                 return `<tr>
                     <td>${o.id}</td>
                     <td>${o.symbol}</td>
-                    <td>${o.symbol}</td> <!-- 名称直接等于代码 -->
+                    <td>${o.symbol}</td>
                     <td><span class="direction-badge ${o.action}">${isBuy ? '买入' : '卖出'}</span></td>
                     <td>¥${(o.price || 0).toFixed(2)}</td>
                     <td>${o.quantity}</td>
@@ -1382,18 +1361,7 @@ const TraderApp = {
             }).join('');
         },
 
-        addLog(msg, api = '') {
-            TraderApp.state.logs.unshift({ time: new Date().toLocaleTimeString(), message: msg, api });
-            if (TraderApp.state.logs.length > TraderApp.CONSTANTS.MAX_LOG_ENTRIES) TraderApp.state.logs.pop();
-            this.updateLogs();
-        },
-
-        updateLogs() {
-            const body = $('logTableBody'); if (!body) return;
-            if (TraderApp.state.logs.length === 0) { body.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3">暂无日志</td></tr>'; return; }
-            body.innerHTML = TraderApp.state.logs.map(l => `<tr style="font-size: 11px;"><td>${l.time}</td><td class="${l.message.includes('买入') ? 'log-buy' : (l.message.includes('卖出') ? 'log-sell' : 'log-info')}">${l.message}</td></tr>`).join('');
-        },
-
+        /** 切换委托/成交 Tab 显示并高亮对应按钮。 */
         switchDataView(type, btn) {
             if (btn?.parentElement) btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
             btn?.classList.add('active');
@@ -1401,22 +1369,38 @@ const TraderApp = {
             document.querySelector('.data-view-' + type)?.classList.remove('d-none');
         },
 
+        /** 打开管理账户弹窗并刷新弹窗内列表。 */
         async showManageAccountModal() {
             switchManageView('list');
             await TraderApp.account.renderManageAccountList();
             new bootstrap.Modal($('manageAccountModal')).show();
         },
+
+        /** 委托 account 层刷新管理弹窗内的账户列表。 */
         renderManageAccountList() { TraderApp.account.renderManageAccountList(); },
-        clearLogs() { TraderApp.state.logs = []; this.updateLogs(); },
+    },
+
+    /** 入口：绑定事件、同步布局、初始化分时图与账户状态。 */
+    async init() {
+        this.ui.initListeners();
+        this.ui.syncChartCardHeight();
+        this.charts.initIntraday();
+        this.ui.startClock();
+        await this.account.loadActive();
+        this.state.timers.account = setInterval(() => {
+            if (this.state.simulation) this.account.updateStatus();
+        }, this.CONSTANTS.REFRESH_RATE_ACCOUNT);
+        const buySymbolInput = $('buySymbol');
+        if (buySymbolInput) {
+            const hashSymbol = window.location.hash.substring(1).toUpperCase().trim();
+            buySymbolInput.value = hashSymbol || buySymbolInput.value || 'BTC-USD';
+            this.market.loadStockInfo('buy');
+        }
+        this.market.startUpdateLoop();
     }
 };
 
-// =========================================================
-// 全局兼容性导出 (供 HTML onclick 属性调用)
-// =========================================================
-const initializeTradingInterface = () => TraderApp.init();
-const loadActiveSimulations = () => TraderApp.account.loadActive();
-const updateSimulationStatus = () => TraderApp.account.updateStatus();
+/* 全局导出供 HTML onclick 使用 */
 const loadStockInfo = (type) => TraderApp.market.loadStockInfo(type);
 const submitBuyOrder = () => TraderApp.account.submitOrder('buy');
 const submitSellOrder = () => TraderApp.account.submitOrder('sell');
@@ -1444,20 +1428,10 @@ function switchManageView(view) {
         if (createBtn) createBtn.style.display = 'inline-block';
     }
 }
-// 统一账户操作入口
-const handleAccountAction = () => {
-    if (TraderApp.state.simulation && TraderApp.state.simulation.status === 'running') {
-        TraderApp.account.stop();
-    } else {
-        showManageAccount();
-    }
-};
+const handleAccountAction = () => showManageAccount();
 
 const createAccount = () => TraderApp.account.create();
-const stopSimulation = () => TraderApp.account.stop();
 const cancelOrder = (id) => TraderApp.account.cancelOrder(id);
-const clearLogs = () => TraderApp.ui.clearLogs();
 const loadSellPosition = () => TraderApp.account.loadSellPosition();
 
-// 启动应用
 document.addEventListener('DOMContentLoaded', () => TraderApp.init());

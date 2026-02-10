@@ -1,23 +1,64 @@
+/*
+ * 交易页样式 (trader)
+ * 用于交易页：账户总览、买卖表单、实时行情（分时/日K）、委托/成交/持仓、管理账户弹窗。
+ *
+ * 结构说明：
+ *   1. 基础      页面与容器
+ *   2. 布局      左右分栏、等高行、响应式
+ *   3. 卡片      通用卡片、行情卡片、账户卡片、总览
+ *   4. 买卖表单  委托表单、价格/数量按钮、预计金额
+ *   5. 委托/成交/持仓  表格容器与表头
+ *   6. 实时行情  分时/日K 切换、盘口、时钟、图表区、tooltip
+ *   7. 状态与入口  运行状态标签、管理账户按钮
+ *   8. 管理账户弹窗  列表、新建表单、行内确认、底部按钮
+ *   9. 工具类     flex、宽高、字体、显示
+ */
+
+/* ========== 1. 基础 ========== */
 body {
     font-size: 13px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     line-height: 1.5;
     background-color: #f5f5f5;
 }
-
 .container-fluid {
     padding-top: 0.5rem;
     max-width: 1600px;
     margin: 0 auto;
 }
 
-/* 统一卡片样式 */
+/* ========== 2. 布局 ========== */
+.equal-height-row {
+    display: flex;
+    align-items: flex-start;
+}
+.equal-height-row > [class*="col-"] {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.trading-left-panel {
+    flex: 0 0 25% !important;
+    max-width: 25% !important;
+}
+.trading-right-panel {
+    flex: 0 0 75% !important;
+    max-width: 75% !important;
+}
+@media (max-width: 1400px) {
+    .equal-height-row { flex-wrap: wrap; }
+    .trading-left-panel, .trading-right-panel {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+/* ========== 3. 卡片 ========== */
 .card {
     border: none;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     margin-bottom: 0.5rem;
 }
-
 .chart-card-header {
     padding: 0.5rem 0.75rem;
     background-color: #fff;
@@ -26,7 +67,6 @@ body {
     justify-content: space-between;
     align-items: center;
 }
-
 .chart-card-body {
     padding: 0.75rem;
     flex: 1;
@@ -34,8 +74,23 @@ body {
     flex-direction: column;
     min-height: 0;
 }
-
-/* 账户总览样式 */
+.trading-bottom-card {
+    height: 240px !important;
+    flex: 0 0 240px !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.trading-right-panel .trading-bottom-card {
+    height: 360px !important;
+    flex: 0 0 360px !important;
+}
+.account-card .card-body {
+    padding: 0.75rem !important;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
 .account-overview {
     background: #fff;
     padding: 1rem;
@@ -50,162 +105,6 @@ body {
 .account-item:last-child { border-right: none; }
 .account-label { font-size: 11px; color: #6c757d; margin-bottom: 2px; }
 .account-value { font-size: 15px; font-weight: 600; color: #333; }
-
-/* 买卖表单布局优化 */
-.trade-form-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    margin-bottom: 0.8rem;
-}
-.trade-form-row .form-label {
-    width: 60px;
-    margin-bottom: 0;
-    margin-top: 6px; /* 微调使其与输入框文字水平对齐 */
-    flex-shrink: 0;
-    font-weight: 600;
-    color: #333;
-    font-size: 12px;
-    text-align: left;
-}
-.trade-form-content {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-/* 统一输入框高度和字体 */
-.trade-form-content .form-control, 
-.trade-form-content .form-select,
-.trade-form-content .input-group-text {
-    font-size: 13px;
-    font-weight: 600;
-    height: 31px; /* 统一高度 */
-}
-
-.price-btn-group, .quantity-btn-group {
-    display: flex;
-    gap: 4px;
-    margin-top: 4px;
-    width: 100%;
-}
-.price-btn, .quantity-btn {
-    flex: 1 1 0; /* 展开填满空间，确保平均分配 */
-    min-width: 0; /* 允许收缩 */
-    padding: 4px 2px;
-    font-size: 11px;
-    font-weight: 500; /* 统一加粗 */
-    border: 1px solid #dee2e6;
-    background: #fff;
-    border-radius: 4px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap; /* 防止文字换行 */
-}
-
-/* 表格容器滚动优化 - 仅用于委托/成交/持仓卡片 */
-.trading-bottom-card:not(.account-card) .card-body {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    padding: 0 !important;
-    overflow: hidden;
-    min-height: 0; /* 允许flex子元素收缩 */
-}
-.table-container {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    position: relative;
-    min-height: 0; /* 允许flex子元素收缩 */
-}
-.table-header.sticky-top {
-    background-color: #f8f9fa;
-    z-index: 10;
-    top: 0;
-}
-.price-btn.buy:hover { color: #dc3545; border-color: #dc3545; }
-.price-btn.sell:hover { color: #28a745; border-color: #28a745; }
-
-.est-amount-box {
-    background-color: #f8f9fa;
-    padding: 0.6rem;
-    border-radius: 4px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin: 0.75rem 0;
-}
-
-
-/* 盘口样式 */
-.quote-list {
-    width: 140px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-.quote-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 2px 4px;
-    border-radius: 2px;
-    font-size: 11px;
-}
-.quote-row .label { width: 25px; color: #999; }
-.quote-row .price { flex: 1; text-align: right; margin-right: 8px; font-weight: 500; font-family: "SF Mono", "Consolas", monospace; }
-.quote-row .vol { width: 45px; text-align: right; color: #666; font-size: 10px; }
-.quote-ask-row { background: rgba(40, 167, 69, 0.04); }
-.quote-ask-row .price { color: #28a745; }
-.quote-bid-row { background: rgba(220, 53, 69, 0.04); }
-.quote-bid-row .price { color: #dc3545; }
-
-/* 日K图交互 tooltip */
-.daily-chart-tooltip {
-    position: absolute;
-    pointer-events: none;
-    z-index: 10;
-    background: rgba(33, 37, 41, 0.95);
-    color: #fff;
-    padding: 8px 10px;
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.5;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    white-space: nowrap;
-}
-.daily-chart-tooltip .tooltip-date { font-weight: 600; margin-bottom: 4px; }
-.daily-chart-tooltip .tooltip-ohlc { color: #dee2e6; }
-
-/* 布局调整 */
-.equal-height-row {
-    display: flex;
-    align-items: stretch;
-}
-.equal-height-row > [class*="col-"] {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.trading-bottom-card {
-    height: 240px !important;
-    flex: 0 0 240px !important;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-/* 交易账户模块样式优化 */
-.account-card .card-body {
-    padding: 0.75rem !important;
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-}
 .account-info {
     display: flex;
     justify-content: space-between;
@@ -233,24 +132,92 @@ body {
     flex-shrink: 0;
 }
 
-.trading-left-panel {
-    flex: 0 0 25% !important;
-    max-width: 25% !important;
+/* ========== 4. 买卖表单 ========== */
+.trade-form-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.8rem;
 }
-.trading-right-panel {
-    flex: 0 0 75% !important;
-    max-width: 75% !important;
+.trade-form-row .form-label {
+    width: 60px;
+    margin-bottom: 0;
+    margin-top: 6px;
+    flex-shrink: 0;
+    font-weight: 600;
+    color: #333;
+    font-size: 12px;
+    text-align: left;
 }
-
-.simulation-status {
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
+.trade-form-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.trade-form-content .form-control,
+.trade-form-content .form-select,
+.trade-form-content .input-group-text {
+    font-size: 13px;
+    font-weight: 600;
+    height: 31px;
+}
+.price-btn-group, .quantity-btn-group {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    width: 100%;
+}
+.price-btn, .quantity-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 4px 2px;
     font-size: 11px;
+    font-weight: 500;
+    border: 1px solid #dee2e6;
+    background: #fff;
+    border-radius: 4px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
 }
-.simulation-status.running { background: #d4edda; color: #155724; }
-.simulation-status.stopped { background: #f8d7da; color: #721c24; }
+.price-btn.buy:hover { color: #dc3545; border-color: #dc3545; }
+.price-btn.sell:hover { color: #28a745; border-color: #28a745; }
+.est-amount-box {
+    background-color: #f8f9fa;
+    padding: 0.6rem;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0.75rem 0;
+}
 
-/* 实时行情：分时/日K、MA/BOLL 按钮组 */
+/* ========== 5. 委托/成交/持仓表格 ========== */
+.trading-bottom-card:not(.account-card) .card-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 0 !important;
+    overflow: hidden;
+    min-height: 0;
+}
+.table-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    min-height: 0;
+}
+.table-header.sticky-top {
+    background-color: #f8f9fa;
+    z-index: 10;
+    top: 0;
+}
+
+/* ========== 6. 实时行情 ========== */
 .chart-type-group {
     display: inline-flex;
     border-radius: 8px;
@@ -278,8 +245,6 @@ body {
 }
 .chart-type-group.indicator-group { margin-left: 0.5rem; border-color: #ced4da; }
 .chart-type-group.indicator-group .chart-type-btn.active { background: #0d6efd; }
-
-/* 三个时区时钟 */
 .clock-row {
     font-size: 14px;
     font-weight: 500;
@@ -287,16 +252,61 @@ body {
     color: #495057;
     letter-spacing: 0.02em;
 }
-
-@media (max-width: 1400px) {
-    .equal-height-row { flex-wrap: wrap; }
-    .trading-left-panel, .trading-right-panel {
-        flex: 0 0 100% !important;
-        max-width: 100% !important;
-    }
+.chart-container-box {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+    min-width: 0;
 }
+.vertical-divider {
+    width: 1px;
+    background-color: #e9ecef;
+}
+.quote-list {
+    width: 140px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.quote-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-size: 11px;
+}
+.quote-row .label { width: 25px; color: #999; }
+.quote-row .price { flex: 1; text-align: right; margin-right: 8px; font-weight: 500; font-family: "SF Mono", "Consolas", monospace; }
+.quote-row .vol { width: 45px; text-align: right; color: #666; font-size: 10px; }
+.quote-ask-row { background: rgba(40, 167, 69, 0.04); }
+.quote-ask-row .price { color: #28a745; }
+.quote-bid-row { background: rgba(220, 53, 69, 0.04); }
+.quote-bid-row .price { color: #dc3545; }
+.quote-ohl-row .text-muted { margin-right: 0.25rem; }
+.daily-chart-tooltip {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
+    background: rgba(33, 37, 41, 0.95);
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    white-space: nowrap;
+}
+.daily-chart-tooltip .tooltip-date { font-weight: 600; margin-bottom: 4px; }
+.daily-chart-tooltip .tooltip-ohlc { color: #dee2e6; }
 
-/* 管理账户按钮：仅图标 */
+/* ========== 7. 状态与入口 ========== */
+.simulation-status {
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 11px;
+}
+.simulation-status.running { background: #d4edda; color: #155724; }
+.simulation-status.stopped { background: #f8d7da; color: #721c24; }
 .manage-account-btn {
     width: 32px;
     height: 32px;
@@ -313,15 +323,14 @@ body {
     background-color: #e9ecef;
 }
 
-/* 管理账户弹窗：与交易界面统一 */
-/* 弹窗宽度收窄，与左侧交易卡片相当 */
+/* ========== 8. 管理账户弹窗 ========== */
 .manage-modal .manage-modal-dialog {
-    max-width: 360px !important; /* 进一步收窄，确保紧凑 */
+    max-width: 720px !important;
     width: 100%;
     margin: 1.75rem auto;
 }
 .manage-modal .modal-content {
-    border: 1.5px solid #6610f2; /* 紫色边框，参考 Banner 风格 */
+    border: 1.5px solid #6610f2;
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(102, 16, 242, 0.12);
     overflow: hidden;
@@ -333,46 +342,13 @@ body {
     color: #6610f2;
     font-weight: 600;
 }
-
-/* 布局辅助 */
-.chart-container-box {
-    flex: 1;
-    position: relative;
-    height: 350px;
-    min-width: 0;
-}
-.vertical-divider {
-    width: 1px;
-    background-color: #e9ecef;
-}
-.flex-row-nowrap {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    align-items: center;
-    gap: 1rem;
-}
-.w-100 { width: 100% !important; }
-.h-100 { height: 100% !important; }
-
-/* 更多辅助类 */
-.flex-shrink-0 { flex: 0 0 auto !important; }
-.dark-text { color: #1a1a1a !important; }
-.flex-1-center { flex: 1 !important; justify-content: center !important; }
-.fs-10 { font-size: 10px !important; }
-.fs-12-fw-500 { font-size: 12px !important; font-weight: 500 !important; }
-.flex-1-min-0 { flex: 1 !important; min-height: 0 !important; }
-.opacity-3 { opacity: 0.3 !important; }
-
-
-/* 子页面1：账户列表 */
 .manage-modal .manage-list-subtitle {
     font-size: 12px;
     color: #6c757d;
     margin-bottom: 0.75rem;
 }
 .manage-modal #manageAccountListBody {
-    max-height: 260px;
+    max-height: 380px;
     overflow-y: auto;
     border: 1px solid #e9ecef;
     border-radius: 8px;
@@ -400,23 +376,35 @@ body {
 .manage-modal #manageAccountListBody .list-group-item .badge.bg-success {
     background-color: #28a745 !important;
 }
+.account-inline-confirm {
+    flex-shrink: 0;
+}
+.account-inline-confirm-text {
+    font-size: 12px;
+    color: #6c757d;
+    white-space: nowrap;
+}
+.account-inline-confirm .account-inline-btn {
+    padding: 0.2rem 0.5rem;
+    font-size: 12px;
+}
 .manage-modal .btn-new-account {
     margin-top: 0.75rem;
     padding: 0.5rem 1rem;
     font-size: 13px;
     font-weight: 500;
-    border-radius: 8px;
-    border: 1px dashed #28a745;
-    color: #28a745;
-    background: #fff;
+    border-radius: 999px;
+    border: 1px solid #198754;
+    color: #198754;
+    background: linear-gradient(135deg, #e9fff4, #f5fff9);
+    box-shadow: 0 0 0 1px rgba(25, 135, 84, 0.05);
 }
 .manage-modal .btn-new-account:hover {
-    background: #f0f8f0;
-    color: #218838;
-    border-color: #218838;
+    background: #198754;
+    color: #fff;
+    border-color: #157347;
+    box-shadow: 0 0 0 1px rgba(21, 115, 71, 0.2);
 }
-
-/* 子页面2：新建账户表单（设置列表风格） */
 .manage-modal .manage-account-form {
     padding: 0 0.5rem;
 }
@@ -433,7 +421,7 @@ body {
     margin-bottom: 0;
     color: #6c757d;
     font-weight: 500;
-    font-size: 13px; /* Ensure font size consistency */
+    font-size: 13px;
 }
 .manage-modal .manage-account-form .form-control-sm {
     border: none;
@@ -454,7 +442,6 @@ body {
     color: #adb5bd;
     font-weight: 400;
 }
-/* 调整单选框行的对齐 */
 .manage-modal .manage-account-form .trade-form-content.flex-row-nowrap {
     justify-content: flex-end;
 }
@@ -472,8 +459,6 @@ body {
     cursor: pointer;
     flex-shrink: 0;
 }
-
-/* 底部图标按钮样式 */
 .manage-modal .btn-icon-only {
     width: 28px;
     height: 28px;
@@ -497,14 +482,28 @@ body {
 }
 .manage-modal .modal-footer {
     padding: 0.5rem 1rem;
-    background: #fff; /* 纯白底色更干净 */
-    border-top: none; /* 去掉分割线更极简 */
+    background: #fff;
+    border-top: none;
 }
 
-/* 辅助样式：隐藏元素、特定容器等 */
+/* ========== 9. 工具类 ========== */
+.flex-row-nowrap {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center;
+    gap: 1rem;
+}
+.w-100 { width: 100% !important; }
+.h-100 { height: 100% !important; }
+.flex-shrink-0 { flex: 0 0 auto !important; }
+.dark-text { color: #1a1a1a !important; }
+.flex-1-center { flex: 1 !important; justify-content: center !important; }
+.fs-10 { font-size: 10px !important; }
+.fs-12-fw-500 { font-size: 12px !important; font-weight: 500 !important; }
+.flex-1-min-0 { flex: 1 !important; min-height: 0 !important; }
+.opacity-3 { opacity: 0.3 !important; }
 .hide-initially { display: none; }
 .d-none { display: none !important; }
 .bg-loading { background-color: #f8f9fa; }
 .cursor-pointer { cursor: pointer; }
-.max-h-350 { height: 350px; }
-.border-right-light { border-right: 1px solid #e9ecef; }

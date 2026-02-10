@@ -14,7 +14,18 @@
     {% set active_page = 'trading' %}
     {% include '_banner.html' %}
 
-    <!-- 账户总览 -->
+    <!--
+        交易页模板 (trader.html)
+
+        区块结构：
+          1. 账户总览
+          2. 主交易面板（左：买卖表单 + 交易账户；右：实时行情 + 委托/成交/持仓）
+          3. 管理账户模态框
+          4. 关闭账户模态框
+          5. 页脚与脚本引入
+    -->
+
+    <!-- ========== 1. 账户总览 ========== -->
     <div class="container-fluid mt-2">
         <div class="account-overview">
             <div class="row g-0">
@@ -47,7 +58,7 @@
             </div>
         </div>
 
-        <!-- 主要内容 -->
+        <!-- ========== 2. 主交易面板：左买卖 / 右行情 ========== -->
         <div class="row trading-panel equal-height-row">
             <!-- 左侧：买卖模块 + 交易账户 -->
             <div class="col-md-3 trading-left-panel">
@@ -109,7 +120,7 @@
                                         <label class="form-label">委托数量</label>
                                         <div class="trade-form-content">
                                             <input type="number" class="form-control form-control-sm" id="buyQuantity" 
-                                                   min="100" step="100" value="100" placeholder="100股起" required>
+                                                   placeholder="数量" required>
                                             <div class="quantity-btn-group">
                                                 <button type="button" class="quantity-btn" onclick="setQuantity('buy', 0.25, true)">25%</button>
                                                 <button type="button" class="quantity-btn" onclick="setQuantity('buy', 0.5, true)">50%</button>
@@ -169,7 +180,7 @@
                                         <label class="form-label">委托数量</label>
                                         <div class="trade-form-content">
                                             <input type="number" class="form-control form-control-sm" id="sellQuantity" 
-                                                   min="100" step="100" value="100" placeholder="100股起" required>
+                                                   placeholder="数量" required>
                                             <div class="quantity-btn-group">
                                                 <button type="button" class="quantity-btn" onclick="setQuantity('sell', 0.25, true)">25%</button>
                                                 <button type="button" class="quantity-btn" onclick="setQuantity('sell', 0.5, true)">50%</button>
@@ -222,7 +233,7 @@
                 <div class="card flex-fill mb-2">
                     <div class="chart-card-header">
                         <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <span><i class="fas fa-chart-line me-2"></i>实时行情</span>
+                            <i class="fas fa-chart-line me-2"></i>
                             <div class="chart-type-group">
                                 <button type="button" class="chart-type-btn active" id="chartTypeIntraday" onclick="switchChartType('intraday')">分时</button>
                                 <button type="button" class="chart-type-btn" id="chartTypeDaily" onclick="switchChartType('daily')">日K</button>
@@ -239,30 +250,19 @@
                         </div>
                     </div>
                     <div class="chart-card-body">
-                        <!-- 第一行：标的信息 + 基础数据 + 当前价格 -->
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                        <!-- 一行：标的信息 + 今开/最高/最低 + 现价与涨跌幅 -->
+                        <div class="d-flex justify-content-between align-items-center mb-2 quote-summary-row">
                             <!-- 左侧：标的代码和名称 -->
                             <div class="flex-shrink-0">
                                 <div class="fw-bold fs-5 dark-text" id="quoteSymbol">--</div>
                                 <small class="text-muted" id="quoteName">请输入左侧投资标的查看行情</small>
                             </div>
-                            
-                            <!-- 中间：今开/最高/最低 -->
-                            <div class="d-flex gap-4 align-items-center flex-1-center">
-                                <div class="text-center">
-                                    <div class="text-muted fs-10 mb-2">今开</div>
-                                    <div id="quoteOpen" class="fs-12-fw-500">--</div>
-                                </div>
-                                <div class="text-center">
-                                    <div class="text-muted fs-10 mb-2">最高</div>
-                                    <div id="quoteHigh" class="price-up fs-12-fw-500">--</div>
-                                </div>
-                                <div class="text-center">
-                                    <div class="text-muted fs-10 mb-2">最低</div>
-                                    <div id="quoteLow" class="price-down fs-12-fw-500">--</div>
-                                </div>
+                            <!-- 中间：今开/最高/最低（一行） -->
+                            <div class="d-flex gap-3 align-items-center flex-1-center quote-ohl-row">
+                                <span class="text-muted fs-12-fw-500">今开</span><span id="quoteOpen" class="fs-12-fw-500">--</span>
+                                <span class="text-muted fs-12-fw-500">最高</span><span id="quoteHigh" class="price-up fs-12-fw-500">--</span>
+                                <span class="text-muted fs-12-fw-500">最低</span><span id="quoteLow" class="price-down fs-12-fw-500">--</span>
                             </div>
-                            
                             <!-- 右侧：当前价格、日内涨跌幅 -->
                             <div class="text-end flex-shrink-0">
                                 <div class="market-price dark-text" id="quotePrice">--</div>
@@ -406,7 +406,7 @@
         </div>
     </div>
 
-    <!-- 管理账户模态框：选择已有 / 新建 -->
+    <!-- ========== 3. 管理账户模态框：选择已有 / 新建 ========== -->
     <div class="modal fade manage-modal" id="manageAccountModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered manage-modal-dialog">
             <div class="modal-content">
@@ -475,8 +475,7 @@
         </div>
     </div>
 
-    <!-- 引入页脚 -->
-    <!-- 确认关闭账户弹窗 -->
+    <!-- ========== 4. 确认关闭账户弹窗 ========== -->
     <div class="modal fade" id="closeAccountModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
@@ -495,6 +494,7 @@
         </div>
     </div>
 
+    <!-- ========== 5. 页脚与脚本 ========== -->
     {% include '_footer.html' %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>

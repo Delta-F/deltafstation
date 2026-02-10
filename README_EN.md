@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-0.7.4-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-0.7.5-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -17,25 +17,27 @@ An open-source quantitative trading cloud platform built on deltafq, integrating
 
 </div>
 
-## Exclusive Tutorials
+## 🎓 Official Tutorial
 
-iMOOC - AI Quantitative System Course : https://class.imooc.com/sale/aiqwm
+#### [iMOOC - Programmer AI Quantitative Wealth Management System Course](https://class.imooc.com/sale/aiqwm)
 
-## Installation & Quick Start
+> The official companion course for this project: a deep dive into the framework architecture from 0 to 1, covering live-trading workflow design and industrial-grade quantitative development practices.
+
+## 🚀 Installation & Quick Start
 
 ```bash
 pip install -r requirements.txt
 python run.py
 ```
 
-## Core Features
+## ✨ Core Features
 
 - 📉 Backtest Hub - Strategy creation, historical backtesting, performance analysis, and visual reports
 - 🧾 Manual Trading - Manage accounts (select or create), local simulation via deltafq tick matching, buy/sell execution, and position & PnL tracking
 - ⚡ Strategy Running - Automated trading, real-time monitoring, signal execution, and logs
 - 🤖 AI Assistant - Intelligent Q&A, usage guidance, and context-aware help
 
-## Project Structure
+## 🗂️ Project Structure
 
 ```
 deltafstation/
@@ -57,7 +59,7 @@ deltafstation/
 └── run.py           # Startup script
 ```
 
-## Architecture
+## 🏗️ Architecture
 
 DeltaFStation is built with Flask on the web layer and integrates the deltafq quantitative framework to deliver a cloud workflow from research to execution:
 https://github.com/Delta-F/deltafq
@@ -69,7 +71,7 @@ https://github.com/Delta-F/deltafq
   </tr>
 </table>
 
-## Community & Contribution
+## 🤝 Community & Contribution
 
 - Welcome to submit [issues](https://github.com/delta-f/deltafstation/issues) or [pull requests](https://github.com/delta-f/deltafstation/pulls) for feedback and improvements.
 - WeChat Official Account: follow `DeltaFQ开源量化` for updates and quant resources.
@@ -78,6 +80,6 @@ https://github.com/Delta-F/deltafq
   <img src="assets/wechat_qr.png" width="150" alt="WeChat Official Account" />
 </p>
 
-## License
+## ⚖️ License
 
 MIT License, see [LICENSE](LICENSE) for details.
