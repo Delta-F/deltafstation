@@ -28,12 +28,12 @@ def _config_path(sid):
     return os.path.join(_sim_folder(), f"{sid}.json")
 
 def _generate_sim_id():
-    """统一生成 sim_年月日_001 格式的唯一 ID。"""
+    """统一生成 SIM_0001 格式的唯一 ID。"""
     folder = _sim_folder()
-    prefix = f"sim_{datetime.now().strftime('%Y%m%d')}_"
+    prefix = "SIM_"
     if not os.path.exists(folder):
-        return f"{prefix}001"
-    pattern = re.compile(rf"^{prefix}(\d{{3,}})\.json$")
+        return f"{prefix}0001"
+    pattern = re.compile(rf"^{prefix}(\d{{4,}})\.json$")
     max_num = 0
     for f in os.listdir(folder):
         match = pattern.match(f)
@@ -41,7 +41,7 @@ def _generate_sim_id():
             num = int(match.group(1))
             if num > max_num:
                 max_num = num
-    return f"{prefix}{max_num + 1:03d}"
+    return f"{prefix}{max_num + 1:04d}"
 
 
 def _name_exists(name: str) -> bool:
