@@ -1,5 +1,17 @@
 # DeltaFStation 更新记录 / Changelog
 
+## v0.8.1 （2026-02-24）
+
+**定位**：策略运行页脚本重构与文档化，结构对齐交易页、便于维护。
+
+- **界面 UI 优化**
+  - HTML 入口保持为全局函数并转调 App，行为不变；K 线/净值切换时同步 `monitorCurrentChartType`，resize 重绘与当前视图一致。
+- **CSS 拆分与代码优化**
+  - **gostrategy.js**：引入 `GoStrategyApp` 单例，按职责拆分为 CONSTANTS、state、utils、strategy、account、charts、monitor、run、display、ui、init，风格对齐 `trader.js`；文件头注释模块顺序与 common.js 依赖。
+  - 当前价与持仓市值统一由 utils 计算；移除未用函数与变量；DOM 更新前做元素存在性校验。
+
+---
+
 ## v0.8.0 （2026-02-24）
 
 **定位**：策略运行与监控界面（GoStrategy）深度重塑与视觉进化。

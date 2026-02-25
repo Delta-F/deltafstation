@@ -1,0 +1,303 @@
+/* 启动策略页样式 (gostrategy) */
+
+/* ========== 1. 基础全局样式 ========== */
+body {
+    font-size: 13px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+    background-color: #f5f5f5;
+}
+.container-fluid {
+    padding-top: 0.5rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* ========== 2. 通用组件规范 ========== */
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 0.5rem;
+    display: flex;
+    flex-direction: column;
+}
+.card-body {
+    font-size: 13px;
+    padding: 0.75rem;
+    flex: 1;
+}
+.chart-card-header {
+    height: 44px; /* 统一标题栏高度 */
+    padding: 0 0.75rem;
+    background-color: #fff;
+    border-bottom: 1px solid #f1f3f5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 8px 8px 0 0;
+}
+.card-header-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+.card-header-title i {
+    color: #adb5bd;
+    font-size: 14px;
+    width: 16px;
+    text-align: center;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.35rem 0.7rem;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+.status-badge.running { background-color: #d4edda; color: #155724; }
+.status-badge.stopped { background-color: #f8d7da; color: #721c24; }
+.status-badge.waiting { background-color: #fff3cd; color: #856404; }
+
+/* ========== 3. 页面布局与栅格 ========== */
+.trading-panel {
+    display: flex;
+    align-items: stretch;
+}
+.trading-left-panel, .trading-right-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+/* 核心卡片等高布局 - 设置适中的固定高度 */
+.strategy-config-card, .monitor-card {
+    height: 440px !important;
+    flex: 0 0 440px !important;
+    display: flex;
+    flex-direction: column;
+}
+.strategy-config-card .card-body, .monitor-card .card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* ========== 4. 账户仪表盘 (顶部) ========== */
+.account-overview .account-item {
+    text-align: center;
+    padding: 0.15rem 0.5rem;
+}
+.account-overview .account-label {
+    font-size: 11px;
+    opacity: 0.9;
+    margin-bottom: 0.2rem;
+}
+.account-overview .account-value {
+    font-size: 15px;
+    font-weight: 600;
+}
+.metric-item {
+    display: flex;
+    align-items: center;
+}
+
+/* ========== 5. 策略配置模块 ========== */
+.strategy-config-card {
+    border: 1px solid #f1f3f5 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
+}
+.strategy-config-card .card-body {
+    justify-content: space-between;
+    padding: 1rem 1.25rem; /* 减小内边距，让内容更靠近边界，参考交易页 */
+}
+.strategy-config-card .trade-form-row {
+    margin-bottom: 0.5rem; /* 给每一行一点基础间距 */
+}
+.trade-form-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.8rem;
+}
+.trade-form-row .form-label {
+    width: 80px;
+    margin-bottom: 0;
+    margin-top: 6px;
+    flex-shrink: 0;
+    font-weight: 600;
+    color: #333;
+    font-size: 12px;
+}
+.trade-form-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.trade-form-content .form-control,
+.trade-form-content .form-select {
+    font-size: 13px;
+    font-weight: 600;
+    height: 31px;
+    padding: 0.4rem 0.6rem;
+}
+
+/* ========== 6. 策略管理模块 ========== */
+.strategy-management-card {
+    height: 360px !important;
+    flex: 0 0 360px !important;
+    overflow: hidden;
+}
+.strategy-management-card .card-body {
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 0.5rem 0.75rem 0.5rem;
+    min-height: 0;
+    overflow: hidden;
+}
+.strategy-files-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.25rem; 
+}
+.strategy-files-container::-webkit-scrollbar { width: 4px; }
+.strategy-files-container::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 2px; }
+.strategy-files-container::-webkit-scrollbar-thumb { background: #d1d1d1; border-radius: 2px; }
+
+.strategy-file-item {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+}
+.strategy-file-item:hover {
+    background-color: #f8f9fa;
+    border-color: #0d6efd;
+}
+.strategy-file-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 0.15rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.strategy-file-meta { font-size: 10px; color: #6c757d; display: flex; gap: 6px; }
+.strategy-file-actions { margin-left: 0.5rem; }
+.strategy-file-actions .btn-action { padding: 0.2rem 0.35rem; font-size: 10px; border-radius: 3px; }
+
+/* ========== 7. 实时监控模块 (图表与盘口) ========== */
+.monitor-card .card-body { padding: 0.75rem; }
+.chart-container-box { flex: 1; position: relative; min-height: 320px; }
+.chart-container-box canvas { width: 100% !important; height: 100% !important; display: block; }
+#dailyChartContainer, #equityChartContainer { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+
+.chart-type-group {
+    display: inline-flex;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
+}
+.chart-type-group .chart-type-btn {
+    padding: 0.25rem 0.6rem;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.chart-type-group .chart-type-btn:not(:last-child) { border-right: 1px solid #e9ecef; }
+.chart-type-group .chart-type-btn:hover { background: #e9ecef; color: #495057; }
+.chart-type-group .chart-type-btn.active { background: #198754; color: #fff; }
+
+.clock-row {
+    font-size: 14px;
+    font-weight: 500;
+    font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
+    color: #495057;
+    letter-spacing: 0.02em;
+}
+
+.quote-list { width: 140px; display: flex; flex-direction: column; gap: 1px; }
+.quote-row { display: flex; justify-content: space-between; padding: 1px 4px; border-radius: 2px; font-size: 12px; }
+.quote-row .label { width: 30px; color: #999; font-size: 11px; }
+.quote-row .price { flex: 1; text-align: right; margin-right: 8px; font-weight: 500; font-family: "JetBrains Mono", "SF Mono", Consolas, monospace; }
+.quote-row .vol { width: 45px; text-align: right; color: #666; font-size: 11px; font-family: "JetBrains Mono", "SF Mono", Consolas, monospace; }
+.quote-ask-row { background: rgba(40, 167, 69, 0.04); }
+.quote-ask-row .price { color: #28a745; }
+.quote-bid-row { background: rgba(220, 53, 69, 0.04); }
+.quote-bid-row .price { color: #dc3545; }
+
+/* ========== 8. 数据表格视图 (同步自 trader.css) ========== */
+.trading-bottom-card {
+    height: 360px !important;
+    flex: 0 0 360px !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.trading-bottom-card .card-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 0 !important;
+    overflow: hidden;
+    min-height: 0;
+}
+.table-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    min-height: 0;
+}
+.table-header.sticky-top {
+    background-color: #f8f9fa;
+    z-index: 10;
+    top: 0;
+}
+.data-table thead th {
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    padding: 0.75rem 0.6rem !important;
+    background-color: #f8f9fa !important;
+    border-bottom: 2px solid #dee2e6 !important;
+    color: #495057 !important;
+    white-space: nowrap;
+}
+.data-table tbody td {
+    padding: 0.75rem 0.6rem !important;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #343a40;
+}
+
+/* ========== 9. 模态框与辅助类 ========== */
+.manage-modal .manage-modal-dialog { max-width: 720px !important; width: 100%; margin: 1.75rem auto; }
+.manage-modal .modal-content { border: 1.5px solid #dee2e6; border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); overflow: hidden; }
+.manage-modal .manage-account-form .trade-form-row { padding: 0.8rem 0; border-bottom: 1px solid #f0f0f0; margin-bottom: 0; justify-content: space-between; }
+.manage-modal .manage-account-form .trade-form-row:last-child { border-bottom: none; }
+.manage-modal .manage-account-form .form-control-sm { border: none !important; background: transparent !important; text-align: right; font-weight: 600; padding: 0; height: auto; }
+.manage-modal .manage-radio-option { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 13px; cursor: pointer; }
+.manage-modal .btn-icon-only { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: none; background: transparent; transition: background 0.2s; }
+.manage-modal .btn-icon-only:hover { background-color: #f8f9fa; }
+
+.flex-row-nowrap { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; align-items: center; gap: 1rem; }
+.opacity-3 { opacity: 0.3 !important; }
