@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-0.8.1-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-0.8.2-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -42,21 +42,32 @@ python run.py
 ```
 deltafstation/
 ├── assets/           # Docs and presentation images
-├── backend/          # Backend code
-│   ├── api/          # API endpoints
-│   └── core/         # Core modules
-├── config/           # Configuration
-├── data/             # Data directory
-│   ├── raw/          # Raw data
-│   ├── results/      # Backtest results
-│   ├── simulations/  # Simulation records
-│   └── strategies/   # Strategy files
-├── data_cache/       # Cached data
-├── frontend/         # Frontend code
-│   ├── templates/    # HTML templates
+├── backend/
+│   ├── api/          # REST API
+│   │   ├── data_api.py
+│   │   ├── strategy_api.py
+│   │   ├── backtest_api.py
+│   │   ├── simulation_api.py   # Manual trading: accounts, orders
+│   │   └── gostrategy_api.py   # Strategy run: start/stop, charts
+│   ├── core/         # Core engines
+│   │   ├── data_manager.py
+│   │   ├── live_data_manager.py
+│   │   ├── backtest_engine.py
+│   │   ├── simulation_engine.py      # Manual tick matching
+│   │   ├── live_engine_runner.py     # Strategy automation (LiveEngine)
+│   │   └── simulation_state_service.py
+│   └── app.py        # Flask entry
+├── config/
+├── data/
+│   ├── raw/          # Raw OHLCV CSV
+│   ├── results/      # Backtest results JSON
+│   ├── simulations/  # Simulation account config JSON
+│   └── strategies/   # Strategy Python files
+├── frontend/
+│   ├── templates/    # index / backtest / trader / gostrategy
 │   └── static/       # Static assets (css/js)
-├── requirements.txt  # Dependencies
-└── run.py           # Startup script
+├── requirements.txt
+└── run.py
 ```
 
 ## 🏗️ Architecture

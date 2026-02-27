@@ -56,7 +56,13 @@ function showAlert(message, type = 'info') {
 async function apiRequest(url, options = {}) {
     try {
         const response = await fetch(url, options);
-        const data = await response.json();
+        const text = await response.text();
+        let data;
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (e) {
+            data = { error: response.ok ? 'Invalid response' : (text.startsWith('<') ? 'Server error (500)' : text.slice(0, 200)) };
+        }
         return { ok: response.ok, data, response };
     } catch (error) {
         console.error(`API request failed: ${url}`, error);

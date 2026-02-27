@@ -108,6 +108,9 @@ const TraderApp = {
                         if (data.high) stock.high = data.high;
                         if (data.low) stock.low = data.low;
                         if (data.history) stock.history = data.history;
+                        if (data.volume != null) stock.volume = data.volume;
+                        if (data.bids) stock.bids = data.bids;
+                        if (data.asks) stock.asks = data.asks;
                         
                         const currentSymbol = $('quoteSymbol')?.textContent;
                         if (currentSymbol === symbol) {
@@ -162,7 +165,8 @@ const TraderApp = {
                 TraderApp.state.marketData[symbol] = {
                     ...TraderApp.state.marketData[symbol],
                     latest_price: data.price, timestamp: data.timestamp, minute: data.minute,
-                    open: data.open, high: data.high, low: data.low, name: data.name || symbol
+                    open: data.open, high: data.high, low: data.low, name: data.name || symbol,
+                    volume: data.volume, bids: data.bids, asks: data.asks
                 };
                 this.updateQuoteUI(TraderApp.state.marketData[symbol]);
                 const priceEl = $(type === 'buy' ? 'buyPrice' : 'sellPrice');
@@ -256,30 +260,37 @@ const TraderApp = {
             TraderApp.charts.addIntradayPoint(stock.latest_price, stock.volume, stock.timestamp, stock.minute);
         },
 
-        /** 用当前价 ± 档位更新买卖五档盘口（模拟量）。 */
+        /** 用 API 数据更新买卖五档盘口（bids/asks 或基于 price/volume 合成）。 */
         updateQuoteBoard(stock) {
+            if (!stock) return;
             const currentPrice = stock.latest_price || 0;
+            const baseVol = stock.volume ?? 5000;
             const spread = 0.01;
-            
+            const synthVol = () => Math.floor((baseVol && baseVol > 0 ? baseVol * 0.001 : 5000) * (0.8 + Math.random() * 0.4));
+
+            const setRow = (prefix, i, price, vol) => {
+                const el = $(prefix + i);
+                if (!el) return;
+                const p = el.querySelector('.price');
+                const v = el.querySelector('.vol');
+                if (p) p.textContent = price != null && price > 0 ? price.toFixed(2) : '--';
+                if (v) v.textContent = vol != null && vol > 0 ? Number(vol).toLocaleString() : '--';
+            };
+
+            if (!currentPrice) {
+                for (let i = 1; i <= 5; i++) {
+                    ['quoteBid', 'quoteAsk'].forEach(prefix => setRow(prefix, i, null, null));
+                }
+                return;
+            }
+
             for (let i = 1; i <= 5; i++) {
-                const bidEl = $('quoteBid' + i);
-                if (bidEl) {
-                    const price = currentPrice - spread * i;
-                    const volume = Math.floor(Math.random() * 5000 + 5000);
-                    const priceEl = bidEl.querySelector('.price');
-                    const volEl = bidEl.querySelector('.vol');
-                    if (priceEl) priceEl.textContent = price.toFixed(2);
-                    if (volEl) volEl.textContent = volume.toLocaleString();
-                }
-                const askEl = $('quoteAsk' + i);
-                if (askEl) {
-                    const price = currentPrice + spread * i;
-                    const volume = Math.floor(Math.random() * 5000 + 5000);
-                    const priceEl = askEl.querySelector('.price');
-                    const volEl = askEl.querySelector('.vol');
-                    if (priceEl) priceEl.textContent = price.toFixed(2);
-                    if (volEl) volEl.textContent = volume.toLocaleString();
-                }
+                const bidPrice = stock.bids?.[i - 1]?.[0] ?? (currentPrice - spread * i);
+                const bidVol = stock.bids?.[i - 1]?.[1] ?? synthVol();
+                setRow('quoteBid', i, bidPrice, bidVol);
+                const askPrice = stock.asks?.[i - 1]?.[0] ?? (currentPrice + spread * i);
+                const askVol = stock.asks?.[i - 1]?.[1] ?? synthVol();
+                setRow('quoteAsk', i, askPrice, askVol);
             }
         },
 
@@ -795,6 +806,16 @@ const TraderApp = {
                 ctx.beginPath(); ctx.moveTo(x, lY); ctx.lineTo(x, Math.max(oY, cY)); ctx.stroke();
                 ctx.fillRect(x - cWidth / 2, Math.min(oY, cY), cWidth, Math.max(1, Math.abs(oY - cY)));
             });
+
+            const dates = this.data.daily.dates || [];
+            if (dates.length === count) {
+                ctx.fillStyle = '#6c757d';
+                ctx.font = '9px sans-serif';
+                ctx.textAlign = 'center';
+                const step = Math.max(1, Math.floor(count / 8));
+                for (let i = 0; i < count; i += step)
+                    ctx.fillText(dates[i], padding.left + cSpacing * (i + 0.5), height - 10);
+            }
 
             this.data.daily._layout = { padding, chartWidth, chartHeight, cSpacing, count };
             this.setupDailyChartInteraction();

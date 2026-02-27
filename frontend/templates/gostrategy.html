@@ -152,13 +152,24 @@
                             <div class="trade-form-row">
                                 <label class="form-label">投资标的</label>
                                 <div class="trade-form-content">
-                                    <input type="text" class="form-control form-control-sm" id="runSymbol" placeholder="例如：000001.SS" value="000001.SS" required>
+                                    <input type="text" class="form-control form-control-sm" id="runSymbol" placeholder="例如：BTC-USD" value="BTC-USD" required>
+                                </div>
+                            </div>
+                            <div class="trade-form-row">
+                                <label class="form-label">K线周期</label>
+                                <div class="trade-form-content">
+                                    <select class="form-select form-select-sm" id="runSignalInterval">
+                                        <option value="1d" selected>日K (1d)</option>
+                                        <option value="1h">小时K (1h)</option>
+                                        <option value="5m">5分钟 (5m)</option>
+                                        <option value="1m">1分钟 (1m)</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="trade-form-row">
                                 <label class="form-label">标的名称</label>
                                 <div class="trade-form-content">
-                                    <input type="text" class="form-control form-control-sm" id="runSymbolName" value="平安银行" readonly style="background-color: #f8f9fa; color: #666; border-style: dashed !important;">
+                                    <input type="text" class="form-control form-control-sm" id="runSymbolName" value="Bitcoin" readonly style="background-color: #f8f9fa; color: #666; border-style: dashed !important;">
                                 </div>
                             </div>
                             <div class="trade-form-row">
@@ -167,7 +178,6 @@
                                     <input type="number" class="form-control form-control-sm" id="runSingleAmount" value="10000" step="1000">
                                 </div>
                             </div>
-                            <input type="hidden" id="useDemoData" value="true">
                             <input type="hidden" id="runInitialCapital" value="100000">
                             <input type="hidden" id="runCommission" value="0.001">
                             <div class="d-flex gap-2 mt-3 mb-1">
@@ -186,7 +196,7 @@
                             <span>策略管理</span>
                         </div>
                         <div class="btn-group" style="box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
-                            <button class="btn btn-xs btn-outline-secondary px-2" onclick="$('strategyFileUpload').click()" title="上传策略 (.py)" style="border-width: 1px; border-radius: 4px 0 0 4px; font-size: 11px; color: #6c757d; border-color: #dee2e6;"><i class="fas fa-upload"></i></button>
+                            <button class="btn btn-xs strategy-upload-btn px-2" onclick="$('strategyFileUpload').click()" title="上传策略 (.py)"><i class="fas fa-upload"></i></button>
                             <input type="file" id="strategyFileUpload" style="display: none;" accept=".py" onchange="uploadStrategyFile(this)">
                             <button class="btn btn-xs btn-outline-secondary px-2" onclick="loadStrategies()" title="刷新列表" style="border-width: 1px; border-radius: 0 4px 4px 0; border-left: none; font-size: 11px; color: #6c757d; border-color: #dee2e6;"><i class="fas fa-sync-alt"></i></button>
                         </div>
@@ -211,6 +221,10 @@
                                 <button type="button" class="chart-type-btn active" id="chartTypeDaily" onclick="switchMonitorChart('daily', this)">K线图</button>
                                 <button type="button" class="chart-type-btn" id="chartTypeEquity" onclick="switchMonitorChart('equity', this)">策略净值</button>
                             </div>
+                            <div id="monitorIndicatorButtons" class="chart-type-group indicator-group ms-2">
+                                <button type="button" class="chart-type-btn active" data-indicator="ma" onclick="switchMonitorIndicator('ma', this)">MA</button>
+                                <button type="button" class="chart-type-btn" data-indicator="boll" onclick="switchMonitorIndicator('boll', this)">BOLL</button>
+                            </div>
                         </div>
                         <div class="d-flex gap-4 clock-row">
                             <span id="clock-bj">--:--:-- (北京)</span>
@@ -224,6 +238,7 @@
                             <div class="chart-container-box">
                                 <div id="dailyChartContainer">
                                     <canvas id="monitorDailyChart"></canvas>
+                                    <div id="monitorDailyChartTooltip" class="daily-chart-tooltip" style="display: none;"></div>
                                 </div>
                                 <div id="equityChartContainer" class="d-none">
                                     <canvas id="equityChart"></canvas>
@@ -257,17 +272,21 @@
                         </div>
                         
                         <!-- 实时信号栏 -->
-                        <div class="p-2 mt-2 signal-bar" style="background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef;">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="d-flex align-items-center">
-                                    <div class="pulse-dot" id="monitorSignalDot"></div>
-                                    <span class="text-muted" style="font-size: 11px;">最近信号: </span>
-                                    <span id="monitorLastSignal" class="fw-bold ms-1" style="font-size: 13px; color: #343a40;">等待策略信号...</span>
+                        <div class="signal-bar">
+                            <div class="signal-bar-left">
+                                <div class="pulse-dot" id="monitorSignalDot"></div>
+                                <span class="signal-label">最近信号</span>
+                                <div class="signal-content" id="monitorSignalContent" style="display: none;">
+                                    <span class="signal-badge" id="monitorSignalBadge"></span>
+                                    <span class="signal-symbol" id="monitorSignalSymbol"></span>
+                                    <span class="signal-qty" id="monitorSignalQty"></span>
+                                    <span class="signal-price" id="monitorSignalPrice"></span>
                                 </div>
-                                <div class="text-end">
-                                    <span class="text-muted" style="font-size: 11px;">信号时间: </span>
-                                    <span id="monitorSignalTime" class="fw-bold" style="font-size: 12px; color: #6c757d;">--</span>
-                                </div>
+                                <span class="signal-placeholder" id="monitorLastSignal">等待策略信号...</span>
+                            </div>
+                            <div class="signal-bar-right">
+                                <i class="far fa-clock signal-time-icon"></i>
+                                <span id="monitorSignalTime">--</span>
                             </div>
                         </div>
                     </div>
@@ -369,7 +388,7 @@
 
     <!-- 3.2 策略源码查看模态框 -->
     <div class="modal fade" id="strategyCodeModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="strategyCodeTitle">策略源码</h5>

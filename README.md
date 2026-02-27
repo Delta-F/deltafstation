@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-0.8.1-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-0.8.2-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -42,21 +42,32 @@ python run.py
 ```
 deltafstation/
 ├── assets/           # 文档与展示图片
-├── backend/          # 后端代码
-│   ├── api/          # API 接口
-│   └── core/         # 核心模块
-├── config/           # 配置文件
-├── data/             # 数据目录
-│   ├── raw/          # 原始数据
-│   ├── results/      # 回测结果
-│   ├── simulations/  # 仿真记录
-│   └── strategies/   # 策略文件
-├── data_cache/       # 缓存数据
-├── frontend/         # 前端代码
-│   ├── templates/    # HTML 模板
-│   └── static/       # 静态资源（css/js）
-├── requirements.txt  # 依赖列表
-└── run.py            # 启动脚本
+├── backend/
+│   ├── api/          # REST API
+│   │   ├── data_api.py
+│   │   ├── strategy_api.py
+│   │   ├── backtest_api.py
+│   │   ├── simulation_api.py   # 手动交易：账户、下单
+│   │   └── gostrategy_api.py   # 策略运行：启动/停止、K 线
+│   ├── core/         # 核心引擎
+│   │   ├── data_manager.py
+│   │   ├── live_data_manager.py
+│   │   ├── backtest_engine.py
+│   │   ├── simulation_engine.py      # 手动交易 tick 撮合
+│   │   ├── live_engine_runner.py     # 策略自动化 LiveEngine
+│   │   └── simulation_state_service.py
+│   └── app.py        # Flask 入口
+├── config/
+├── data/
+│   ├── raw/          # 原始行情 CSV
+│   ├── results/      # 回测结果 JSON
+│   ├── simulations/  # 仿真账户配置 JSON
+│   └── strategies/   # 策略 Python 文件
+├── frontend/
+│   ├── templates/    # index / backtest / trader / gostrategy
+│   └── static/           # 静态资源（css/js）
+├── requirements.txt
+└── run.py
 ```
 
 ## 🏗️ 技术架构

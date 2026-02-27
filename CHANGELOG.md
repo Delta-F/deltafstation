@@ -1,5 +1,24 @@
 # DeltaFStation 更新记录 / Changelog
 
+## v0.8.2 （2026-02-27）
+
+**定位**：策略自动化运行链路落地，打通 GoStrategy 后端与前端监控。
+
+- **策略运行引擎**
+  - 新增 `gostrategy_api.py`：`/run` 启动策略、`/chart` 拉取 K 线与信号；支持 `signal_interval`（1d/1h/5m/1m）。
+  - 新增 `LiveEngineRunner`：封装 `deltafq LiveEngine`，策略自动化按周期运行。
+  - 新增 `SimulationStateService`：同账户仿真/LiveEngine 互斥，停止时持久化 state。
+- **GoStrategy 前端**
+  - K 线周期选择、MA/BOLL 指标切换、图表 tooltip 与信号标记。
+  - 实时信号栏展示买入/卖出/观望及数量、价格；策略管理 UI 微调。
+- **交易页增强**
+  - 买卖五档支持 API 返回的 `bids`/`asks`；日 K 图底部日期标签。
+  - 盘口列宽与样式优化。
+- **其他**
+  - `apiRequest` 非 JSON 响应容错；策略源码弹窗居中；`ARCHITECTURE.md` 更新。
+
+---
+
 ## v0.8.1 （2026-02-25）
 
 **定位**：策略运行页脚本重构与文档化，结构对齐交易页、便于维护。

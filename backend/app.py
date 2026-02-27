@@ -55,6 +55,7 @@ from backend.api.data_api import data_bp
 from backend.api.strategy_api import strategy_bp
 from backend.api.backtest_api import backtest_bp
 from backend.api.simulation_api import simulation_bp
+from backend.api.gostrategy_api import gostrategy_bp
 from backend.core.live_data_manager import live_data_manager
 
 def create_app():
@@ -80,6 +81,7 @@ def create_app():
     app.register_blueprint(strategy_bp, url_prefix='/api/strategies')
     app.register_blueprint(backtest_bp, url_prefix='/api/backtests')
     app.register_blueprint(simulation_bp, url_prefix='/api/simulations')
+    app.register_blueprint(gostrategy_bp, url_prefix='/api/gostrategy')
     
     @app.route('/')
     def index():
