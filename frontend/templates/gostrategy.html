@@ -50,7 +50,7 @@
             <!-- 第二行：策略深度性能指标 (均匀分布，垂直居中) -->
             <div class="row g-0">
                 <div class="col-md-12">
-                    <div class="d-flex justify-content-between align-items-center pt-2">
+                    <div class="d-flex justify-content-between align-items-center pt-2 metrics-row flex-wrap">
                         <div class="metric-item">
                             <span class="text-muted" style="font-size: 11px;">累计收益:</span>
                             <span id="metricCumulativeReturn" class="fw-bold ms-1" style="font-size: 13px;">0.00%</span>
@@ -159,10 +159,10 @@
                                 <label class="form-label">K线周期</label>
                                 <div class="trade-form-content">
                                     <select class="form-select form-select-sm" id="runSignalInterval">
-                                        <option value="1d" selected>日K (1d)</option>
+                                        <option value="1d">日K (1d)</option>
                                         <option value="1h">小时K (1h)</option>
                                         <option value="5m">5分钟 (5m)</option>
-                                        <option value="1m">1分钟 (1m)</option>
+                                        <option value="1m" selected>1分钟 (1m)</option>
                                     </select>
                                 </div>
                             </div>
@@ -175,7 +175,7 @@
                             <div class="trade-form-row">
                                 <label class="form-label">单次投入</label>
                                 <div class="trade-form-content">
-                                    <input type="number" class="form-control form-control-sm" id="runSingleAmount" value="10000" step="1000">
+                                    <input type="text" class="form-control form-control-sm" id="runSingleAmount" value="100,000" placeholder="100,000" inputmode="numeric">
                                 </div>
                             </div>
                             <input type="hidden" id="runInitialCapital" value="100000">
@@ -196,7 +196,7 @@
                             <span>策略管理</span>
                         </div>
                         <div class="btn-group" style="box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
-                            <button class="btn btn-xs strategy-upload-btn px-2" onclick="$('strategyFileUpload').click()" title="上传策略 (.py)"><i class="fas fa-upload"></i></button>
+                            <button class="btn btn-xs strategy-upload-btn px-2" onclick="document.getElementById('strategyFileUpload').click()" title="上传策略 (.py)"><i class="fas fa-upload"></i></button>
                             <input type="file" id="strategyFileUpload" style="display: none;" accept=".py" onchange="uploadStrategyFile(this)">
                             <button class="btn btn-xs btn-outline-secondary px-2" onclick="loadStrategies()" title="刷新列表" style="border-width: 1px; border-radius: 0 4px 4px 0; border-left: none; font-size: 11px; color: #6c757d; border-color: #dee2e6;"><i class="fas fa-sync-alt"></i></button>
                         </div>
@@ -218,7 +218,7 @@
                         <div class="card-header-title">
                             <i class="fas fa-chart-line text-muted"></i>
                             <div class="chart-type-group ms-2">
-                                <button type="button" class="chart-type-btn active" id="chartTypeDaily" onclick="switchMonitorChart('daily', this)">K线图</button>
+                                <button type="button" class="chart-type-btn active" id="chartTypeDaily" onclick="switchMonitorChart('daily', this)">历史K线</button>
                                 <button type="button" class="chart-type-btn" id="chartTypeEquity" onclick="switchMonitorChart('equity', this)">策略净值</button>
                             </div>
                             <div id="monitorIndicatorButtons" class="chart-type-group indicator-group ms-2">
@@ -236,8 +236,12 @@
                         <div class="d-flex gap-3" style="flex: 1; min-height: 0;">
                             <!-- 图表区 -->
                             <div class="chart-container-box">
-                                <div id="dailyChartContainer">
+                                <div id="dailyChartContainer" class="chart-container-relative">
                                     <canvas id="monitorDailyChart"></canvas>
+                                    <div id="monitorChartPlaceholder" class="chart-placeholder-overlay">
+                                        <i class="fas fa-chart-line fa-2x text-muted mb-2 opacity-5"></i>
+                                        <div class="text-muted" style="font-size: 14px;">暂无 K 线数据</div>
+                                    </div>
                                     <div id="monitorDailyChartTooltip" class="daily-chart-tooltip" style="display: none;"></div>
                                 </div>
                                 <div id="equityChartContainer" class="d-none">
@@ -251,7 +255,7 @@
                             <div class="quote-list">
                                 <div class="text-end mb-2 px-1">
                                     <div class="fw-bold" style="font-size: 22px; color: #1a1a1a; line-height: 1.1;"><span style="font-size: 16px;">¥</span><span id="monitorPrevClose">--</span></div>
-                                    <div style="font-size: 13px; margin-top: 2px;"><span class="text-muted" style="font-size: 12px;">昨日</span><span id="monitorPrevReturn" class="fw-bold ms-1">--</span></div>
+                                    <div style="font-size: 13px; margin-top: 2px;"><span class="text-muted" style="font-size: 12px;" id="monitorPrevLabel">较上根</span><span id="monitorPrevReturn" class="fw-bold ms-1">--</span></div>
                                 </div>
                                 <div class="d-flex flex-column gap-1">
                                     <div id="monitorQuoteAsk5" class="quote-row quote-ask-row"><span class="label">卖5</span><span class="price">--</span><span class="vol">--</span></div>
@@ -268,25 +272,10 @@
                                     <div id="monitorQuoteBid4" class="quote-row quote-bid-row"><span class="label">买4</span><span class="price">--</span><span class="vol">--</span></div>
                                     <div id="monitorQuoteBid5" class="quote-row quote-bid-row"><span class="label">买5</span><span class="price">--</span><span class="vol">--</span></div>
                                 </div>
-                            </div>
-                        </div>
-                        
-                        <!-- 实时信号栏 -->
-                        <div class="signal-bar">
-                            <div class="signal-bar-left">
-                                <div class="pulse-dot" id="monitorSignalDot"></div>
-                                <span class="signal-label">最近信号</span>
-                                <div class="signal-content" id="monitorSignalContent" style="display: none;">
-                                    <span class="signal-badge" id="monitorSignalBadge"></span>
-                                    <span class="signal-symbol" id="monitorSignalSymbol"></span>
-                                    <span class="signal-qty" id="monitorSignalQty"></span>
-                                    <span class="signal-price" id="monitorSignalPrice"></span>
+                                <div id="monitorSignalBtn" class="monitor-signal-btn">
+                                    <i class="fas monitor-signal-icon"></i>
+                                    <span class="monitor-signal-text">等待策略信号</span>
                                 </div>
-                                <span class="signal-placeholder" id="monitorLastSignal">等待策略信号...</span>
-                            </div>
-                            <div class="signal-bar-right">
-                                <i class="far fa-clock signal-time-icon"></i>
-                                <span id="monitorSignalTime">--</span>
                             </div>
                         </div>
                     </div>
@@ -301,6 +290,8 @@
                                 <button type="button" class="chart-type-btn active" onclick="switchDataView('orders', this)">委托</button>
                                 <button type="button" class="chart-type-btn" onclick="switchDataView('trades', this)">成交</button>
                                 <button type="button" class="chart-type-btn" onclick="switchDataView('positions', this)">持仓</button>
+                                <button type="button" class="chart-type-btn" onclick="switchDataView('signals', this)">信号</button>
+                                <button type="button" class="chart-type-btn" onclick="switchDataView('logs', this)">日志</button>
                             </div>
                         </div>
                     </div>
@@ -350,6 +341,28 @@
                                             <div>当前账户空仓</div>
                                         </td>
                                     </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- 信号日志 -->
+                        <div class="table-container data-view data-view-signals d-none">
+                            <table class="table table-hover data-table mb-0 signals-table-seven">
+                                <thead class="table-header sticky-top">
+                                    <tr><th>类型</th><th>日期</th><th>投资标的</th><th>标的名称</th><th>信号</th><th>触发价格</th></tr>
+                                </thead>
+                                <tbody id="signalsTableBody">
+                                    <tr><td colspan="6" class="text-center text-muted py-5"><i class="fas fa-chart-line fa-2x mb-3 opacity-3"></i><div>暂无信号</div></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- 运行日志 -->
+                        <div class="table-container data-view data-view-logs d-none">
+                            <table class="table data-table mb-0">
+                                <thead class="table-header sticky-top">
+                                    <tr><th style="width: 90px;">时间</th><th>消息</th></tr>
+                                </thead>
+                                <tbody id="logTableBody">
+                                    <tr><td colspan="2" class="text-center text-muted py-4"><i class="fas fa-list-alt fa-2x mb-2 opacity-3 d-block"></i>暂无日志</td></tr>
                                 </tbody>
                             </table>
                         </div>

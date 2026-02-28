@@ -1,12 +1,32 @@
 # DeltaFStation 更新记录 / Changelog
 
+## v0.8.3 （2026-02-28）
+
+**定位**：双引擎架构落地，仿真与策略运行完整闭环。
+
+- **核心引擎**
+  - `SimulationEngine`：deltafq EventEngine + paper 撮合，state 恢复、订单续号（避免重启后 ORD 从头编号）。
+  - `StrategyEngine`：LiveEngine 封装，策略自动化运行；与 SimulationEngine 同一账户互斥。
+  - `engine_state` / `simulation_state`：状态转换、停同账户并持久化。
+- **API**
+  - `gostrategy_api`：`PUT /<account_id>/strategy` 启动策略、`GET /<account_id>/chart` 拉取 K 线与信号；account_id 通用。
+  - `simulation_api`：完整 CRUD、启动/停止、交易/撤单、委托历史合并。
+- **共享能力**
+  - `strategy_loader`：策略动态加载，回测与运行共用。
+  - `backtest_engine`：路径常量、`load_and_prepare_data`、`run_backtest_from_file`。
+- **前端与文档**
+  - GoStrategy：K 线周期、MA/BOLL、信号、策略管理、账户切换。
+  - ARCHITECTURE 更新；示例策略 `a_every2bar_flip_strategy`。
+
+---
+
 ## v0.8.2 （2026-02-27）
 
 **定位**：策略自动化运行链路落地，打通 GoStrategy 后端与前端监控。
 
 - **策略运行引擎**
   - 新增 `gostrategy_api.py`：`/run` 启动策略、`/chart` 拉取 K 线与信号；支持 `signal_interval`（1d/1h/5m/1m）。
-  - 新增 `LiveEngineRunner`：封装 `deltafq LiveEngine`，策略自动化按周期运行。
+  - 新增 `StrategyEngine`：封装 `deltafq LiveEngine`，策略自动化按周期运行。
   - 新增 `SimulationStateService`：同账户仿真/LiveEngine 互斥，停止时持久化 state。
 - **GoStrategy 前端**
   - K 线周期选择、MA/BOLL 指标切换、图表 tooltip 与信号标记。

@@ -104,6 +104,13 @@ body {
     display: flex;
     align-items: center;
 }
+/* 小屏下性能指标自动换行 */
+.metrics-row {
+    gap: 0.5rem 1rem;
+}
+@media (max-width: 1200px) {
+    .metrics-row .metric-item.border-start { border-left: none !important; }
+}
 
 /* ========== 5. 策略配置模块 ========== */
 .strategy-config-card {
@@ -149,7 +156,7 @@ body {
 
 /* ========== 6. 策略管理模块 ========== */
 .strategy-management-card {
-    height: 260px !important;
+    height: 360px !important;
     flex: 0 0 360px !important;
     overflow: hidden;
 }
@@ -220,6 +227,19 @@ body {
 .chart-container-box { flex: 1; position: relative; min-height: 320px; }
 .chart-container-box canvas { width: 100% !important; height: 100% !important; display: block; }
 #dailyChartContainer, #equityChartContainer { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+.chart-container-relative { position: relative; }
+.chart-placeholder-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(248, 249, 250, 0.9);
+    z-index: 5;
+    pointer-events: none;
+}
+.chart-placeholder-overlay.hide { display: none; }
 .daily-chart-tooltip {
     position: absolute;
     pointer-events: none;
@@ -354,6 +374,67 @@ body {
 }
 .signal-time-icon { font-size: 11px; }
 
+/* 盘口信号按钮 */
+.monitor-signal-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    min-height: 44px;
+}
+.monitor-signal-btn.buy {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.08) 0%, rgba(220, 53, 69, 0.04) 100%);
+    border-color: rgba(220, 53, 69, 0.3);
+    color: #dc3545;
+}
+.monitor-signal-btn.sell {
+    background: linear-gradient(135deg, rgba(25, 135, 84, 0.08) 0%, rgba(25, 135, 84, 0.04) 100%);
+    border-color: rgba(25, 135, 84, 0.3);
+    color: #198754;
+}
+.monitor-signal-btn .monitor-signal-icon {
+    font-size: 16px;
+}
+
+/* 信号日志 Badge */
+.signal-log-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.signal-log-badge.signal-icon-buy {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+}
+.signal-log-badge.signal-icon-sell {
+    background: rgba(25, 135, 84, 0.1);
+    color: #198754;
+}
+.signal-log-badge.signal-icon-hold {
+    background: rgba(108, 117, 125, 0.1);
+    color: #6c757d;
+}
+
+/* 信号明细六列等分 */
+.signals-table-seven {
+    table-layout: fixed;
+}
+.signals-table-seven th,
+.signals-table-seven td {
+    width: 16.67%; /* 1/6 */
+}
+
 /* ========== 8. 数据表格视图 (同步自 trader.css) ========== */
 .trading-bottom-card {
     height: 360px !important;
@@ -377,6 +458,51 @@ body {
     position: relative;
     min-height: 0;
 }
+
+/* 日志表格优化 */
+.data-view-logs .data-table tbody tr.log-row {
+    transition: background-color 0.15s ease;
+}
+.data-view-logs .data-table tbody tr.log-row-odd {
+    background-color: #fafbfc;
+}
+.data-view-logs .data-table tbody tr.log-row:hover {
+    background-color: #f0f4f8 !important;
+}
+.data-view-logs .data-table td.log-time {
+    width: 90px;
+    min-width: 90px;
+    font-size: 12px;
+    color: #868e96;
+    font-variant-numeric: tabular-nums;
+}
+.data-view-logs .data-table td.log-msg {
+    font-size: 12px;
+    word-break: break-word;
+    line-height: 1.6;
+    color: #495057;
+}
+.data-view-logs .log-action-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 6px;
+}
+.data-view-logs .log-action-badge.log-buy {
+    background: rgba(220, 53, 69, 0.12);
+    color: #dc3545;
+}
+.data-view-logs .log-action-badge.log-sell {
+    background: rgba(40, 167, 69, 0.12);
+    color: #198754;
+}
+.data-view-logs .log-msg-icon.log-success { color: #198754; }
+.data-view-logs .log-msg-icon.log-error { color: #dc3545; }
+.data-view-logs .log-msg-icon.log-warning { color: #fd7e14; }
+.data-view-logs .log-msg-icon.log-info { color: #6c757d; }
 .table-header.sticky-top {
     background-color: #f8f9fa;
     z-index: 10;

@@ -3,7 +3,8 @@
 # 数据文件夹
 data/
 data_cache/
-# 但保留策略文件（代码）
+# 策略文件白名单（保留代码，AA 前缀便于排位第一用于快速测试）
+!data/strategies/
 !data/strategies/*.py
 
 # Python

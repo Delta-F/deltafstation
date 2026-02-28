@@ -31,8 +31,8 @@
   ├── LiveDataManager       backend/core/live_data_manager.py
   ├── BacktestEngine*       backend/core/backtest_engine.py
   ├── SimulationEngine      backend/core/simulation_engine.py      # 手动交易（tick 撮合）
-  ├── LiveEngineRunner*     backend/core/live_engine_runner.py     # 策略自动化（deltafq LiveEngine）
-  └── SimulationStateService backend/core/simulation_state_service.py  # 停同账户、持久化
+  ├── StrategyEngine*     backend/core/strategy_engine.py     # 策略自动化（deltafq LiveEngine）
+  └── simulation_state backend/core/utils/simulation_state.py  # 停同账户、持久化
 
            │  读写文件
            ▼
@@ -64,11 +64,11 @@
   - 用于**手动交易**（trading 页），账户配置持久化写入 `data/simulations/`
   - 由 `simulation_api` 调用
 
-- **LiveEngineRunner（策略运行器）**
+- **StrategyEngine（策略运行器）**
   - 封装 `deltafq.live.LiveEngine`，负责策略自动化运行
   - 用于**策略运行**（run/gostrategy 页）：选择策略、标的、周期（1d/1h/5m/1m）后启动
   - 支持 `signal_interval`，K 线图表按所选周期拉取
-  - 由 `gostrategy_api` 调用，状态从 `LiveEngineRunner.get_state` / `get_run_info` 获取
+  - 由 `gostrategy_api` 调用，状态从 `StrategyEngine.get_state` / `get_run_info` 获取
 
 - **SimulationStateService**
   - 停掉同一账户上已有实例（仿真或 LiveEngine），并持久化 state
@@ -106,7 +106,7 @@ requirements.txt  # 依赖
 
 - **前后端分离但目录同仓**：Flask 只负责 API 和模板渲染，前端用 Bootstrap + 原生 JS。
 - **强依赖 deltafq**：回测与策略体系完全复用 `deltafq`，本项目更像一套 Web 外壳。
-- **双引擎模式**：`SimulationEngine` 用于手动交易，`LiveEngineRunner` 用于策略自动运行；同一账户同一时间仅一种模式。
+- **双引擎模式**：`SimulationEngine` 用于手动交易，`StrategyEngine` 用于策略自动运行；同一账户同一时间仅一种模式。
 - **文件即数据库**：数据与结果全部以 CSV / JSON 落在 `data/` 目录，部署简单。
 - **易扩展**：新增策略 = 在 `data/strategies/` 写一个继承 `BaseStrategy` 的类，再通过前端选择即可。
 - **AI 小助手**：纯前端实现，基于关键词匹配的智能问答系统，支持上下文感知和快捷操作。

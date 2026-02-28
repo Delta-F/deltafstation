@@ -42,6 +42,8 @@ const GoStrategyApp = {
         monitorDailyChartCanvas: null,
         monitorDailyChartCtx: null,
         monitorDailyData: { dates: [], candles: [], signals: [] },
+        liveSignalHistory: [],
+        lastLiveSignalRunId: null,
         monitorCurrentChartType: 'daily',
         monitorCurrentIndicator: 'ma',
         monitorMarketData: {},
@@ -82,6 +84,18 @@ const GoStrategyApp = {
             if (message.includes('买入')) return 'buy';
             if (message.includes('卖出')) return 'sell';
             return 'info';
+        },
+        formatLogMessage(msg, type) {
+            if (msg.includes('策略执行买入:')) {
+                const m = msg.replace(/^策略执行买入:\s*/, '');
+                return `<span class="log-action-badge log-buy"><i class="fas fa-arrow-up me-1"></i>买入</span> ${m}`;
+            }
+            if (msg.includes('策略执行卖出:')) {
+                const m = msg.replace(/^策略执行卖出:\s*/, '');
+                return `<span class="log-action-badge log-sell"><i class="fas fa-arrow-down me-1"></i>卖出</span> ${m}`;
+            }
+            const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle';
+            return `<i class="fas ${icon} log-msg-icon log-${type} me-1"></i>${msg}`;
         }
     },
 
@@ -233,6 +247,28 @@ const GoStrategyApp = {
             await this.loadSimulations();
             const select = $('runAccountSelect');
             if (select) { select.value = simulationId; this.handleAccountSelectChange(); }
+        },
+
+        /** 刷新后恢复运行中账户状态（设置 currentRun、同步表单、加载 K 线） */
+        async restoreRunningState() {
+            let list = GoStrategyApp.state.allSimulations;
+            if (!list?.length) {
+                const { ok, data } = await apiRequest('/api/simulations');
+                list = ok ? data.simulations : [];
+            }
+            const running = list?.find(s => s.status === 'running');
+            if (!running) return;
+            const { ok: ok2, data: simData } = await apiRequest(`/api/simulations/${running.id}`);
+            if (!ok2 || !simData.simulation) return;
+            const sim = simData.simulation;
+            GoStrategyApp.state.currentRun = { ...sim, id: running.id };
+            const select = $('runAccountSelect');
+            if (select) { select.value = running.id; this.handleAccountSelectChange(); }
+            if (sim.strategy_id && $('runStrategySelect')) $('runStrategySelect').value = sim.strategy_id;
+            if (sim.symbol && $('runSymbol')) { $('runSymbol').value = sim.symbol; if ($('runSymbolName')) $('runSymbolName').value = sim.symbol; }
+            if ($('runSignalInterval')) $('runSignalInterval').value = sim.signal_interval || '1m';
+            await GoStrategyApp.charts.loadChartData(running.id);
+            GoStrategyApp.display.updateDisplay();
         }
     },
 
@@ -285,20 +321,24 @@ const GoStrategyApp = {
             chart.update('none');
         },
 
+        /** 历史K线，启动策略后拉一次；若引擎尚未就绪则短暂重试，拿到数据后不再请求。 */
         async loadChartData(accountId) {
-            const { ok, data } = await apiRequest(`/api/gostrategy/${accountId}/chart`);
-            if (!ok || !data.candles?.length) {
-                GoStrategyApp.state.monitorDailyData.dates = [];
-                GoStrategyApp.state.monitorDailyData.candles = [];
-                GoStrategyApp.state.monitorDailyData.signals = [];
-                return;
+            const maxRetries = 5;
+            const retryDelay = 2000;
+            for (let i = 0; i < maxRetries; i++) {
+                const { ok, data } = await apiRequest(`/api/gostrategy/${accountId}/chart`);
+                if (ok && data?.candles?.length) {
+                    const d = GoStrategyApp.state.monitorDailyData;
+                    d.dates = data.candles.map(c => (c.date && String(c.date)) || c.date || '');
+                    d.candles = data.candles;
+                    d.signals = data.signals || [];
+                    GoStrategyApp.charts.drawCandlestickChart();
+                    GoStrategyApp.monitor.updateYesterdayDisplay();
+                    return; /* 已获取到数据，结束 */
+                }
+                if (i < maxRetries - 1) await new Promise(r => setTimeout(r, retryDelay));
             }
-            const d = GoStrategyApp.state.monitorDailyData;
-            d.dates = data.candles.map(c => (c.date && String(c.date).slice(0, 10)) || c.date);
-            d.candles = data.candles;
-            d.signals = data.signals || [];
-            GoStrategyApp.charts.drawCandlestickChart();
-            GoStrategyApp.monitor.updateYesterdayDisplay();
+            /* 重试结束仍无数据，不覆盖已有数据 */
         },
 
         initMonitorDailyChart() {
@@ -505,8 +545,15 @@ const GoStrategyApp = {
                 const symbol = run.symbol || $('runSymbol')?.value;
                 const symbolTrades = run.trades.filter(t => t.symbol === symbol);
                 symbolTrades.forEach(trade => {
-                    const tradeDate = trade.date || trade.timestamp?.split('T')[0];
-                    const idx = monitorDailyData.dates.indexOf(tradeDate);
+                    let tradeDateTime = trade.date || trade.timestamp || '';
+                    if (tradeDateTime && String(tradeDateTime).includes('T')) {
+                        const [d, t] = String(tradeDateTime).split('T');
+                        tradeDateTime = d + ' ' + (t || '').slice(0, 5);
+                    }
+                    const tradeDate = (trade.date || trade.timestamp?.split?.('T')[0]) || '';
+                    let idx = monitorDailyData.dates.indexOf(tradeDateTime);
+                    if (idx === -1) idx = monitorDailyData.dates.indexOf(tradeDate);
+                    if (idx === -1) idx = monitorDailyData.dates.findIndex(d => d && String(d).startsWith(tradeDate));
                     if (idx === -1) return;
                     const candle = candles[idx];
                     const x = padding.left + spacing * (idx + 0.5);
@@ -665,17 +712,38 @@ const GoStrategyApp = {
         },
 
         updateYesterdayDisplay() {
-            const prevClose = $('monitorPrevClose');
-            const prevReturn = $('monitorPrevReturn');
+            const priceEl = $('monitorPrevClose');
+            const returnEl = $('monitorPrevReturn');
+            const labelEl = $('monitorPrevLabel');
+            if (!priceEl || !returnEl) return;
+            const interval = ($('runSignalInterval')?.value || '1m').toLowerCase();
+            if (labelEl) labelEl.textContent = interval === '1d' ? '昨日' : '较上根';
+            const run = GoStrategyApp.state.currentRun;
+            const symbol = run?.symbol || $('runSymbol')?.value?.trim() || '';
+            const quote = symbol ? GoStrategyApp.state.monitorMarketData[symbol] : null;
+            const hasValidQuote = quote && quote.status !== 'loading' && quote?.price != null && Number(quote.price) > 0;
+            if (!run || !hasValidQuote) {
+                priceEl.textContent = '--';
+                returnEl.textContent = '--';
+                returnEl.style.color = '#6c757d';
+                return;
+            }
+            const currentPrice = Number(quote.price);
             const candles = GoStrategyApp.state.monitorDailyData.candles;
-            if (!prevClose || !prevReturn || candles.length < 2) return;
-            const yesterday = candles[candles.length - 2];
-            const dayBefore = candles[candles.length - 3];
-            prevClose.textContent = yesterday.close.toFixed(2);
-            if (dayBefore) {
-                const ret = (yesterday.close - dayBefore.close) / dayBefore.close * 100;
-                prevReturn.textContent = (ret >= 0 ? '+' : '') + ret.toFixed(2) + '%';
-                prevReturn.style.color = ret >= 0 ? '#dc3545' : '#28a745';
+            priceEl.textContent = currentPrice.toFixed(2);
+            if (candles?.length >= 1) {
+                const lastClose = candles[candles.length - 1].close;
+                if (lastClose && lastClose > 0) {
+                    const ret = (currentPrice - lastClose) / lastClose * 100;
+                    returnEl.textContent = (ret >= 0 ? '+' : '') + ret.toFixed(2) + '%';
+                    returnEl.style.color = ret >= 0 ? '#dc3545' : '#28a745';
+                } else {
+                    returnEl.textContent = '--';
+                    returnEl.style.color = '#6c757d';
+                }
+            } else {
+                returnEl.textContent = '--';
+                returnEl.style.color = '#6c757d';
             }
         }
     },
@@ -686,7 +754,7 @@ const GoStrategyApp = {
             const strategyId = $('runStrategySelect')?.value;
             const accountId = $('runAccountSelect')?.value;
             const symbol = ($('runSymbol')?.value || '').trim().toUpperCase();
-            const signalInterval = ($('runSignalInterval')?.value || '1d').toLowerCase();
+            const signalInterval = ($('runSignalInterval')?.value || '1m').toLowerCase();
             if (!accountId) { showAlert('请选择或创建一个交易账户', 'warning'); return; }
             if (!strategyId) { showAlert('请选择策略', 'warning'); return; }
             if (!symbol) { showAlert('请填写投资标的', 'warning'); return; }
@@ -695,8 +763,8 @@ const GoStrategyApp = {
 
             addLog('正在向后端请求启动策略...', 'info');
             try {
-                const { ok, data: result } = await apiRequest(`/api/gostrategy/${accountId}/run`, {
-                    method: 'POST',
+                const { ok, data: result } = await apiRequest(`/api/gostrategy/${accountId}/strategy`, {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ strategy_id: strategyId, symbol, signal_interval: signalInterval, lookback_bars: 50 })
                 });
@@ -779,6 +847,10 @@ const GoStrategyApp = {
                     if (qOk && quote && quote.status !== 'loading')
                         GoStrategyApp.state.monitorMarketData[symbol] = quote;
                 }
+                if (run.status === 'running' && !GoStrategyApp.state.monitorDailyData.candles?.length) {
+                    await GoStrategyApp.charts.loadChartData(run.id);
+                    GoStrategyApp.display.updateDisplay();
+                }
             }
         }
     },
@@ -787,22 +859,27 @@ const GoStrategyApp = {
     display: {
         updateMonitor() {
             const run = GoStrategyApp.state.currentRun;
+            const hasCandles = (GoStrategyApp.state.monitorDailyData.candles?.length || 0) > 0;
             if (!run) {
+                GoStrategyApp.state.liveSignalHistory = [];
+                GoStrategyApp.state.lastLiveSignalRunId = null;
                 if ($('monitorPrevClose')) $('monitorPrevClose').textContent = '--';
                 if ($('monitorPrevReturn')) { $('monitorPrevReturn').textContent = '--'; $('monitorPrevReturn').style.color = '#6c757d'; }
-                const contentEl0 = $('monitorSignalContent');
-                const placeholderEl0 = $('monitorLastSignal');
-                if (contentEl0) contentEl0.style.display = 'none';
-                if (placeholderEl0) { placeholderEl0.style.display = 'inline'; placeholderEl0.textContent = '等待策略信号...'; placeholderEl0.style.color = '#6c757d'; }
-                if ($('monitorSignalTime')) $('monitorSignalTime').textContent = '--';
-                GoStrategyApp.state.monitorDailyData.dates = [];
-                GoStrategyApp.state.monitorDailyData.candles = [];
-                GoStrategyApp.state.monitorDailyData.signals = [];
-                const { monitorDailyChartCanvas: canvas, monitorDailyChartCtx: ctx } = GoStrategyApp.state;
-                if (canvas && ctx) {
-                    const w = canvas.offsetWidth, h = canvas.offsetHeight;
-                    canvas.width = w; canvas.height = h;
-                    ctx.clearRect(0, 0, w, h);
+                const sigBtn = $('monitorSignalBtn');
+                if (sigBtn) {
+                    sigBtn.className = 'monitor-signal-btn';
+                    const icon = sigBtn.querySelector('.monitor-signal-icon');
+                    const text = sigBtn.querySelector('.monitor-signal-text');
+                    if (icon) { icon.className = 'fas monitor-signal-icon'; }
+                    if (text) text.textContent = '等待策略信号';
+                }
+                if (!hasCandles) {
+                    const { monitorDailyChartCanvas: canvas, monitorDailyChartCtx: ctx } = GoStrategyApp.state;
+                    if (canvas && ctx) {
+                        const w = canvas.offsetWidth, h = canvas.offsetHeight;
+                        canvas.width = w; canvas.height = h;
+                        ctx.clearRect(0, 0, w, h);
+                    }
                 }
                 const chart = GoStrategyApp.state.equityChart;
                 if (chart) {
@@ -814,7 +891,19 @@ const GoStrategyApp = {
                     chart.update();
                 }
                 GoStrategyApp.monitor.updateQuoteBoard();
+                const chartPlaceholder = $('monitorChartPlaceholder');
+                if (chartPlaceholder) {
+                    if (hasCandles) {
+                        chartPlaceholder.classList.add('hide');
+                        GoStrategyApp.charts.drawCandlestickChart();
+                    } else chartPlaceholder.classList.remove('hide');
+                }
                 return;
+            }
+            const chartPlaceholder = $('monitorChartPlaceholder');
+            if (chartPlaceholder) {
+                if (hasCandles) chartPlaceholder.classList.add('hide');
+                else chartPlaceholder.classList.remove('hide');
             }
             const initial = run.initial_capital || 100000;
             const current = run.current_capital || initial;
@@ -836,8 +925,36 @@ const GoStrategyApp = {
 
             let winRate = '--';
             if (run.trades?.length) {
-                const sells = run.trades.filter(t => t.action === 'sell');
-                if (sells.length) winRate = ((sells.filter(() => Math.random() > 0.4).length / sells.length) * 100).toFixed(1) + '%';
+                const buyQueue = {};
+                let wins = 0, losses = 0;
+                run.trades.forEach(t => {
+                    if (t.action === 'buy') {
+                        const q = t.quantity || 0;
+                        if (q <= 0) return;
+                        if (!buyQueue[t.symbol]) buyQueue[t.symbol] = [];
+                        buyQueue[t.symbol].push({ price: t.price || 0, qty: q });
+                    } else if (t.action === 'sell') {
+                        let remaining = t.quantity || 0;
+                        const sellPrice = t.price || 0;
+                        let costBasis = 0;
+                        const queue = buyQueue[t.symbol] || [];
+                        while (remaining > 0 && queue.length > 0) {
+                            const buy = queue[0];
+                            const matchQty = Math.min(remaining, buy.qty);
+                            costBasis += matchQty * buy.price;
+                            remaining -= matchQty;
+                            buy.qty -= matchQty;
+                            if (buy.qty <= 0) queue.shift();
+                        }
+                        const realizedQty = (t.quantity || 0) - remaining;
+                        if (realizedQty > 0 && costBasis > 0) {
+                            const pnl = realizedQty * sellPrice - costBasis;
+                            if (pnl > 0) wins++; else if (pnl < 0) losses++;
+                        }
+                    }
+                });
+                const total = wins + losses;
+                if (total > 0) winRate = ((wins / total) * 100).toFixed(1) + '%';
             }
             if ($('metricWinRate')) $('metricWinRate').textContent = winRate;
 
@@ -885,38 +1002,27 @@ const GoStrategyApp = {
 
             const signalLabel = run.last_signal_label || (run.trades?.length ? null : '等待策略信号...');
             const lastTrade = run.trades?.length ? run.trades[run.trades.length - 1] : null;
-            const contentEl = $('monitorSignalContent');
-            const placeholderEl = $('monitorLastSignal');
-            let dotType = '';
-            if (lastTrade) {
-                const isBuy = lastTrade.action === 'buy';
-                dotType = isBuy ? 'buy' : 'sell';
-                if (contentEl) {
-                    contentEl.style.display = 'flex';
-                    const badge = $('monitorSignalBadge');
-                    const sym = $('monitorSignalSymbol');
-                    const qty = $('monitorSignalQty');
-                    const price = $('monitorSignalPrice');
-                    if (badge) { badge.textContent = isBuy ? '买入' : '卖出'; badge.className = 'signal-badge ' + (isBuy ? 'buy' : 'sell'); }
-                    if (sym) sym.textContent = lastTrade.symbol || '--';
-                    if (qty) qty.textContent = (lastTrade.quantity || 0) + '股';
-                    if (price) { price.textContent = '¥' + (lastTrade.price || 0).toFixed(2); price.className = 'signal-price ' + (isBuy ? 'buy' : 'sell'); }
+            const sigBtn = $('monitorSignalBtn');
+            if (sigBtn) {
+                const iconEl = sigBtn.querySelector('.monitor-signal-icon');
+                const textEl = sigBtn.querySelector('.monitor-signal-text');
+                let btnType = '';
+                let displayText = '等待策略信号';
+                let iconClass = 'fa-pause';
+                if (lastTrade) {
+                    const isBuy = lastTrade.action === 'buy';
+                    btnType = isBuy ? 'buy' : 'sell';
+                    iconClass = isBuy ? 'fa-arrow-up' : 'fa-arrow-down';
+                    displayText = (isBuy ? '买入' : '卖出') + ' ' + (lastTrade.symbol || '') + ' ' + (lastTrade.quantity || 0) + '股 @ ¥' + (lastTrade.price || 0).toFixed(2);
+                } else {
+                    displayText = signalLabel === '观望' ? '观望' : (signalLabel && signalLabel !== '等待策略信号...' ? signalLabel : '等待策略信号');
+                    btnType = signalLabel === '买入' ? 'buy' : (signalLabel === '卖出' ? 'sell' : '');
+                    iconClass = signalLabel === '买入' ? 'fa-arrow-up' : (signalLabel === '卖出' ? 'fa-arrow-down' : 'fa-pause');
                 }
-                if (placeholderEl) placeholderEl.style.display = 'none';
-                if ($('monitorSignalTime')) $('monitorSignalTime').textContent = formatTime(lastTrade.date || lastTrade.timestamp) || '--';
-            } else {
-                if (contentEl) contentEl.style.display = 'none';
-                if (placeholderEl) {
-                    placeholderEl.style.display = 'inline';
-                    const displayText = signalLabel === '观望' ? '当前: 观望' : (signalLabel && signalLabel !== '等待策略信号...' ? `当前: ${signalLabel}` : '等待策略信号...');
-                    placeholderEl.textContent = displayText;
-                    placeholderEl.style.color = signalLabel === '买入' ? '#dc3545' : (signalLabel === '卖出' ? '#198754' : '#6c757d');
-                }
-                dotType = signalLabel === '买入' ? 'buy' : (signalLabel === '卖出' ? 'sell' : '');
-                if ($('monitorSignalTime')) $('monitorSignalTime').textContent = '--';
+                sigBtn.className = 'monitor-signal-btn ' + (btnType || '');
+                if (iconEl) iconEl.className = 'fas ' + iconClass + ' monitor-signal-icon';
+                if (textEl) textEl.textContent = displayText;
             }
-            const dot = $('monitorSignalDot');
-            if (dot) dot.className = 'pulse-dot ' + (dotType || '');
             GoStrategyApp.charts.drawCandlestickChart();
             const updateTimeEl = $('monitorUpdateTime');
             if (updateTimeEl) updateTimeEl.textContent = new Date().toLocaleTimeString();
@@ -940,6 +1046,7 @@ const GoStrategyApp = {
                 this.updateOrdersDisplay();
                 this.updateTradesDisplay();
                 this.updatePositionsDisplay();
+                this.updateSignalsDisplay();
                 return;
             }
             const status = run.status || 'stopped';
@@ -971,7 +1078,68 @@ const GoStrategyApp = {
             this.updateOrdersDisplay();
             this.updateTradesDisplay();
             this.updatePositionsDisplay();
+            this.updateSignalsDisplay();
             this.updateMonitor();
+        },
+
+        updateSignalsDisplay() {
+            const tbody = $('signalsTableBody');
+            if (!tbody) return;
+            const { dates, candles, signals } = GoStrategyApp.state.monitorDailyData;
+            const run = GoStrategyApp.state.currentRun;
+            const hasHist = signals?.length && dates?.length && candles?.length;
+            const liveLabel = run?.last_signal_label;
+            const liveSig = run?.last_signal;
+            if (!hasHist && !liveLabel && !GoStrategyApp.state.liveSignalHistory?.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5"><i class="fas fa-chart-line fa-2x mb-3 opacity-3"></i><div>暂无信号</div></td></tr>';
+                return;
+            }
+            const formatDateTimeForCol = (d) => {
+                if (!d) return '--';
+                const str = String(d);
+                if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(str)) return str;
+                if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str + ' 00:00';
+                return str;
+            };
+            const rows = [];
+            if (liveLabel && run?.status === 'running') {
+                if (GoStrategyApp.state.lastLiveSignalRunId !== run.id) {
+                    GoStrategyApp.state.liveSignalHistory = [];
+                    GoStrategyApp.state.lastLiveSignalRunId = run.id;
+                }
+                const lastEntry = GoStrategyApp.state.liveSignalHistory[0];
+                const sym = run.symbol || $('runSymbol')?.value || '';
+                if (!lastEntry || lastEntry.label !== liveLabel) {
+                    const quote = sym ? GoStrategyApp.state.monitorMarketData[sym] : null;
+                    const livePrice = quote?.price ?? (candles?.length ? candles[candles.length - 1]?.close : null);
+                    const now = new Date();
+                    const liveTime = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                    GoStrategyApp.state.liveSignalHistory.unshift({ time: liveTime, label: liveLabel, sig: liveSig, price: livePrice, symbol: sym });
+                    if (GoStrategyApp.state.liveSignalHistory.length > 200) GoStrategyApp.state.liveSignalHistory.pop();
+                }
+                GoStrategyApp.state.liveSignalHistory.forEach(entry => {
+                    const icon = entry.sig === 1 ? 'fa-arrow-up' : entry.sig === -1 ? 'fa-arrow-down' : 'fa-pause';
+                    const cls = entry.sig === 1 ? 'signal-icon-buy' : entry.sig === -1 ? 'signal-icon-sell' : 'signal-icon-hold';
+                    const priceStr = entry.price != null ? '¥' + Number(entry.price).toFixed(2) : '--';
+                    const s = entry.symbol ?? sym;
+                    const sName = s;
+                    rows.push(`<tr class="signal-row-live"><td>实时</td><td>${entry.time}</td><td>${s || '--'}</td><td>${sName || '--'}</td><td><span class="signal-log-badge ${cls}"><i class="fas ${icon} me-1"></i>${entry.label}</span></td><td>${priceStr}</td></tr>`);
+                });
+            }
+            const histSym = run?.symbol || $('runSymbol')?.value || '';
+            const histSymName = histSym;
+            if (hasHist) {
+                for (let i = signals.length - 1; i >= 0; i--) {
+                    const sig = signals[i];
+                    const label = sig === 1 ? '买入' : sig === -1 ? '卖出' : '观望';
+                    const icon = sig === 1 ? 'fa-arrow-up' : sig === -1 ? 'fa-arrow-down' : 'fa-pause';
+                    const cls = sig === 1 ? 'signal-icon-buy' : sig === -1 ? 'signal-icon-sell' : 'signal-icon-hold';
+                    const date = formatDateTimeForCol(dates[i]);
+                    const triggerPrice = candles[i]?.close != null ? candles[i].close.toFixed(2) : '--';
+                    rows.push(`<tr><td>历史信号</td><td>${date}</td><td>${histSym || '--'}</td><td>${histSymName || '--'}</td><td><span class="signal-log-badge ${cls}"><i class="fas ${icon} me-1"></i>${label}</span></td><td>¥${triggerPrice}</td></tr>`);
+                }
+            }
+            tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="6" class="text-center text-muted py-5"><i class="fas fa-chart-line fa-2x mb-3 opacity-3"></i><div>暂无信号</div></td></tr>';
         },
 
         updateOrdersDisplay() {
@@ -1050,6 +1218,17 @@ const GoStrategyApp = {
                 nameInput.value = symbolInput.value;
                 symbolInput.addEventListener('input', () => { nameInput.value = symbolInput.value.toUpperCase(); });
             }
+            const singleAmountEl = $('runSingleAmount');
+            if (singleAmountEl) {
+                const formatWithSeparator = (v) => {
+                    const num = parseFloat(String(v).replace(/,/g, '')) || 0;
+                    return num.toLocaleString('zh-CN', { maximumFractionDigits: 0 });
+                };
+                singleAmountEl.addEventListener('blur', () => {
+                    const raw = singleAmountEl.value.replace(/,/g, '');
+                    if (raw !== '') singleAmountEl.value = formatWithSeparator(raw);
+                });
+            }
         },
 
         startClocks() {
@@ -1077,9 +1256,14 @@ const GoStrategyApp = {
             const tbody = $('logTableBody');
             if (!tbody) return;
             const logs = GoStrategyApp.state.logs;
-            if (logs.length === 0) { tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-3" style="font-size: 11px;"><i class="fas fa-info-circle me-1"></i>暂无日志</td></tr>'; return; }
-            const colorClass = type => (type === 'buy' ? 'log-buy' : type === 'sell' ? 'log-sell' : 'log-info');
-            tbody.innerHTML = logs.slice().reverse().map(log => `<tr><td style="width: 100px; min-width: 100px; font-size: 11px; color: #6c757d;">${log.time}</td><td class="${colorClass(GoStrategyApp.utils.getLogColorType(log.message))}" style="font-size: 11px; word-break: break-word;">${log.message}</td></tr>`).join('');
+            if (logs.length === 0) { tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted py-4"><i class="fas fa-list-alt fa-2x mb-2 opacity-3 d-block"></i>暂无日志</td></tr>'; return; }
+            const colorType = msg => GoStrategyApp.utils.getLogColorType(msg);
+            tbody.innerHTML = logs.slice().reverse().map((log, i) => {
+                const ct = colorType(log.message);
+                const rowClass = `log-row log-row-${i % 2 === 0 ? 'even' : 'odd'} log-type-${ct}`;
+                const msgHtml = GoStrategyApp.utils.formatLogMessage(log.message, log.type);
+                return `<tr class="${rowClass}"><td class="log-time">${log.time}</td><td class="log-msg">${msgHtml}</td></tr>`;
+            }).join('');
             const container = tbody.closest('.table-container');
             if (container) container.scrollTop = container.scrollHeight;
         },
@@ -1088,17 +1272,16 @@ const GoStrategyApp = {
 
     /** 初始化入口。 */
     async init() {
-        GoStrategyApp.strategy.loadStrategies();
-        GoStrategyApp.account.loadSimulations();
         GoStrategyApp.charts.initEquityChart();
         GoStrategyApp.charts.initMonitorDailyChart();
         GoStrategyApp.monitor.initMarketData();
         GoStrategyApp.ui.initListeners();
-        setTimeout(() => {
-            GoStrategyApp.display.updateDisplay();
-            GoStrategyApp.display.updateMonitor();
-            GoStrategyApp.monitor.updateQuoteBoard();
-        }, 100);
+        await GoStrategyApp.strategy.loadStrategies();
+        await GoStrategyApp.account.loadSimulations();
+        await GoStrategyApp.account.restoreRunningState();
+        GoStrategyApp.display.updateDisplay();
+        GoStrategyApp.display.updateMonitor();
+        GoStrategyApp.monitor.updateQuoteBoard();
         GoStrategyApp.ui.startClocks();
         GoStrategyApp.state.timers.refresh = setInterval(() => {
             if (GoStrategyApp.state.currentRun) GoStrategyApp.run.refresh();

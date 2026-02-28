@@ -26,10 +26,7 @@ from deltafq.live.event_engine import EVENT_TICK
 from deltafq.live.gateway_registry import create_data_gateway, create_trade_gateway
 from deltafq.live.models import OrderRequest
 
-
-def _ts_str(ts: Any) -> str:
-    """时间戳转字符串，兼容 datetime 或其它类型。"""
-    return ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
+from backend.core.utils.engine_state import build_state_from_engine
 
 
 def _pending_order_request(o: dict) -> Optional[OrderRequest]:
@@ -184,33 +181,7 @@ class SimulationEngine:
         if account_id not in cls._accounts:
             return None
         eng = cls._accounts[account_id]["trade_gw"]._engine
-        pos = {s: {"quantity": p["quantity"], "avg_price": p["avg_price"]}
-                for s, p in eng.position_manager.positions.items()}
-        trades = [
-            {
-                "symbol": t["symbol"], "action": t["type"], "quantity": abs(t["quantity"]),
-                "price": t["price"], "timestamp": _ts_str(t.get("timestamp")),
-                "order_id": t.get("order_id"), "commission": t.get("commission", 0),
-            }
-            for t in eng.trades
-        ]
-        orders = []
-        frozen_capital = 0.0
-        for o in eng.order_manager.get_order_history():
-            orders.append({
-                "id": o["id"], "symbol": o["symbol"], "action": "buy" if o["quantity"] > 0 else "sell",
-                "quantity": abs(o["quantity"]), "price": o["price"], "status": o["status"],
-                "type": o["order_type"], "time": _ts_str(o.get("created_at")),
-            })
-            if o["status"] == "pending" and o["quantity"] > 0 and o["price"]:
-                frozen_capital += o["quantity"] * o["price"]
-        return {
-            "current_capital": eng.cash,
-            "positions": pos,
-            "trades": trades,
-            "orders": orders,
-            "frozen_capital": frozen_capital,
-        }
+        return build_state_from_engine(eng)
 
     @classmethod
     def subscribe(cls, account_id: str, symbol: str) -> None:

@@ -18,6 +18,7 @@ import json
 from datetime import datetime
 
 from backend.core.simulation_engine import SimulationEngine
+from backend.core.strategy_engine import StrategyEngine
 
 simulation_bp = Blueprint('simulation', __name__)
 
@@ -147,7 +148,7 @@ def list_simulations():
                 s = json.load(f)
             sid = s.get('id', fn.replace('.json', ''))
             st = s.get('status', 'unknown')
-            if st == 'running' and not SimulationEngine.is_running(sid):
+            if st == 'running' and not SimulationEngine.is_running(sid) and not StrategyEngine.is_running(sid):
                 st = 'stopped'
             simulations.append({
                 'id': sid, 'name': s.get('name', sid), 'account_type': s.get('account_type', 'local_paper'),
@@ -173,6 +174,17 @@ def get_simulation_status(simulation_id):
             saved_orders = config.get('orders', [])
             _apply_state_to_config(config, state)
             config['orders'] = _merge_order_history(saved_orders, state.get('orders') or [])
+        config['status'] = 'running'
+    elif StrategyEngine.is_running(simulation_id):
+        state = StrategyEngine.get_state(simulation_id)
+        if state:
+            saved_orders = config.get('orders', [])
+            _apply_state_to_config(config, state)
+            config['orders'] = _merge_order_history(saved_orders, state.get('orders') or [])
+        run_info = StrategyEngine.get_run_info(simulation_id)
+        if run_info:
+            config['last_signal'] = run_info.get('last_signal')
+            config['last_signal_label'] = run_info.get('last_signal_label')
         config['status'] = 'running'
     elif config.get('status') == 'running':
         # 配置里标记为 running，但引擎没有在跑，修正为 stopped 并写回一次
@@ -269,12 +281,16 @@ def stop_simulation(simulation_id):
     if SimulationEngine.is_running(simulation_id):
         state = SimulationEngine.get_state(simulation_id)
         SimulationEngine.stop(simulation_id)
+    elif StrategyEngine.is_running(simulation_id):
+        state = StrategyEngine.stop(simulation_id)
     with open(_config_path(simulation_id), 'r', encoding='utf-8') as f:
         config = json.load(f)
     if state:
         _apply_state_to_config(config, state)
         config['engine_state'] = state
     config['status'] = 'stopped'
+    config.pop('strategy_id', None)
+    config.pop('symbol', None)
     config['stopped_at'] = datetime.now().isoformat()
     with open(_config_path(simulation_id), 'w', encoding='utf-8') as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
@@ -289,6 +305,8 @@ def delete_simulation(simulation_id):
         return jsonify({'error': 'Simulation not found'}), 404
     if SimulationEngine.is_running(simulation_id):
         SimulationEngine.stop(simulation_id)
+    if StrategyEngine.is_running(simulation_id):
+        StrategyEngine.stop(simulation_id)
     try:
         os.remove(path)
         return jsonify({'message': 'Simulation deleted'})

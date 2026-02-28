@@ -3,12 +3,14 @@ import os
 import json
 from datetime import datetime
 
-from backend.core.live_engine_runner import LiveEngineRunner
+from backend.core.strategy_engine import StrategyEngine
 from backend.core.simulation_engine import SimulationEngine
+
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 
 def sim_folder():
-    return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'simulations')
+    return os.path.join(_BASE_DIR, 'data', 'simulations')
 
 
 def config_path(sid):
@@ -16,9 +18,9 @@ def config_path(sid):
 
 
 def stop_same_account(account_id: str) -> None:
-    """停掉该账户上的已有实例（仿真或 LiveEngine），并持久化 state 到配置。"""
-    if LiveEngineRunner.is_running(account_id):
-        state = LiveEngineRunner.stop(account_id)
+    """停掉该账户上的已有实例（仿真或 StrategyEngine），并持久化 state 到配置。"""
+    if StrategyEngine.is_running(account_id):
+        state = StrategyEngine.stop(account_id)
         if state and os.path.exists(config_path(account_id)):
             try:
                 with open(config_path(account_id), 'r', encoding='utf-8') as f:
