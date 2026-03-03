@@ -85,6 +85,10 @@ body {
     height: 360px !important;
     flex: 0 0 360px !important;
 }
+.account-card {
+    height: auto !important;
+    flex: 0 0 auto !important;
+}
 .account-card .card-body {
     padding: 0.75rem !important;
     display: flex;
@@ -109,12 +113,12 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.5rem 0;
+    padding: 0.7rem 0;
     border-bottom: 1px solid #f0f0f0;
 }
 .account-info:last-of-type {
     border-bottom: none;
-    margin-bottom: 1rem !important;
+    margin-bottom: 1.25rem !important;
 }
 .account-info small {
     font-size: 12px;
@@ -130,6 +134,42 @@ body {
     line-height: 1.5;
     text-align: right;
     flex-shrink: 0;
+}
+
+.account-manage-btn {
+    border-radius: 999px;
+    padding: 0.35rem 1rem;
+    font-size: 13px;
+    border: 1px solid #dee2e6;
+    background-color: #ffffff;
+    color: #495057;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.account-manage-btn i {
+    font-size: 13px;
+}
+
+.account-manage-btn:hover {
+    background-color: #f8f9fa;
+    border-color: #ced4da;
+}
+
+.account-status-badge {
+    border-radius: 999px;
+    padding: 0.1rem 0.7rem;
+    font-size: 11px;
+    font-weight: 500;
+}
+.account-status-running {
+    background: linear-gradient(135deg, #1ebe6b, #0ca34a);
+    color: #ffffff;
+    border: 1px solid #0b8c3f;
+}
+.account-status-stopped {
+    background-color: #f1f3f5;
+    color: #6c757d;
+    border: 1px solid #ced4da;
 }
 
 /* ========== 4. 买卖表单 ========== */

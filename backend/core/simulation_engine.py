@@ -26,7 +26,7 @@ from deltafq.live.event_engine import EVENT_TICK
 from deltafq.live.gateway_registry import create_data_gateway, create_trade_gateway
 from deltafq.live.models import OrderRequest
 
-from backend.core.utils.engine_state import build_state_from_engine
+from backend.core.utils.engine_state import build_state_from_engine, restore_engine_from_state
 
 
 def _pending_order_request(o: dict) -> Optional[OrderRequest]:
@@ -101,56 +101,7 @@ class SimulationEngine:
         # 如有快照，恢复资金 / 持仓 / 成交 / 订单
         if state:
             eng = trade_gw._engine
-            if state.get("current_capital") is not None:
-                eng.cash = float(state["current_capital"])
-            for sym, p in state.get("positions", {}).items():
-                eng.position_manager.positions[sym] = {
-                    "quantity": p.get("quantity", 0),
-                    "avg_price": p.get("avg_price", 0.0),
-                }
-            # 恢复历史成交，保证重启后成交列表可回显
-            eng.trades = []
-            for t in state.get("trades", []):
-                action = t.get("action", "buy")
-                qty = int(t.get("quantity", 0) or 0)
-                signed_qty = qty if action == "buy" else -qty
-                eng.trades.append({
-                    "symbol": t.get("symbol"),
-                    "type": action,
-                    "quantity": signed_qty,
-                    "price": float(t.get("price", 0) or 0),
-                    "timestamp": t.get("timestamp"),
-                    "order_id": t.get("order_id"),
-                    "commission": float(t.get("commission", 0) or 0),
-                })
-
-            # 直接恢复 order_manager 内部订单字典，保留原始 id，避免重启后从 ORD_000001 重新编号
-            om = eng.order_manager
-            om.orders = {}
-            max_seq = int(getattr(om, "order_counter", 0) or 0)
-            for o in state.get("orders", []):
-                oid = o.get("id")
-                if not oid:
-                    continue
-                action = o.get("action", "buy")
-                qty = int(o.get("quantity", 0) or 0)
-                signed_qty = qty if action == "buy" else -qty
-                created_at = _parse_dt(o.get("time"))
-                om.orders[oid] = {
-                    "id": oid,
-                    "symbol": o.get("symbol"),
-                    "quantity": signed_qty,
-                    "order_type": o.get("type", "limit"),
-                    "price": float(o.get("price", 0) or 0),
-                    "stop_price": None,
-                    "status": o.get("status", "pending"),
-                    "created_at": created_at,
-                    "updated_at": created_at,
-                }
-                max_seq = max(max_seq, _order_seq(oid))
-
-            # 推进计数器，确保新委托编号在历史最大号之后继续递增
-            om.order_counter = max_seq
+            restore_engine_from_state(eng, state)
 
     @classmethod
     def stop(cls, account_id: str) -> None:

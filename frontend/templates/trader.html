@@ -209,19 +209,20 @@
                     </div>
                     <div class="card-body">
                         <div class="account-info">
-                            <small>账号</small>
-                            <span id="accountId">--</span>
+                            <small>交易账户</small>
+                            <span id="accountNameDisplay">--</span>
                         </div>
                         <div class="account-info">
-                            <small>类型</small>
+                            <small>账号类型</small>
                             <span id="brokerName">--</span>
                         </div>
                         <div class="account-info">
-                            <small>费率</small>
+                            <small>交易费率</small>
                             <span id="commissionDisplay">--</span>
                         </div>
-                        <button class="btn btn-sm btn-primary w-100 mt-auto" onclick="handleAccountAction()" id="accountActionBtn">
-                            <i class="fas fa-play me-1"></i>启动账户
+                        <button class="btn btn-sm btn-outline-secondary w-100 mt-auto fw-bold d-flex align-items-center justify-content-center account-manage-btn"
+                                onclick="handleAccountAction()" id="accountActionBtn" type="button">
+                            <i class="fas fa-sliders-h me-2"></i>管理账户
                         </button>
                     </div>
                 </div>

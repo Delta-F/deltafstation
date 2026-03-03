@@ -174,7 +174,8 @@ const GoStrategyApp = {
                 data.simulations.forEach(sim => {
                     const opt = document.createElement('option');
                     opt.value = sim.id;
-                    opt.textContent = sim.id + (sim.status === 'running' ? ' (运行中)' : '');
+                    const label = (sim.name || sim.id || '') + (sim.id ? ` (${sim.id})` : '');
+                    opt.textContent = label;
                     if (sim.status === 'running') opt.classList.add('text-success', 'fw-bold');
                     select.appendChild(opt);
                 });
@@ -676,6 +677,12 @@ const GoStrategyApp = {
         initMarketData() {
         },
 
+        /**
+         * 更新策略运行页右侧五档盘口。
+         * 注意：/api/data/live 当前只返回 price、volume 等，不返回 bids/asks。
+         * 若接口未提供真实盘口，则用当前价 + 固定价差 + 合成量显示五档，与交易页 trader.js 逻辑一致。
+         * 后续若后端增加 bids/asks 字段，此处会优先使用真实数据，请勿删除 fallback 合成逻辑以免无数据时全显示 --。
+         */
         updateQuoteBoard() {
             const run = GoStrategyApp.state.currentRun;
             const symbol = run?.symbol || $('runSymbol')?.value?.trim() || '';
@@ -697,15 +704,21 @@ const GoStrategyApp = {
                 return;
             }
 
+            const currentPrice = quote.price != null ? Number(quote.price) : 0;
+            const baseVol = quote.volume ?? 5000;
+            const spread = 0.01;
+            const synthVol = () => Math.floor((baseVol && baseVol > 0 ? baseVol * 0.001 : 5000) * (0.8 + Math.random() * 0.4));
+
             const hasBids = Array.isArray(quote.bids) && quote.bids.length > 0;
             const hasAsks = Array.isArray(quote.asks) && quote.asks.length > 0;
+
             for (let i = 1; i <= 5; i++) {
                 const bid = hasBids ? quote.bids[i - 1] : null;
                 const ask = hasAsks ? quote.asks[i - 1] : null;
-                const bidPrice = bid?.[0] ?? null;
-                const bidVol = bid?.[1] ?? null;
-                const askPrice = ask?.[0] ?? null;
-                const askVol = ask?.[1] ?? null;
+                const bidPrice = bid?.[0] ?? (currentPrice > 0 ? currentPrice - spread * i : null);
+                const bidVol = bid?.[1] ?? (currentPrice > 0 ? synthVol() : null);
+                const askPrice = ask?.[0] ?? (currentPrice > 0 ? currentPrice + spread * i : null);
+                const askVol = ask?.[1] ?? (currentPrice > 0 ? synthVol() : null);
                 setRow('monitorQuoteBid', i, bidPrice, bidVol);
                 setRow('monitorQuoteAsk', i, askPrice, askVol);
             }
@@ -1073,7 +1086,10 @@ const GoStrategyApp = {
             if (pnlEl) { pnlEl.textContent = (totalPnL >= 0 ? '+' : '') + '¥' + totalPnL.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); pnlEl.className = 'account-value ' + (totalPnL > 0 ? 'text-danger' : totalPnL < 0 ? 'text-success' : ''); pnlEl.style.color = totalPnL > 0 ? '#dc3545' : (totalPnL < 0 ? '#28a745' : '#343a40'); }
             const returnEl = $('totalReturn');
             if (returnEl) { returnEl.textContent = (totalReturnNum >= 0 ? '+' : '') + totalReturn + '%'; returnEl.className = 'account-value ' + (totalReturnNum > 0 ? 'text-danger' : totalReturnNum < 0 ? 'text-success' : ''); returnEl.style.color = totalReturnNum > 0 ? '#dc3545' : (totalReturnNum < 0 ? '#28a745' : '#343a40'); }
-            if ($('accountId')) $('accountId').textContent = run.id || '--';
+            if ($('accountId')) {
+                const accLabel = (run.name || run.id || '--') + (run.id ? ` (${run.id})` : '');
+                $('accountId').textContent = accLabel;
+            }
             if ($('commissionDisplay')) $('commissionDisplay').textContent = ((run.commission || 0.001) * 100).toFixed(2) + '%';
             const startBtn = $('startStrategyBtn');
             const stopBtn = $('stopStrategyBtn');
@@ -1164,7 +1180,15 @@ const GoStrategyApp = {
                 const statusText = statusMap[o.status] || o.status || '--';
                 const statusCls = statusClass[o.status] || '';
                 const oid = (o.id || '').replace(/^order_/, '');
-                return `<tr><td>${oid}</td><td>${o.symbol || '--'}</td><td>${o.symbol || '--'}</td><td><span class="direction-badge ${cls}">${isBuy ? '买入' : '卖出'}</span></td><td>¥${(o.price || 0).toFixed(2)}</td><td>${o.quantity || 0}</td><td>${filledQty}</td><td><span class="order-status ${statusCls}">${statusText}</span></td><td>${formatDateTime(o.time)}</td><td>--</td></tr>`;
+                const rawTime = o.time;
+                let timeStr = '--';
+                if (rawTime) {
+                    const d = new Date(rawTime);
+                    timeStr = isNaN(d.getTime())
+                        ? String(rawTime)
+                        : d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN', { hour12: false });
+                }
+                return `<tr><td>${oid}</td><td>${o.symbol || '--'}</td><td>${o.symbol || '--'}</td><td><span class="direction-badge ${cls}">${isBuy ? '买入' : '卖出'}</span></td><td>¥${(o.price || 0).toFixed(2)}</td><td>${o.quantity || 0}</td><td>${filledQty}</td><td><span class="order-status ${statusCls}">${statusText}</span></td><td>${timeStr}</td><td>--</td></tr>`;
             }).join('');
         },
 
@@ -1181,7 +1205,9 @@ const GoStrategyApp = {
                 const dir = t.action === 'buy' ? '买入' : '卖出';
                 const cls = t.action === 'buy' ? 'buy' : 'sell';
                 const amount = (t.price || 0) * (t.quantity || 0);
-                return `<tr><td>${10000001 + list.length - i - 1}</td><td>${(t.order_id || `order_${10000001 + list.length - i - 1}`).replace('order_', '')}</td><td>${t.symbol || '--'}</td><td>${t.symbol || '--'}</td><td><span class="direction-badge ${cls}">${dir}</span></td><td>¥${(t.price || 0).toFixed(2)}</td><td>${t.quantity || 0}</td><td>¥${amount.toFixed(2)}</td><td>${formatDateTime(t.date || t.timestamp)}</td></tr>`;
+                const rawTs = t.date || t.timestamp;
+                const timeStr = rawTs ? formatEngineTimeToLocal(rawTs) : '--';
+                return `<tr><td>${10000001 + list.length - i - 1}</td><td>${(t.order_id || `order_${10000001 + list.length - i - 1}`).replace('order_', '')}</td><td>${t.symbol || '--'}</td><td>${t.symbol || '--'}</td><td><span class="direction-badge ${cls}">${dir}</span></td><td>¥${(t.price || 0).toFixed(2)}</td><td>${t.quantity || 0}</td><td>¥${amount.toFixed(2)}</td><td>${timeStr}</td></tr>`;
             }).join('');
         },
 

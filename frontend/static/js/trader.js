@@ -894,12 +894,8 @@ const TraderApp = {
 
                 const leftDiv = document.createElement('div');
                 leftDiv.className = 'd-flex align-items-center gap-2 flex-grow-1';
-                leftDiv.innerHTML = `
-                    <span class="fw-500 text-dark" style="font-size: 14px;">${s.name || s.id}</span>
-                    ${isRunning 
-                        ? '<span class="badge bg-success bg-opacity-10 text-success rounded-pill" style="font-size: 11px; font-weight: 500;">运行中</span>' 
-                        : '<span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill" style="font-size: 11px; font-weight: 500;">已停止</span>'}
-                `;
+                const label = (s.name || s.id || '--') + (s.id ? ` (${s.id})` : '');
+                leftDiv.innerHTML = `<span class="fw-500 text-dark" style="font-size: 14px;">${label}</span>`;
                 leftDiv.onclick = async () => {
                     if (pending.id) return;
                     await this.loadAccount(s.id);
@@ -938,6 +934,13 @@ const TraderApp = {
                         this.renderManageAccountList();
                     };
                 } else {
+                    const statusBadge = document.createElement('span');
+                    statusBadge.className = isRunning
+                        ? 'badge account-status-badge account-status-running'
+                        : 'badge account-status-badge account-status-stopped';
+                    statusBadge.textContent = isRunning ? '运行中' : '已停止';
+                    rightDiv.appendChild(statusBadge);
+
                     if (isRunning) {
                         const btn = document.createElement('button');
                         btn.className = 'btn btn-icon-only text-danger stop-account-btn';
@@ -1247,6 +1250,7 @@ const TraderApp = {
         updateAccountOverview() {
             const sim = TraderApp.state.simulation;
             if (!sim) {
+                if ($('accountNameDisplay')) $('accountNameDisplay').textContent = '--';
                 if ($('accountId')) $('accountId').textContent = '--';
                 if ($('brokerName')) $('brokerName').textContent = '--';
                 if ($('commissionDisplay')) $('commissionDisplay').textContent = '--';
@@ -1279,7 +1283,11 @@ const TraderApp = {
             statusEl.textContent = sim.status === 'running' ? '运行中' : '已关闭';
             statusEl.className = 'simulation-status ' + (sim.status === 'running' ? 'running' : 'stopped');
             
-            if ($('accountId')) $('accountId').textContent = sim.name || sim.id || '--';
+            if ($('accountNameDisplay')) {
+                const label = (sim.name || sim.id || '--') + (sim.id ? ` (${sim.id})` : '');
+                $('accountNameDisplay').textContent = label;
+            }
+            if ($('accountId')) $('accountId').textContent = sim.id || '--';
             if ($('brokerName')) $('brokerName').textContent = sim.account_type === 'broker' ? '券商实盘' : '本地模拟';
             if ($('commissionDisplay')) $('commissionDisplay').textContent = ((sim.commission || 0.001) * 100).toFixed(2) + '%';
         },
@@ -1329,8 +1337,7 @@ const TraderApp = {
             
             body.innerHTML = sortedTrades.map((t, i) => {
                 const amt = (t.price || 0) * (t.quantity || 0);
-                const iso = typeof t.timestamp === 'string' && !/Z|[+-]\d{2}:?\d{2}$/.test(t.timestamp) ? t.timestamp + 'Z' : t.timestamp;
-                const timeStr = new Date(iso).toLocaleTimeString('zh-CN', { hour12: false, timeZone: 'Asia/Shanghai' });
+                const timeStr = formatEngineTimeToLocal(t.timestamp);
                 const directionText = t.action === 'buy' ? '买入' : '卖出';
                 const tradeId = 'sim_' + (ts.length - i).toString().padStart(6, '0');
                 const strategyLabel = t.strategy_id || 'manual';
@@ -1363,7 +1370,10 @@ const TraderApp = {
                 const statusMap = { 'pending': '已报', 'executed': '全部成交', 'cancelled': '已撤单' };
                 const statusClass = { 'pending': 'text-primary', 'executed': 'text-success', 'cancelled': 'text-muted' };
                 const filledQty = o.status === 'executed' ? o.quantity : 0; 
-                const timeStr = new Date(o.time).toLocaleTimeString('zh-CN', { hour12: false });
+                const d = new Date(o.time);
+                const timeStr = isNaN(d.getTime())
+                    ? String(o.time || '')
+                    : d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN', { hour12: false });
                 const strategyLabel = o.strategy_id || 'manual';
 
                 let actionBtn = '';

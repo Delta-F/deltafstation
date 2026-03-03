@@ -180,17 +180,17 @@ def get_simulation_status(simulation_id):
         config['status'] = 'running'
     elif StrategyEngine.is_running(simulation_id):
         state = StrategyEngine.get_state(simulation_id)
+        run_info = StrategyEngine.get_run_info(simulation_id)
         if state:
             saved_orders = config.get('orders', [])
+            sid = (run_info or {}).get('strategy_id')
+            if sid:
+                inject_strategy_id(state, sid)
             _apply_state_to_config(config, state)
             config['orders'] = _merge_order_history(saved_orders, state.get('orders') or [])
-        run_info = StrategyEngine.get_run_info(simulation_id)
         if run_info:
             config['last_signal'] = run_info.get('last_signal')
             config['last_signal_label'] = run_info.get('last_signal_label')
-            sid = run_info.get('strategy_id')
-            if sid:
-                inject_strategy_id(config, sid)
         config['status'] = 'running'
     elif config.get('status') == 'running':
         # 配置里标记为 running，但引擎没有在跑，修正为 stopped 并写回一次

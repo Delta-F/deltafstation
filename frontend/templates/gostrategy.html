@@ -121,13 +121,16 @@
                     <div class="card-body">
                         <form id="runStrategyForm" class="flex-grow-1 d-flex flex-column justify-content-between">
                             <div class="trade-form-row">
-                                <label class="form-label">交易账户</label>
+                                <label class="form-label">
+                                    交易账户
+                                    <i class="fas fa-info-circle text-muted ms-1"
+                                       title="交易账户请在“交易”页面的「管理账户」中创建和管理"></i>
+                                </label>
                                 <div class="trade-form-content">
                                     <div class="d-flex gap-2">
                                         <select class="form-select form-select-sm" id="runAccountSelect" onchange="handleAccountSelectChange()" required>
-                                            <option value="">请选择账户</option>
+                                            <option value="">请选择交易账户</option>
                                         </select>
-                                        <button type="button" class="btn btn-sm btn-outline-success px-2" onclick="showCreateAccount()" title="新建账户"><i class="fas fa-plus"></i></button>
                                     </div>
                                     <div id="accountConfigPreview" class="mt-2 p-2 bg-light border rounded" style="display: none; border-style: dashed !important;">
                                         <div class="d-flex justify-content-between mb-1">
@@ -175,7 +178,7 @@
                             <div class="trade-form-row">
                                 <label class="form-label">单次投入</label>
                                 <div class="trade-form-content">
-                                    <input type="text" class="form-control form-control-sm" id="runSingleAmount" value="" placeholder="不填则用账户全部资金" inputmode="numeric">
+                                    <input type="text" class="form-control form-control-sm" id="runSingleAmount" value="100000" placeholder="不填则用账户全部资金" inputmode="numeric">
                                 </div>
                             </div>
                             <input type="hidden" id="runInitialCapital" value="100000">
@@ -394,32 +397,7 @@
 
     <!-- ========== 3. 模态框 (Modals) ========== -->
     
-    <!-- 3.1 管理账户模态框 -->
-    <div class="modal fade manage-modal" id="createAccountModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered manage-modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-wallet me-2"></i>管理账户</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="createAccountForm" class="manage-account-form">
-                        <div class="trade-form-row"><label class="form-label">账户名称</label><div class="flex-grow-1 text-end"><input type="text" class="form-control form-control-sm" id="accountName" placeholder="sim_001" maxlength="32"></div></div>
-                        <div class="trade-form-row"><label class="form-label">账户类型</label><div class="flex-row-nowrap justify-content-end"><label class="manage-radio-option"><input type="radio" name="accountType" value="local_paper" checked> 本地模拟</label><label class="manage-radio-option"><input type="radio" name="accountType" value="broker"> 券商实盘</label></div></div>
-                        <div class="trade-form-row"><label class="form-label">初始资金</label><div class="flex-grow-1 text-end"><input type="number" class="form-control form-control-sm" id="accountCapital" value="1000000"></div></div>
-                        <div class="trade-form-row"><label class="form-label">手续费率</label><div class="flex-grow-1 text-end"><input type="number" class="form-control form-control-sm" id="accountCommission" value="0.001" step="0.0001"></div></div>
-                        <div class="trade-form-row"><label class="form-label">滑点</label><div class="flex-grow-1 text-end"><input type="number" class="form-control form-control-sm" id="accountSlippage" value="0.0005" step="0.0001"></div></div>
-                    </form>
-                </div>
-                <div class="modal-footer d-flex justify-content-between align-items-center">
-                    <button type="button" class="btn btn-icon-only text-secondary" data-bs-dismiss="modal" title="返回"><i class="fas fa-chevron-left"></i></button>
-                    <button type="button" class="btn btn-icon-only text-success" onclick="createAccount()" title="确认创建"><i class="fas fa-check"></i></button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 3.2 策略源码查看模态框 -->
+    <!-- 3.1 策略源码查看模态框 -->
     <div class="modal fade" id="strategyCodeModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-xl">
             <div class="modal-content">

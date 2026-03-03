@@ -103,6 +103,34 @@ function formatDateTime(dateString) {
     }
 }
 
+/**
+ * 将引擎返回的 UTC 风格时间戳格式化为本地日期+时间（默认按上海时区）。
+ *
+ * 约定：
+ * - 主要用于 trades 等字段，如 "2026-03-03T06:28:28.883029"
+ * - 若字符串末尾没有时区信息（Z 或 ±HH:MM），视为 UTC，自动补 Z 再转 Asia/Shanghai
+ * - 默认返回类似 "2026/3/3 14:28:28" 的文本，便于在成交/信号表中区分不同交易日
+ *
+ * 注意：
+ * - 手工下单等本地时间（datetime.now()）不应使用本函数，直接用 new Date(...).toLocaleString/Time 即可。
+ */
+function formatEngineTimeToLocal(timeLike, options) {
+    if (!timeLike) return '--';
+    try {
+        const raw = String(timeLike);
+        const iso = /Z|[+-]\d{2}:?\d{2}$/.test(raw) ? raw : raw + 'Z';
+        const date = new Date(iso);
+        if (isNaN(date.getTime())) return raw;
+        const baseOpts = { hour12: false, timeZone: 'Asia/Shanghai' };
+        const timeOpts = Object.assign({}, baseOpts, options || {});
+        const dateStr = date.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        const timeStr = date.toLocaleTimeString('zh-CN', timeOpts);
+        return dateStr + ' ' + timeStr;
+    } catch (e) {
+        return String(timeLike);
+    }
+}
+
 // ========== 3. 表格空状态渲染 ==========
 
 /** 统一表格空状态行 HTML 生成（垂直居中）。 */

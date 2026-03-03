@@ -1,189 +1,34 @@
 {
   "id": "SIM_0001",
-  "name": "本地模拟账户",
+  "name": "paper trade 1",
   "account_type": "local_paper",
-  "initial_capital": 1000000.0,
+  "initial_capital": 880000.0,
   "commission": 0.001,
   "slippage": 0.0005,
   "status": "running",
-  "created_at": "2026-02-24T17:27:42.354470",
-  "current_capital": 62898.960125000216,
-  "positions": {
-    "BTC-USD": {
-      "quantity": 14,
-      "avg_price": 65837.109375
-    }
-  },
+  "created_at": "2026-03-03T16:26:27.803113",
+  "current_capital": 879924.5644375,
+  "positions": {},
   "trades": [
     {
       "symbol": "BTC-USD",
       "action": "buy",
-      "quantity": 15,
-      "price": 66149.1640625,
-      "timestamp": "2026-03-02T06:28:05.684958",
+      "quantity": 1,
+      "price": 66930.7265625,
+      "timestamp": "2026-03-03T08:58:58.316315",
       "order_id": "ORD_000001",
-      "commission": 992.2374609375,
-      "strategy_id": "manual"
+      "commission": 66.9307265625,
+      "strategy_id": "A0_Every2BarFlipStrategy"
     },
     {
       "symbol": "BTC-USD",
       "action": "sell",
-      "quantity": 15,
-      "price": 66210.7890625,
-      "timestamp": "2026-03-02T06:29:12.255100",
+      "quantity": 1,
+      "price": 66989.2109375,
+      "timestamp": "2026-03-03T09:00:11.675577",
       "order_id": "ORD_000002",
-      "commission": 993.1618359375,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 15,
-      "price": 66214.640625,
-      "timestamp": "2026-03-02T06:31:26.245177",
-      "order_id": "ORD_000003",
-      "commission": 993.219609375,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 15,
-      "price": 66285.1796875,
-      "timestamp": "2026-03-02T06:33:40.784541",
-      "order_id": "ORD_000004",
-      "commission": 994.2776953125,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 15,
-      "price": 66270.0703125,
-      "timestamp": "2026-03-02T06:35:55.860534",
-      "order_id": "ORD_000005",
-      "commission": 994.0510546875,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 15,
-      "price": 66242.234375,
-      "timestamp": "2026-03-02T06:38:11.347151",
-      "order_id": "ORD_000006",
-      "commission": 993.633515625,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 15,
-      "price": 66204.4921875,
-      "timestamp": "2026-03-02T06:40:27.353944",
-      "order_id": "ORD_000007",
-      "commission": 993.0673828125,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 15,
-      "price": 66246.6328125,
-      "timestamp": "2026-03-02T06:42:42.345925",
-      "order_id": "ORD_000008",
-      "commission": 993.6994921875,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 14,
-      "price": 66237.5546875,
-      "timestamp": "2026-03-02T06:45:01.202987",
-      "order_id": "ORD_000009",
-      "commission": 927.325765625,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 14,
-      "price": 66277.2734375,
-      "timestamp": "2026-03-02T06:47:21.162286",
-      "order_id": "ORD_000010",
-      "commission": 927.881828125,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 14,
-      "price": 66239.109375,
-      "timestamp": "2026-03-02T06:49:38.779895",
-      "order_id": "ORD_000011",
-      "commission": 927.34753125,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 14,
-      "price": 66165.140625,
-      "timestamp": "2026-03-02T06:56:25.857823",
-      "order_id": "ORD_000013",
-      "commission": 926.31196875,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 14,
-      "price": 66211.453125,
-      "timestamp": "2026-03-02T07:03:13.136361",
-      "order_id": "ORD_000015",
-      "commission": 926.96034375,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 14,
-      "price": 66137.75,
-      "timestamp": "2026-03-02T07:05:27.815118",
-      "order_id": "ORD_000016",
-      "commission": 925.9285,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 14,
-      "price": 65961.6953125,
-      "timestamp": "2026-03-02T07:07:43.602292",
-      "order_id": "ORD_000017",
-      "commission": 923.4637343750001,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 14,
-      "price": 65976.75,
-      "timestamp": "2026-03-02T07:09:58.674496",
-      "order_id": "ORD_000018",
-      "commission": 923.6745,
-      "strategy_id": "manual"
-    },
-    {
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 14,
-      "price": 65837.109375,
-      "timestamp": "2026-03-02T07:12:13.477170",
-      "order_id": "ORD_000019",
-      "commission": 921.71953125,
-      "strategy_id": "manual"
+      "commission": 66.9892109375,
+      "strategy_id": "A0_Every2BarFlipStrategy"
     }
   ],
   "orders": [
@@ -191,391 +36,49 @@
       "id": "ORD_000001",
       "symbol": "BTC-USD",
       "action": "buy",
-      "quantity": 15,
-      "price": 66149.1640625,
+      "quantity": 1,
+      "price": 66988.15625,
       "status": "executed",
       "type": "limit",
-      "time": "2026-03-02T14:27:53.752970",
-      "strategy_id": "manual"
+      "time": "2026-03-03T16:58:43.412352",
+      "strategy_id": "A0_Every2BarFlipStrategy"
     },
     {
       "id": "ORD_000002",
       "symbol": "BTC-USD",
       "action": "sell",
-      "quantity": 15,
-      "price": 66210.7890625,
+      "quantity": 1,
+      "price": 66989.2109375,
       "status": "executed",
       "type": "limit",
-      "time": "2026-03-02T14:29:00.338595",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000003",
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 15,
-      "price": 66214.640625,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T14:31:14.337943",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000004",
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 15,
-      "price": 66285.1796875,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T14:33:29.136254",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000005",
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 15,
-      "price": 66286.6171875,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T14:35:44.174164",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000006",
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 15,
-      "price": 66242.234375,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T14:37:58.779456",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000007",
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 15,
-      "price": 66204.4921875,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T14:40:14.868821",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000008",
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 15,
-      "price": 66246.6328125,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T14:42:30.811615",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000009",
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 14,
-      "price": 66237.5546875,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T14:44:47.824861",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000010",
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 14,
-      "price": 66277.2734375,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T14:47:09.375345",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000011",
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 14,
-      "price": 66239.109375,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T14:49:25.339107",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000012",
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 14,
-      "price": 66218.078125,
-      "status": "cancelled",
-      "type": "limit",
-      "time": "2026-03-02T14:51:43.831532",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000013",
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 14,
-      "price": 66165.140625,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T14:56:14.001700",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000014",
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 14,
-      "price": 66197.3828125,
-      "status": "cancelled",
-      "type": "limit",
-      "time": "2026-03-02T14:58:29.352758",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000015",
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 14,
-      "price": 66211.453125,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T15:03:01.544590",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000016",
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 14,
-      "price": 66137.75,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T15:05:14.807621",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000017",
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 14,
-      "price": 66017.6484375,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T15:07:31.192906",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000018",
-      "symbol": "BTC-USD",
-      "action": "sell",
-      "quantity": 14,
-      "price": 65976.75,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T15:09:46.958941",
-      "strategy_id": "manual"
-    },
-    {
-      "id": "ORD_000019",
-      "symbol": "BTC-USD",
-      "action": "buy",
-      "quantity": 14,
-      "price": 65837.109375,
-      "status": "executed",
-      "type": "limit",
-      "time": "2026-03-02T15:12:02.003627",
-      "strategy_id": "manual"
+      "time": "2026-03-03T16:59:57.943503",
+      "strategy_id": "A0_Every2BarFlipStrategy"
     }
   ],
   "frozen_capital": 0.0,
   "engine_state": {
-    "current_capital": 62898.960125000216,
-    "positions": {
-      "BTC-USD": {
-        "quantity": 14,
-        "avg_price": 65837.109375
-      }
-    },
+    "current_capital": 879924.5644375,
+    "positions": {},
     "trades": [
       {
         "symbol": "BTC-USD",
         "action": "buy",
-        "quantity": 15,
-        "price": 66149.1640625,
-        "timestamp": "2026-03-02T06:28:05.684958",
+        "quantity": 1,
+        "price": 66930.7265625,
+        "timestamp": "2026-03-03T08:58:58.316315",
         "order_id": "ORD_000001",
-        "commission": 992.2374609375,
-        "strategy_id": "manual"
+        "commission": 66.9307265625,
+        "strategy_id": "A0_Every2BarFlipStrategy"
       },
       {
         "symbol": "BTC-USD",
         "action": "sell",
-        "quantity": 15,
-        "price": 66210.7890625,
-        "timestamp": "2026-03-02T06:29:12.255100",
+        "quantity": 1,
+        "price": 66989.2109375,
+        "timestamp": "2026-03-03T09:00:11.675577",
         "order_id": "ORD_000002",
-        "commission": 993.1618359375,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 15,
-        "price": 66214.640625,
-        "timestamp": "2026-03-02T06:31:26.245177",
-        "order_id": "ORD_000003",
-        "commission": 993.219609375,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 15,
-        "price": 66285.1796875,
-        "timestamp": "2026-03-02T06:33:40.784541",
-        "order_id": "ORD_000004",
-        "commission": 994.2776953125,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 15,
-        "price": 66270.0703125,
-        "timestamp": "2026-03-02T06:35:55.860534",
-        "order_id": "ORD_000005",
-        "commission": 994.0510546875,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 15,
-        "price": 66242.234375,
-        "timestamp": "2026-03-02T06:38:11.347151",
-        "order_id": "ORD_000006",
-        "commission": 993.633515625,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 15,
-        "price": 66204.4921875,
-        "timestamp": "2026-03-02T06:40:27.353944",
-        "order_id": "ORD_000007",
-        "commission": 993.0673828125,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 15,
-        "price": 66246.6328125,
-        "timestamp": "2026-03-02T06:42:42.345925",
-        "order_id": "ORD_000008",
-        "commission": 993.6994921875,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 14,
-        "price": 66237.5546875,
-        "timestamp": "2026-03-02T06:45:01.202987",
-        "order_id": "ORD_000009",
-        "commission": 927.325765625,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 14,
-        "price": 66277.2734375,
-        "timestamp": "2026-03-02T06:47:21.162286",
-        "order_id": "ORD_000010",
-        "commission": 927.881828125,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 14,
-        "price": 66239.109375,
-        "timestamp": "2026-03-02T06:49:38.779895",
-        "order_id": "ORD_000011",
-        "commission": 927.34753125,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 14,
-        "price": 66165.140625,
-        "timestamp": "2026-03-02T06:56:25.857823",
-        "order_id": "ORD_000013",
-        "commission": 926.31196875,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 14,
-        "price": 66211.453125,
-        "timestamp": "2026-03-02T07:03:13.136361",
-        "order_id": "ORD_000015",
-        "commission": 926.96034375,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 14,
-        "price": 66137.75,
-        "timestamp": "2026-03-02T07:05:27.815118",
-        "order_id": "ORD_000016",
-        "commission": 925.9285,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 14,
-        "price": 65961.6953125,
-        "timestamp": "2026-03-02T07:07:43.602292",
-        "order_id": "ORD_000017",
-        "commission": 923.4637343750001,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 14,
-        "price": 65976.75,
-        "timestamp": "2026-03-02T07:09:58.674496",
-        "order_id": "ORD_000018",
-        "commission": 923.6745,
-        "strategy_id": "manual"
-      },
-      {
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 14,
-        "price": 65837.109375,
-        "timestamp": "2026-03-02T07:12:13.477170",
-        "order_id": "ORD_000019",
-        "commission": 921.71953125,
-        "strategy_id": "manual"
+        "commission": 66.9892109375,
+        "strategy_id": "A0_Every2BarFlipStrategy"
       }
     ],
     "orders": [
@@ -583,216 +86,27 @@
         "id": "ORD_000001",
         "symbol": "BTC-USD",
         "action": "buy",
-        "quantity": 15,
-        "price": 66149.1640625,
+        "quantity": 1,
+        "price": 66988.15625,
         "status": "executed",
         "type": "limit",
-        "time": "2026-03-02T14:27:53.752970",
-        "strategy_id": "manual"
+        "time": "2026-03-03T16:58:43.412352",
+        "strategy_id": "A0_Every2BarFlipStrategy"
       },
       {
         "id": "ORD_000002",
         "symbol": "BTC-USD",
         "action": "sell",
-        "quantity": 15,
-        "price": 66210.7890625,
+        "quantity": 1,
+        "price": 66989.2109375,
         "status": "executed",
         "type": "limit",
-        "time": "2026-03-02T14:29:00.338595",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000003",
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 15,
-        "price": 66214.640625,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T14:31:14.337943",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000004",
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 15,
-        "price": 66285.1796875,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T14:33:29.136254",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000005",
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 15,
-        "price": 66286.6171875,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T14:35:44.174164",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000006",
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 15,
-        "price": 66242.234375,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T14:37:58.779456",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000007",
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 15,
-        "price": 66204.4921875,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T14:40:14.868821",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000008",
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 15,
-        "price": 66246.6328125,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T14:42:30.811615",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000009",
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 14,
-        "price": 66237.5546875,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T14:44:47.824861",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000010",
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 14,
-        "price": 66277.2734375,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T14:47:09.375345",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000011",
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 14,
-        "price": 66239.109375,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T14:49:25.339107",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000012",
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 14,
-        "price": 66218.078125,
-        "status": "cancelled",
-        "type": "limit",
-        "time": "2026-03-02T14:51:43.831532",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000013",
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 14,
-        "price": 66165.140625,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T14:56:14.001700",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000014",
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 14,
-        "price": 66197.3828125,
-        "status": "cancelled",
-        "type": "limit",
-        "time": "2026-03-02T14:58:29.352758",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000015",
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 14,
-        "price": 66211.453125,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T15:03:01.544590",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000016",
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 14,
-        "price": 66137.75,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T15:05:14.807621",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000017",
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 14,
-        "price": 66017.6484375,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T15:07:31.192906",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000018",
-        "symbol": "BTC-USD",
-        "action": "sell",
-        "quantity": 14,
-        "price": 65976.75,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T15:09:46.958941",
-        "strategy_id": "manual"
-      },
-      {
-        "id": "ORD_000019",
-        "symbol": "BTC-USD",
-        "action": "buy",
-        "quantity": 14,
-        "price": 65837.109375,
-        "status": "executed",
-        "type": "limit",
-        "time": "2026-03-02T15:12:02.003627",
-        "strategy_id": "manual"
+        "time": "2026-03-03T16:59:57.943503",
+        "strategy_id": "A0_Every2BarFlipStrategy"
       }
     ],
     "frozen_capital": 0.0
   },
-  "stopped_at": "2026-03-02T15:38:53.859452",
-  "signal_interval": "1m",
-  "strategy_id": "A0_Every2BarFlipStrategy",
-  "symbol": "BTC-USD"
+  "stopped_at": "2026-03-03T17:02:02.547740",
+  "signal_interval": "1m"
 }

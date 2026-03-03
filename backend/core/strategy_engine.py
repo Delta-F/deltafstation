@@ -16,7 +16,7 @@ import threading
 from deltafq.live import LiveEngine
 
 from backend.core.utils.strategy_loader import load_strategy_class
-from backend.core.utils.engine_state import build_state_from_engine
+from backend.core.utils.engine_state import build_state_from_engine, restore_engine_from_state
 
 
 def _get_engine(run: Optional[dict]):
@@ -33,7 +33,8 @@ class StrategyEngine:
     @classmethod
     def start(cls, account_id: str, strategy_id: str, symbol: str, initial_capital: float,
               commission: float = 0.001, signal_interval: str = "1d", lookback_bars: int = 100,
-              interval: float = 10.0, order_amount: Optional[float] = None) -> None:
+              interval: float = 10.0, order_amount: Optional[float] = None,
+              state: Optional[dict] = None) -> None:
         if account_id in cls._runs:
             cls.stop(account_id)
         strat = load_strategy_class(strategy_id)(name=strategy_id)
@@ -41,6 +42,11 @@ class StrategyEngine:
             strat.order_amount = order_amount
         engine = LiveEngine(symbol=symbol, interval=interval, lookback_bars=lookback_bars, signal_interval=signal_interval)
         engine.set_trade_gateway("paper", initial_capital=initial_capital, commission=commission)
+        # 如有快照，先恢复资金/持仓/成交/订单，再挂载策略
+        if state:
+            eng = _get_engine({"engine": engine})
+            if eng:
+                restore_engine_from_state(eng, state)
         engine.add_strategy(strat)
         t = threading.Thread(target=lambda: engine.run_live(), daemon=True)
         t.start()

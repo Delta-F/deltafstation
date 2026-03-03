@@ -31,8 +31,9 @@
   ├── LiveDataManager       backend/core/live_data_manager.py
   ├── BacktestEngine*       backend/core/backtest_engine.py
   ├── SimulationEngine      backend/core/simulation_engine.py      # 手动交易（tick 撮合）
-  ├── StrategyEngine*     backend/core/strategy_engine.py     # 策略自动化（deltafq LiveEngine）
-  └── simulation_state backend/core/utils/simulation_state.py  # 停同账户、持久化
+  ├── StrategyEngine*       backend/core/strategy_engine.py     # 策略自动化（deltafq LiveEngine）
+  ├── simulation_state      backend/core/utils/simulation_state.py  # 停同账户、写入配置
+  └── engine_state          backend/core/utils/engine_state.py      # 引擎 state 构建/恢复、strategy_id 注入
 
            │  读写文件
            ▼
@@ -73,6 +74,7 @@
 - **SimulationStateService**
   - 停掉同一账户上已有实例（仿真或 LiveEngine），并持久化 state
   - 供 `gostrategy_api` 在启动策略前调用，避免多引擎冲突
+  - 仿真引擎与策略引擎通过 `engine_state` 共用账户快照（资金/持仓/成交/订单），支持重启接力与 `strategy_id` 打标
 
 - **策略管理**
   - 策略实现存放在 `data/strategies/*.py`，继承 `deltafq.BaseStrategy`

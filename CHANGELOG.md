@@ -1,5 +1,20 @@
 # DeltaFStation 更新记录 / Changelog
 
+## v0.8.5 （2026-03-03）
+
+**定位**：策略账户状态打通、时间展示统一、补充示例策略与盘口。
+
+- **引擎状态与策略标记**
+  - 抽取 `restore_engine_from_state`，SimulationEngine / StrategyEngine 可从 state 快照恢复资金/持仓/成交/订单与订单号；启动前先落盘最新 engine_state 并注入 StrategyEngine，查询时用 `inject_strategy_id` 为 trades/orders 写入 `strategy_id`，便于按策略维度过滤。
+
+- **UI 界面优化**
+  - 统一账户展示为 `名称 (ID)`，交易页以「管理账户」为入口并标记运行状态；GoStrategy 仅作为运行入口（默认单次投入 100000），成交/委托时间统一为上海时区日期时间，在无真实盘口时按当前价合成五档避免长期显示 `--`。
+
+- **示例策略与演示账户**
+  - 新增 EMA 价格、双均线、RSI、KDJ 四个示例策略，补充常见趋势与震荡场景；更新默认模拟账户 `SIM_0001` 为基于 `A0_Every2BarFlipStrategy` 的 BTC 演示流水，用于展示 `strategy_id` 打标与 engine_state 恢复效果。
+
+---
+
 ## v0.8.4 （2026-03-02）
 
 **定位**：撤单逻辑、单次投入配置、策略 ID 关联交易与持久化、前端界面优化。

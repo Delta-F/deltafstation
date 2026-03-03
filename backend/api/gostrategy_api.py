@@ -32,6 +32,7 @@ import json
 
 from backend.core.strategy_engine import StrategyEngine
 from backend.core.utils.simulation_state import config_path, stop_same_account
+from backend.core.utils.engine_state import inject_strategy_id
 
 gostrategy_bp = Blueprint('gostrategy', __name__)
 
@@ -57,9 +58,12 @@ def set_strategy(account_id):
         symbol = (data.get('symbol') or '').strip().upper()
         if not strategy_id or not symbol:
             return jsonify({'error': 'Missing strategy_id or symbol'}), 400
+        # 先停掉同账户上的其它实例，并将其最新 engine_state 落盘
+        stop_same_account(account_id)
+        # 再读取最新的账户配置（包含刚刚写入的 engine_state）
         with open(cfg_path, 'r', encoding='utf-8') as f:
             cfg = json.load(f)
-        stop_same_account(account_id)
+        engine_state = cfg.get('engine_state')
         order_amount = None
         if 'order_amount' in data and data['order_amount'] is not None:
             try:
@@ -77,7 +81,9 @@ def set_strategy(account_id):
                 commission=float(cfg.get('commission', 0.001)),
                 signal_interval=(data.get('signal_interval') or '1d').lower(),
                 lookback_bars=int(data.get('lookback_bars') or 50),
+                interval=10.0,
                 order_amount=order_amount,
+                state=engine_state,
             )
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -89,6 +95,7 @@ def set_strategy(account_id):
             json.dump(cfg, f, ensure_ascii=False, indent=2)
         state = StrategyEngine.get_state(account_id)
         if state:
+            inject_strategy_id(state, strategy_id)
             cfg.update(state)
         return jsonify({'simulation': cfg})
     except Exception as e:
