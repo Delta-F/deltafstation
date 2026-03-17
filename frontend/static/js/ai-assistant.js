@@ -1,444 +1,346 @@
-// AI 小助手 - 前端实现（模拟对话）
-class AIAssistant {
-    constructor() {
-        this.isOpen = false;
-        this.currentContext = this.detectContext();
-        this.conversationHistory = [];
-        this.init();
-    }
-    
-    init() {
-        this.setupElements();
-        this.setupEvents();
-        this.loadQuickActions();
-        this.showWelcomeMessage();
-    }
-    
-    setupElements() {
-        this.btn = document.getElementById('aiAssistantBtn');
-        this.window = document.getElementById('aiAssistantWindow');
-        this.chatBody = document.getElementById('aiChatBody');
-        this.input = document.getElementById('aiInput');
-        this.sendBtn = document.getElementById('aiSendBtn');
-        this.badge = document.getElementById('aiBadge');
-    }
-    
-    setupEvents() {
-        // 浮标按钮点击
-        this.btn.addEventListener('click', () => this.toggleWindow());
-        
-        // 发送按钮
-        this.sendBtn.addEventListener('click', () => this.sendMessage());
-        
-        // 回车发送
-        this.input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.sendMessage();
+/**
+ * AI 智能助手核心逻辑 (ai-assistant.js)
+ * 
+ * 模块顺序：CONSTANTS → state → storage → context → chat → ui → events → init
+ *   CONSTANTS  常量定义（存储键名、动画时间等）
+ *   state      全局状态管理（打开状态、对话历史、当前上下文）
+ *   storage    持久化存储逻辑（LocalStorage 操作）
+ *   context    环境感知逻辑（页面路径检测、上下文名称转换）
+ *   chat       对话核心逻辑（消息发送、模拟回复生成、Markdown 格式化）
+ *   ui         界面控制逻辑（窗口开关、自动滚动、加载动画、Toast 提示）
+ *   events     事件绑定逻辑（按钮点击、键盘回车）
+ *   init       初始化入口
+ */
+
+const AIAssistantApp = {
+    /** 全局常量定义 */
+    CONSTANTS: {
+        STORAGE_KEY: 'ai_conversation_history',
+        ANIMATION_DURATION: 300,
+        MAX_HISTORY: 100 // 最多保留最近 100 条消息
+    },
+
+    /** 全局状态 */
+    state: {
+        isOpen: false,
+        currentContext: 'home',
+        conversationHistory: [],
+        elements: {} // 存放 DOM 引用
+    },
+
+    /** 持久化存储模块 */
+    storage: {
+        /** 保存对话历史到 LocalStorage */
+        save() {
+            // 限制历史记录数量，防止存储溢出
+            const history = AIAssistantApp.state.conversationHistory.slice(-AIAssistantApp.CONSTANTS.MAX_HISTORY);
+            localStorage.setItem(AIAssistantApp.CONSTANTS.STORAGE_KEY, JSON.stringify(history));
+        },
+
+        /** 从 LocalStorage 加载对话历史 */
+        load() {
+            const saved = localStorage.getItem(AIAssistantApp.CONSTANTS.STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [];
+        },
+
+        /** 清空所有存储的历史记录 */
+        clear() {
+            AIAssistantApp.state.conversationHistory = [];
+            AIAssistantApp.storage.save();
+            AIAssistantApp.state.elements.chatBody.innerHTML = '';
+            
+            // 重新显示欢迎卡片
+            const welcomeCard = document.getElementById('aiWelcomeCard');
+            if (welcomeCard) welcomeCard.classList.remove('hidden');
+            
+            AIAssistantApp.ui.showAlert('对话已清空', 'success');
+        }
+    },
+
+    /** 环境感知模块 */
+    context: {
+        /** 根据当前页面 URL 探测功能上下文 */
+        detect() {
+            const path = window.location.pathname;
+            if (path.includes('/strategy') || path.includes('backtest')) return 'backtest';
+            if (path.includes('/trading') || path.includes('trader')) return 'trading';
+            if (path.includes('/run') || path.includes('gostrategy')) return 'strategy_run';
+            return 'home';
+        },
+
+        /** 将上下文标识符转换为人类可读名称 */
+        getName(ctx) {
+            const names = {
+                'backtest': '策略回测页面',
+                'trading': '手动交易页面',
+                'strategy_run': '策略运行页面',
+                'home': '主页'
+            };
+            return names[ctx] || '当前页面';
+        }
+    },
+
+    /** 对话核心模块 */
+    chat: {
+        /** 发送用户消息 */
+        async sendMessage() {
+            const input = AIAssistantApp.state.elements.input;
+            const text = input.value.trim();
+            if (!text) return;
+
+            // 处理特殊命令
+            if (text.toLowerCase() === '/new' || text.toLowerCase() === '/reset') {
+                AIAssistantApp.storage.clear();
+                input.value = '';
+                return;
             }
-        });
-        
-        // 最小化/关闭/历史/语音/表情
-        const minimizeBtn = document.getElementById('aiMinimizeBtn');
-        const closeBtn = document.getElementById('aiCloseBtn');
-        const historyBtn = document.getElementById('aiHistoryBtn');
-        const voiceBtn = document.getElementById('aiVoiceBtn');
-        const emojiBtn = document.getElementById('aiEmojiBtn');
-        
-        if (minimizeBtn) {
-            minimizeBtn.addEventListener('click', () => this.minimize());
-        }
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => this.close());
-        }
-        if (historyBtn) {
-            historyBtn.addEventListener('click', () => {
-                this.showAlert('历史记录功能开发中...', 'info');
-            });
-        }
-        if (voiceBtn) {
-            voiceBtn.addEventListener('click', () => {
-                this.showAlert('语音输入功能开发中...', 'info');
-            });
-        }
-        if (emojiBtn) {
-            emojiBtn.addEventListener('click', () => {
-                this.showAlert('表情功能开发中...', 'info');
-            });
-        }
-    }
-    
-    detectContext() {
-        const path = window.location.pathname;
-        if (path.includes('/strategy') || path.includes('backtest')) return 'backtest';
-        if (path.includes('/trading') || path.includes('trader')) return 'trading';
-        if (path.includes('/run') || path.includes('gostrategy')) return 'strategy_run';
-        return 'home';
-    }
-    
-    loadQuickActions() {
-        const actions = this.getQuickActions();
-        const container = document.getElementById('aiQuickActions');
-        if (!container) return;
-        
-        container.innerHTML = actions.map(action => 
-            `<button class="ai-quick-btn" data-action="${action.action}">${action.label}</button>`
-        ).join('');
-        
-        container.querySelectorAll('.ai-quick-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const action = e.target.dataset.action;
-                this.handleQuickAction(action);
-            });
-        });
-    }
-    
-    getQuickActions() {
-        const contextActions = {
-            'backtest': [
-                { label: '如何上传数据', action: 'help_upload' },
-                { label: '策略开发指南', action: 'help_strategy' },
-                { label: '回测参数说明', action: 'help_backtest_params' }
-            ],
-            'trading': [
-                { label: '交易操作说明', action: 'help_trading' },
-                { label: '账户管理', action: 'help_account' }
-            ],
-            'strategy_run': [
-                { label: '策略运行说明', action: 'help_strategy_run' },
-                { label: '监控指标', action: 'help_monitoring' }
-            ],
-            'home': [
-                { label: '系统介绍', action: 'help_intro' },
-                { label: '快速开始', action: 'help_quickstart' }
-            ]
-        };
-        
-        return contextActions[this.currentContext] || contextActions['home'];
-    }
-    
-    showWelcomeMessage() {
-        // 欢迎消息现在通过欢迎卡片显示，不在消息列表中
-        // 如果需要在消息中显示，可以取消注释下面这行
-        // const welcomeMsg = this.getWelcomeMessage();
-        // this.addMessage(welcomeMsg, 'assistant');
-    }
-    
-    getWelcomeMessage() {
-        const contextMessages = {
-            'backtest': '你好！我是 DeltaFStation AI 小助手。你现在在策略回测页面，我可以帮你：\n\n• 解答数据上传问题\n• 提供策略开发建议\n• 解释回测参数设置\n• 分析回测结果\n\n有什么问题随时问我！',
-            'trading': '你好！我是 DeltaFStation AI 小助手。你现在在手动交易页面，我可以帮你：\n\n• 解释交易操作流程\n• 说明账户管理功能\n• 解答持仓相关问题\n• 提供交易建议\n\n有什么问题随时问我！',
-            'strategy_run': '你好！我是 DeltaFStation AI 小助手。你现在在策略运行页面，我可以帮你：\n\n• 解释策略运行机制\n• 说明监控指标含义\n• 解答运行中的问题\n• 提供优化建议\n\n有什么问题随时问我！',
-            'home': '你好！我是 DeltaFStation AI 小助手，可以帮你：\n\n• 解答系统使用问题\n• 提供策略开发建议\n• 分析回测结果\n• 排查错误问题\n\n有什么可以帮你的吗？'
-        };
-        
-        return contextMessages[this.currentContext] || contextMessages['home'];
-    }
-    
-    toggleWindow() {
-        this.isOpen = !this.isOpen;
-        if (this.isOpen) {
-            this.window.classList.add('active');
-            this.input.focus();
-            this.hideBadge();
-        } else {
-            this.window.classList.remove('active');
-        }
-    }
-    
-    minimize() {
-        this.isOpen = false;
-        this.window.classList.remove('active');
-    }
-    
-    close() {
-        this.minimize();
-    }
-    
-    async sendMessage() {
-        const message = this.input.value.trim();
-        if (!message) return;
-        
-        // 添加用户消息
-        this.addMessage(message, 'user');
-        this.input.value = '';
-        this.sendBtn.disabled = true;
-        
-        // 显示加载
-        const loadingId = this.showLoading();
-        
-        // 模拟AI回复延迟
-        setTimeout(() => {
-            const response = this.generateResponse(message);
-            this.hideLoading(loadingId);
-            this.addMessage(response.text, 'assistant', response.actions);
-            this.sendBtn.disabled = false;
-        }, 800 + Math.random() * 500); // 模拟网络延迟
-    }
-    
-    generateResponse(message) {
-        const msgLower = message.toLowerCase();
-        
-        // 关键词匹配规则
-        const responses = {
-            // 上传数据相关
-            upload: {
-                keywords: ['上传', '数据', 'csv', '文件', '导入'],
-                response: `**上传数据有两种方式：**\n\n1. **上传 CSV 文件**\n   - 点击"上传数据"按钮\n   - 选择包含 Date, Open, High, Low, Close, Volume 列的 CSV 文件\n   - 系统会自动验证格式并保存\n\n2. **从 Yahoo Finance 下载**\n   - 输入股票代码（如 AAPL）\n   - 选择时间周期（1y, 6m 等）\n   - 点击下载即可自动获取数据\n\n需要我帮你具体操作吗？`
-            },
+
+            // 1. 添加用户消息到 UI 和状态
+            AIAssistantApp.chat.addMessage(text, 'user');
+            input.value = '';
+            AIAssistantApp.state.elements.sendBtn.disabled = true;
+
+            // 2. 显示加载状态
+            const loadingId = AIAssistantApp.ui.showLoading();
+
+            // 3. 模拟 AI 响应逻辑
+            setTimeout(() => {
+                const response = AIAssistantApp.chat.generateMockResponse(text);
+                AIAssistantApp.ui.hideLoading(loadingId);
+                AIAssistantApp.chat.addMessage(response.text, 'assistant');
+                AIAssistantApp.state.elements.sendBtn.disabled = false;
+            }, 800 + Math.random() * 500);
+        },
+
+        /** 添加单条消息 */
+        addMessage(content, type) {
+            // 更新内存和存储
+            AIAssistantApp.state.conversationHistory.push({ type, content });
+            AIAssistantApp.storage.save();
             
-            // 策略开发相关
-            strategy: {
-                keywords: ['策略', '开发', '编写', '代码', '如何写', '怎么开发'],
-                response: `**开发量化策略的步骤：**\n\n1. **创建策略文件**\n   - 在 \`data/strategies/\` 目录下创建 \`.py\` 文件\n   - 继承 \`deltafq.BaseStrategy\` 类\n\n2. **实现策略逻辑**\n\`\`\`python\nfrom deltafq.strategy.base import BaseStrategy\n\nclass MyStrategy(BaseStrategy):\n    def on_bar(self, bar):\n        # 策略逻辑\n        if 条件:\n            self.buy()\n\`\`\`\n\n3. **运行回测验证**\n   - 选择策略和数据\n   - 设置参数后运行回测\n\n需要我提供一个完整的策略示例吗？`
-            },
+            // 更新 UI
+            AIAssistantApp.chat.addMessageToUI(content, type);
+        },
+
+        /** 仅渲染消息到 DOM 结构 */
+        addMessageToUI(content, type) {
+            const { chatBody } = AIAssistantApp.state.elements;
             
-            // 回测参数相关
-            backtest: {
-                keywords: ['回测', '参数', '初始资金', '手续费', 'commission'],
-                response: `**回测参数说明：**\n\n• **初始资金**：回测开始时的账户资金，默认 100,000\n• **手续费率**：每次交易的手续费比例，默认 0.1%（0.001）\n• **开始日期**：回测数据的起始日期\n• **结束日期**：回测数据的结束日期\n\n**建议设置：**\n- 初始资金根据实际需求设置\n- 手续费率建议设置为 0.1% - 0.3%\n- 日期范围建议至少包含 1 年数据\n\n还有其他问题吗？`
-            },
+            // 隐藏欢迎卡片
+            const welcomeCard = document.getElementById('aiWelcomeCard');
+            if (welcomeCard) welcomeCard.classList.add('hidden');
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `ai-message ai-${type}-msg`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'ai-avatar';
+            avatar.innerHTML = type === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'ai-content';
+            contentDiv.innerHTML = AIAssistantApp.chat.formatMarkdown(content);
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+            chatBody.appendChild(messageDiv);
             
-            // 交易操作相关
-            trading: {
-                keywords: ['交易', '买卖', '买入', '卖出', '下单', '操作'],
-                response: `**手动交易操作说明：**\n\n1. **创建账户**\n   - 设置初始资金和手续费率\n   - 点击"创建账户"开始交易\n\n2. **执行交易**\n   - 选择交易标的（股票代码）\n   - 输入交易数量\n   - 点击"买入"或"卖出"按钮\n\n3. **查看持仓**\n   - 在持仓列表中查看当前持仓\n   - 实时查看盈亏情况\n\n4. **交易记录**\n   - 查看历史交易记录\n   - 分析交易表现\n\n需要更详细的说明吗？`
-            },
+            AIAssistantApp.ui.scrollToBottom();
+        },
+
+        /** 极简 Markdown 格式化处理 */
+        formatMarkdown(text) {
+            return text
+                .replace(/```(\w+)?\n([\s\S]*?)```/g, (m, lang, code) => `<pre><code>${AIAssistantApp.chat.escapeHtml(code.trim())}</code></pre>`)
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+        },
+
+        /** HTML 字符转义，防止 XSS */
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        },
+
+        /** 生成模拟回复关键词逻辑 */
+        generateMockResponse(message) {
+            const msgLower = message.toLowerCase();
+            const ctx = AIAssistantApp.state.currentContext;
             
-            // 账户管理相关
-            account: {
-                keywords: ['账户', '资金', '余额', '持仓', '资产'],
-                response: `**账户管理功能：**\n\n• **账户总览**：查看总资产、可用资金、持仓市值\n• **持仓管理**：查看当前持仓、盈亏情况\n• **交易记录**：查看历史交易明细\n• **资产曲线**：可视化资产变化趋势\n\n**注意事项：**\n- 每次交易会扣除手续费\n- 持仓盈亏实时计算\n- 可以随时查看账户状态\n\n有什么具体问题吗？`
-            },
-            
-            // 策略运行相关
-            run: {
-                keywords: ['运行', '启动', '执行策略', '自动交易'],
-                response: `**策略运行说明：**\n\n1. **选择策略**\n   - 从策略列表中选择要运行的策略\n   - 确保策略文件在 \`data/strategies/\` 目录下\n\n2. **配置参数**\n   - 设置初始资金、手续费率等\n   - 选择交易标的（可选）\n\n3. **启动运行**\n   - 点击"启动策略"开始自动交易\n   - 系统会实时执行策略信号\n\n4. **监控运行**\n   - 查看实时资产曲线\n   - 监控交易日志\n   - 查看策略状态\n\n需要我解释某个具体步骤吗？`
-            },
-            
-            // 监控相关
-            monitor: {
-                keywords: ['监控', '指标', '状态', '日志', '查看'],
-                response: `**策略监控指标：**\n\n• **运行状态**：显示策略是否正在运行\n• **资产曲线**：实时显示账户资产变化\n• **交易日志**：记录所有交易信号和执行情况\n• **持仓信息**：当前持仓的详细信息\n• **绩效指标**：收益率、夏普比率等\n\n**监控建议：**\n- 定期查看资产曲线变化\n- 关注交易日志中的异常\n- 对比策略表现与预期\n\n还有其他问题吗？`
-            },
-            
-            // 系统介绍
-            intro: {
-                keywords: ['介绍', '是什么', '功能', '系统'],
-                response: `**DeltaFStation 简介：**\n\nDeltaFStation 是一个基于 Web 的量化交易系统，专注于策略回测、仿真交易与实时监控。\n\n**核心功能：**\n\n1. **策略回测**\n   - 历史数据回测\n   - 绩效指标分析\n   - 可视化结果展示\n\n2. **手动交易**\n   - 仿真账户管理\n   - 手动买卖操作\n   - 持仓跟踪\n\n3. **策略运行**\n   - 自动交易执行\n   - 实时监控\n   - 信号执行\n\n**技术栈：**\n- 后端：Flask, Pandas, deltafq\n- 前端：Bootstrap 5, Chart.js\n\n想了解哪个功能的具体使用方法？`
-            },
-            
-            // 快速开始
-            quickstart: {
-                keywords: ['快速开始', '入门', '新手', '第一次', '怎么用'],
-                response: `**快速开始指南：**\n\n**第一步：准备数据**\n1. 上传 CSV 数据文件，或\n2. 从 Yahoo Finance 下载数据\n\n**第二步：创建策略**\n1. 在 \`data/strategies/\` 目录创建策略文件\n2. 继承 \`BaseStrategy\` 类并实现策略逻辑\n\n**第三步：运行回测**\n1. 选择策略和数据\n2. 设置回测参数\n3. 查看回测结果\n\n**第四步：开始交易**\n1. 创建仿真账户\n2. 手动交易或启动策略自动交易\n3. 监控交易表现\n\n需要我详细解释某个步骤吗？`
-            },
-            
-            // 错误排查
-            error: {
-                keywords: ['错误', '失败', '问题', '报错', '异常', '为什么'],
-                response: `**常见问题排查：**\n\n**回测失败：**\n- 检查数据文件格式是否正确\n- 确认策略文件语法无误\n- 查看浏览器控制台错误信息\n\n**策略无法加载：**\n- 确认策略文件在正确目录\n- 检查策略类是否继承 BaseStrategy\n- 验证策略文件语法\n\n**交易执行失败：**\n- 检查账户资金是否充足\n- 确认交易参数设置正确\n- 查看交易日志了解详情\n\n**数据问题：**\n- 确认 CSV 包含必需列：Date, Open, High, Low, Close, Volume\n- 检查数据日期格式\n- 验证数据完整性\n\n具体遇到了什么问题？告诉我详细情况，我可以帮你分析。`
+            // 简单的关键词匹配库
+            const lib = {
+                upload: { kw: ['上传', '数据', 'csv'], res: '**上传数据：** 你可以在侧边栏点击"上传数据"按钮，选择 Date, Open, High... 格式的 CSV 文件。' },
+                strategy: { kw: ['策略', '编写', '代码'], res: '**编写策略：** 继承 `BaseStrategy` 类，在 `on_bar` 方法中实现你的买卖逻辑即可。' },
+                error: { kw: ['错误', '失败', '报错'], res: '**排查建议：** 请检查数据路径是否正确，或者查看控制台 (Live Console) 的详细输出。' }
+            };
+
+            for (const key in lib) {
+                if (lib[key].kw.some(k => msgLower.includes(k))) return { text: lib[key].res };
             }
-        };
-        
-        // 匹配关键词
-        for (const [key, rule] of Object.entries(responses)) {
-            if (rule.keywords.some(kw => msgLower.includes(kw))) {
-                return {
-                    text: rule.response,
-                    actions: []
-                };
+
+            return { 
+                text: `我理解你的问题："${message}"。在当前的 ${AIAssistantApp.context.getName(ctx)} 中，你可以尝试问我关于数据上传或策略逻辑的问题。` 
+            };
+        }
+    },
+
+    /** 界面交互模块 */
+    ui: {
+        /** 切换侧边栏窗口开关 */
+        toggleWindow() {
+            const { window: win, btn } = AIAssistantApp.state.elements;
+            AIAssistantApp.state.isOpen = !AIAssistantApp.state.isOpen;
+
+            if (AIAssistantApp.state.isOpen) {
+                win.classList.add('active');
+                if (btn) btn.classList.add('active');
+                document.body.classList.add('ai-sidebar-open');
+                AIAssistantApp.state.elements.input.focus();
+            } else {
+                AIAssistantApp.ui.close();
             }
-        }
-        
-        // 默认回复
-        const defaultResponses = [
-            `我理解你的问题："${message}"\n\n根据当前页面（${this.getContextName()}），我可以帮你：\n\n• 解答系统使用问题\n• 提供策略开发建议\n• 分析回测结果\n• 排查错误问题\n\n请告诉我具体需要什么帮助？或者点击下方的快捷按钮快速开始。`,
-            `关于"${message}"，我可以提供以下帮助：\n\n• 系统使用指南\n• 策略开发教程\n• 回测参数说明\n• 交易操作指导\n\n你可以尝试问：\n- "如何上传数据？"\n- "怎么开发策略？"\n- "回测参数怎么设置？"\n\n或者点击快捷按钮获取帮助。`,
-            `这个问题我需要更多信息。你可以：\n\n1. 点击下方的快捷按钮获取相关帮助\n2. 尝试更具体的问题描述\n3. 告诉我你当前遇到的具体问题\n\n我会尽力帮你解决！`
-        ];
-        
-        return {
-            text: defaultResponses[Math.floor(Math.random() * defaultResponses.length)],
-            actions: []
-        };
-    }
-    
-    getContextName() {
-        const names = {
-            'backtest': '策略回测页面',
-            'trading': '手动交易页面',
-            'strategy_run': '策略运行页面',
-            'home': '主页'
-        };
-        return names[this.currentContext] || '当前页面';
-    }
-    
-    addMessage(content, type, actions = null) {
-        // 隐藏欢迎卡片（如果存在）
-        const welcomeCard = document.getElementById('aiWelcomeCard');
-        if (welcomeCard) {
-            welcomeCard.classList.add('hidden');
-        }
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `ai-message ai-${type}-msg`;
-        
-        const avatar = document.createElement('div');
-        avatar.className = 'ai-avatar';
-        avatar.innerHTML = type === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
-        
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'ai-content';
-        contentDiv.innerHTML = this.formatMessage(content);
-        
-        messageDiv.appendChild(avatar);
-        messageDiv.appendChild(contentDiv);
-        
-        this.chatBody.appendChild(messageDiv);
-        this.scrollToBottom();
-        
-        // 记录对话历史
-        this.conversationHistory.push({ type, content });
-    }
-    
-    formatMessage(text) {
-        // Markdown 处理
-        let html = text
-            // 代码块
-            .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-                return `<pre><code>${this.escapeHtml(code.trim())}</code></pre>`;
-            })
-            // 行内代码
-            .replace(/`([^`]+)`/g, '<code>$1</code>')
-            // 粗体
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            // 斜体
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            // 换行
-            .replace(/\n/g, '<br>');
-        
-        return html;
-    }
-    
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    showLoading() {
-        const loadingDiv = document.createElement('div');
-        loadingDiv.className = 'ai-message ai-assistant-msg';
-        loadingDiv.id = 'ai-loading';
-        
-        const avatar = document.createElement('div');
-        avatar.className = 'ai-avatar';
-        avatar.innerHTML = '<i class="fas fa-robot"></i>';
-        
-        const content = document.createElement('div');
-        content.className = 'ai-content';
-        content.innerHTML = '<div class="ai-loading"><span></span><span></span><span></span></div>';
-        
-        loadingDiv.appendChild(avatar);
-        loadingDiv.appendChild(content);
-        this.chatBody.appendChild(loadingDiv);
-        this.scrollToBottom();
-        
-        return 'ai-loading';
-    }
-    
-    hideLoading(id) {
-        const loading = document.getElementById(id);
-        if (loading) loading.remove();
-    }
-    
-    scrollToBottom() {
-        this.chatBody.scrollTop = this.chatBody.scrollHeight;
-    }
-    
-    handleQuickAction(action) {
-        const actions = {
-            'help_upload': '如何上传数据？',
-            'help_strategy': '如何开发策略？',
-            'help_backtest_params': '回测参数怎么设置？',
-            'help_trading': '如何进行手动交易？',
-            'help_account': '如何管理账户？',
-            'help_strategy_run': '如何运行策略？',
-            'help_monitoring': '如何监控策略？',
-            'help_intro': 'DeltaFStation 是什么？',
-            'help_quickstart': '如何快速开始？'
-        };
-        
-        if (actions[action]) {
-            this.input.value = actions[action];
-            this.sendMessage();
-        }
-    }
-    
-    hideBadge() {
-        if (this.badge) {
-            this.badge.classList.add('hidden');
-            this.badge.textContent = '0';
-        }
-    }
-    
-    showBadge(count) {
-        if (this.badge) {
-            this.badge.classList.remove('hidden');
-            this.badge.textContent = count > 99 ? '99+' : count.toString();
-        }
-    }
-    
-    showAlert(message, type = 'info') {
-        // 简单的提示功能（可以后续扩展为更精美的提示组件）
-        const alertDiv = document.createElement('div');
-        alertDiv.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            background: ${type === 'info' ? '#667eea' : '#28a745'};
-            color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 10000;
-            font-size: 14px;
-            animation: slideInRight 0.3s ease;
-        `;
-        alertDiv.textContent = message;
-        document.body.appendChild(alertDiv);
-        
-        setTimeout(() => {
-            alertDiv.style.animation = 'slideOutRight 0.3s ease';
-            setTimeout(() => alertDiv.remove(), 300);
-        }, 2000);
-        
-        // 添加动画样式（如果不存在）
-        if (!document.getElementById('ai-alert-styles')) {
-            const style = document.createElement('style');
-            style.id = 'ai-alert-styles';
-            style.textContent = `
-                @keyframes slideInRight {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes slideOutRight {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
-                }
+        },
+
+        /** 关闭/收起侧边栏 */
+        close() {
+            const { window: win, btn } = AIAssistantApp.state.elements;
+            AIAssistantApp.state.isOpen = false;
+            if (win) win.classList.remove('active');
+            if (btn) btn.classList.remove('active');
+            document.body.classList.remove('ai-sidebar-open');
+        },
+
+        /** 滚动聊天区域到底部 */
+        scrollToBottom() {
+            const { chatBody } = AIAssistantApp.state.elements;
+            if (chatBody) chatBody.scrollTop = chatBody.scrollHeight;
+        },
+
+        /** 显示加载动画 */
+        showLoading() {
+            const loadingId = 'ai-loading-' + Date.now();
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'ai-message ai-assistant-msg';
+            loadingDiv.id = loadingId;
+            loadingDiv.innerHTML = `
+                <div class="ai-avatar"><i class="fas fa-robot"></i></div>
+                <div class="ai-content"><div class="ai-loading"><span></span><span></span><span></span></div></div>
             `;
-            document.head.appendChild(style);
+            AIAssistantApp.state.elements.chatBody.appendChild(loadingDiv);
+            AIAssistantApp.ui.scrollToBottom();
+            return loadingId;
+        },
+
+        /** 移除加载动画 */
+        hideLoading(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        },
+
+        /** 弹出 Toast 提示框 */
+        showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'ai-alert-toast';
+            alertDiv.style.cssText = `
+                position: fixed; top: 20px; right: 20px; padding: 12px 20px;
+                background: ${type === 'info' ? '#667eea' : '#28a745'};
+                color: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000; font-size: 14px; animation: slideInRight 0.3s ease;
+            `;
+            alertDiv.textContent = message;
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => alertDiv.remove(), 300);
+            }, 2000);
         }
-    }
-}
+    },
 
-// 初始化
-document.addEventListener('DOMContentLoaded', () => {
-    // 确保元素存在后再初始化
-    if (document.getElementById('aiAssistantBtn')) {
-        window.aiAssistant = new AIAssistant();
-    }
-});
+    /** 事件监听模块 */
+    events: {
+        /** 绑定所有交互事件 */
+        bindAll() {
+            const { btn, input, sendBtn } = AIAssistantApp.state.elements;
+            
+            // 侧边栏开关
+            if (btn) btn.addEventListener('click', () => AIAssistantApp.ui.toggleWindow());
+            
+            // 发送逻辑
+            if (sendBtn) sendBtn.addEventListener('click', () => AIAssistantApp.chat.sendMessage());
+            if (input) {
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        AIAssistantApp.chat.sendMessage();
+                    }
+                });
+            }
 
+            // 头部按钮
+            const closeBtn = document.getElementById('aiCloseBtn');
+            const historyBtn = document.getElementById('aiHistoryBtn');
+            
+            if (closeBtn) closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                AIAssistantApp.ui.close();
+            });
+            
+            if (historyBtn) historyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm('是否清空当前对话历史？')) AIAssistantApp.storage.clear();
+            });
+
+            // 快捷操作代理
+            const quickActions = document.getElementById('aiQuickActions');
+            if (quickActions) {
+                quickActions.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('ai-quick-btn')) {
+                        AIAssistantApp.state.elements.input.value = e.target.textContent;
+                        AIAssistantApp.chat.sendMessage();
+                    }
+                });
+            }
+        }
+    },
+
+    /** 初始化入口 */
+    init() {
+        // 1. 获取核心 DOM 引用
+        AIAssistantApp.state.elements = {
+            btn: document.getElementById('aiAssistantBtn'),
+            window: document.getElementById('aiAssistantWindow'),
+            chatBody: document.getElementById('aiChatBody'),
+            input: document.getElementById('aiInput'),
+            sendBtn: document.getElementById('aiSendBtn')
+        };
+
+        if (!AIAssistantApp.state.elements.btn) return;
+
+        // 2. 初始化状态
+        AIAssistantApp.state.currentContext = AIAssistantApp.context.detect();
+        AIAssistantApp.state.conversationHistory = AIAssistantApp.storage.load();
+
+        // 3. 渲染历史记录
+        if (AIAssistantApp.state.conversationHistory.length > 0) {
+            AIAssistantApp.state.conversationHistory.forEach(msg => {
+                AIAssistantApp.chat.addMessageToUI(msg.content, msg.type);
+            });
+        }
+
+        // 4. 加载快捷操作 (模拟)
+        const container = document.getElementById('aiQuickActions');
+        if (container) {
+            const actions = ['如何上传数据？', '怎么开发策略？', '如何快速开始？'];
+            container.innerHTML = actions.map(a => `<button class="ai-quick-btn">${a}</button>`).join('');
+        }
+
+        // 5. 绑定事件
+        AIAssistantApp.events.bindAll();
+    }
+};
+
+// 启动应用
+document.addEventListener('DOMContentLoaded', () => AIAssistantApp.init());

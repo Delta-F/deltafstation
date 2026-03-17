@@ -1,16 +1,12 @@
-<!-- AI 小助手组件 -->
+<!-- ==========================================================================
+     AI 智能助手组件 - 核心结构
+     ========================================================================== -->
 <div id="ai-assistant">
-    <!-- 浮标按钮 -->
-    <div class="ai-assistant-button" id="aiAssistantBtn">
-        <div class="ai-button-inner">
-            <i class="fas fa-sparkles"></i>
-        </div>
-        <span class="ai-badge hidden" id="aiBadge">0</span>
-        <div class="ai-button-ripple"></div>
-    </div>
     
-    <!-- 聊天窗口 -->
+    <!-- 2. 聊天窗口 (Main Sidebar Window) -->
     <div class="ai-assistant-window" id="aiAssistantWindow">
+        
+        <!-- 3. 窗口头部 (Header) -->
         <div class="ai-window-header">
             <div class="ai-header-left">
                 <div class="ai-header-avatar">
@@ -18,21 +14,19 @@
                 </div>
                 <div class="ai-header-info">
                     <span class="ai-title">AI 智能助手</span>
-                    <span class="ai-status" id="aiStatus">在线</span>
                 </div>
             </div>
             <div class="ai-actions">
-                <button class="ai-btn-icon" id="aiHistoryBtn" title="历史记录">
+                <button class="ai-btn-icon" id="aiHistoryBtn" title="清空历史">
                     <i class="fas fa-history"></i>
-                </button>
-                <button class="ai-btn-icon" id="aiMinimizeBtn" title="最小化">
-                    <i class="fas fa-minus"></i>
                 </button>
                 <button class="ai-btn-icon" id="aiCloseBtn" title="关闭">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
         </div>
+
+        <!-- 4. 消息区域 (Chat Body) -->
         <div class="ai-window-body" id="aiChatBody">
             <!-- 欢迎卡片 -->
             <div class="ai-welcome-card" id="aiWelcomeCard">
@@ -44,23 +38,19 @@
             </div>
             <!-- 消息将通过 JavaScript 动态添加 -->
         </div>
+
+        <!-- 5. 底部面板 (Footer: Actions & Input) -->
         <div class="ai-window-footer">
             <div class="ai-quick-actions" id="aiQuickActions">
                 <!-- 快捷操作按钮将通过 JavaScript 动态添加 -->
             </div>
             <div class="ai-input-area">
-                <button class="ai-btn-voice" id="aiVoiceBtn" title="语音输入">
-                    <i class="fas fa-microphone"></i>
-                </button>
-                <input type="text" id="aiInput" placeholder="输入问题，或点击下方快捷问题..." />
-                <button class="ai-btn-emoji" id="aiEmojiBtn" title="表情">
-                    <i class="fas fa-smile"></i>
-                </button>
+                <input type="text" id="aiInput" placeholder="输入问题..." />
                 <button id="aiSendBtn" class="ai-send-btn">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
         </div>
+
     </div>
 </div>
-
