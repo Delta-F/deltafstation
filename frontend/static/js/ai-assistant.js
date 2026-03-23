@@ -5,7 +5,7 @@
  *   CONSTANTS  常量定义（存储键名、动画时间等）
  *   state      全局状态管理（打开状态、对话历史、当前上下文）
  *   storage    持久化存储逻辑（LocalStorage 操作）
- *   context    环境感知逻辑（页面路径检测、上下文名称转换）
+ *   context    环境感知逻辑（页面路径检测）
  *   chat       对话核心逻辑（消息发送、模拟回复生成、Markdown 格式化）
  *   ui         界面控制逻辑（窗口开关、自动滚动、加载动画、Toast 提示）
  *   events     事件绑定逻辑（按钮点击、键盘回车）
@@ -16,8 +16,8 @@ const AIAssistantApp = {
     /** 全局常量定义 */
     CONSTANTS: {
         STORAGE_KEY: 'ai_conversation_history',
-        ANIMATION_DURATION: 300,
-        MAX_HISTORY: 100 // 最多保留最近 100 条消息
+        OPEN_STATE_KEY: 'ai_assistant_open',
+        MAX_HISTORY: 100
     },
 
     /** 全局状态 */
@@ -43,6 +43,14 @@ const AIAssistantApp = {
             return saved ? JSON.parse(saved) : [];
         },
 
+        /** 保存/读取侧边栏打开状态（sessionStorage，仅当前标签页） */
+        saveOpenState(open) {
+            sessionStorage.setItem(AIAssistantApp.CONSTANTS.OPEN_STATE_KEY, open ? '1' : '0');
+        },
+        loadOpenState() {
+            return sessionStorage.getItem(AIAssistantApp.CONSTANTS.OPEN_STATE_KEY) === '1';
+        },
+
         /** 清空所有存储的历史记录 */
         clear() {
             AIAssistantApp.state.conversationHistory = [];
@@ -66,17 +74,6 @@ const AIAssistantApp = {
             if (path.includes('/trading') || path.includes('trader')) return 'trading';
             if (path.includes('/run') || path.includes('gostrategy')) return 'strategy_run';
             return 'home';
-        },
-
-        /** 将上下文标识符转换为人类可读名称 */
-        getName(ctx) {
-            const names = {
-                'backtest': '策略回测页面',
-                'trading': '手动交易页面',
-                'strategy_run': '策略运行页面',
-                'home': '主页'
-            };
-            return names[ctx] || '当前页面';
         }
     },
 
@@ -231,11 +228,6 @@ const AIAssistantApp = {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
-        },
-
-        /** 生成模拟回复关键词逻辑（已弃用：保留空实现避免外部误调用） */
-        generateMockResponse(message) {
-            return { text: `（mock 已关闭）你输入的是：${message}` };
         }
     },
 
@@ -245,6 +237,7 @@ const AIAssistantApp = {
         toggleWindow() {
             const { window: win, btn } = AIAssistantApp.state.elements;
             AIAssistantApp.state.isOpen = !AIAssistantApp.state.isOpen;
+            AIAssistantApp.storage.saveOpenState(AIAssistantApp.state.isOpen);
 
             if (AIAssistantApp.state.isOpen) {
                 win.classList.add('active');
@@ -260,6 +253,7 @@ const AIAssistantApp = {
         close() {
             const { window: win, btn } = AIAssistantApp.state.elements;
             AIAssistantApp.state.isOpen = false;
+            AIAssistantApp.storage.saveOpenState(false);
             if (win) win.classList.remove('active');
             if (btn) btn.classList.remove('active');
             document.body.classList.remove('ai-sidebar-open');
@@ -392,6 +386,15 @@ const AIAssistantApp = {
 
         // 5. 绑定事件
         AIAssistantApp.events.bindAll();
+
+        // 6. 恢复打开状态（跨页面保持）
+        if (AIAssistantApp.storage.loadOpenState()) {
+            AIAssistantApp.state.isOpen = true;
+            const { window: win, btn } = AIAssistantApp.state.elements;
+            if (win) win.classList.add('active');
+            if (btn) btn.classList.add('active');
+            document.body.classList.add('ai-sidebar-open');
+        }
     }
 };
 

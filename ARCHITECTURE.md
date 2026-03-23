@@ -22,7 +22,7 @@
   ├── 回测 API        backend/api/backtest_api.py
   ├── 仿真/账户 API   backend/api/simulation_api.py   # 创建、列表、状态、开启、停止、下单
   ├── 策略运行 API    backend/api/gostrategy_api.py   # 启动/停止策略、K 线图表（按 signal_interval）
-  ├── AI Agent API    backend/api/ai_api.py          # LLM 对话（非流式 + SSE 流式）
+  ├── AI Agent API    backend/api/ai_api.py          # LLM 对话（SSE 流式）
   └── 日志流 (SSE)    backend/app.py (stdout pipe)
 
            │  业务调用
@@ -82,6 +82,11 @@
   - 策略实现存放在 `data/strategies/*.py`，继承 `deltafq.BaseStrategy`
   - `strategy_api` 负责发现、列出、加载这些策略
 
+- **LLMClient（LLM 客户端）**
+  - 通用 OpenAI 兼容 API 封装，位于 `backend/core/llm/llm_client.py`
+  - 支持 DeepSeek、OpenAI、通义等任意 provider，参数由 `config` 配置
+  - 由 `ai_api` 调用，仅提供流式对话接口
+
 ## 项目结构（简版）
 
 ```
@@ -113,4 +118,4 @@ requirements.txt  # 依赖
 - **双引擎模式**：`SimulationEngine` 用于手动交易，`StrategyEngine` 用于策略自动运行；同一账户同一时间仅一种模式。
 - **文件即数据库**：数据与结果全部以 CSV / JSON 落在 `data/` 目录，部署简单。
 - **易扩展**：新增策略 = 在 `data/strategies/` 写一个继承 `BaseStrategy` 的类，再通过前端选择即可。
-- **AI Agent**：前端负责 UI 与对话历史展示/持久化（`localStorage`）；后端通过 LLM（DeepSeek OpenAI-compatible）生成回复，并使用短期 `history` 作为上下文输入（带截断以控制长度）。
+- **AI Agent**：前端负责 UI 与对话历史展示/持久化（`localStorage`）；后端通过 LLM（`llm_client`，支持任意 OpenAI 兼容 API：DeepSeek / OpenAI / 通义等）生成回复，并使用短期 `history` 作为上下文输入（带截断以控制长度）。

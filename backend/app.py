@@ -87,7 +87,7 @@ def create_app() -> Flask:
     # 启用CORS支持
     CORS(app)
 
-    # 加载项目配置（包含 DEEPSEEK_* 等）
+    # 加载项目配置（包含 LLM_* 等）
     cfg_name = os.environ.get('FLASK_ENV', 'development')
     cfg_cls = project_config.get(cfg_name) or project_config.get('default')
     app.config.from_object(cfg_cls)

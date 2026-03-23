@@ -5,14 +5,13 @@ import os
 
 class Config:
     """基础配置"""
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'deltafstation_secret_key_2024'
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'deltafstation_secret_key_2026'
     DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 
-    # AI / LLM (DeepSeek)
-    DEEPSEEK_PROVIDER = os.environ.get("DEEPSEEK_PROVIDER") or "DeepSeek"
-    DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY") or "sk-aa5be993bb5d4e84b66246c664bb6d42"  # allow fixed key for demo
-    DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL") or "https://api.deepseek.com/v1"
-    DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL") or "deepseek-reasoner"  # deepseek-chat or deepseek-reasoner
+    # AI / LLM（OpenAI 兼容 API，可配置任意 provider：DeepSeek、OpenAI、通义等）
+    LLM_API_KEY = os.environ.get("LLM_API_KEY") or "sk-aa5be993bb5d4e84b66246c664bb6d42"
+    LLM_BASE_URL = os.environ.get("LLM_BASE_URL") or "https://api.deepseek.com/v1"
+    LLM_MODEL = os.environ.get("LLM_MODEL") or "deepseek-chat"
 
 class DevelopmentConfig(Config):
     """开发环境配置"""

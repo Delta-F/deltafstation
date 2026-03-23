@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-0.9.1-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-0.9.2-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -47,7 +47,7 @@ deltafstation/
 │   │   ├── data_api.py
 │   │   ├── strategy_api.py
 │   │   ├── backtest_api.py
-│   │   ├── ai_api.py          # AI Agent：LLM 对话（非流式 + SSE 流式）
+│   │   ├── ai_api.py          # AI Agent：LLM 对话（SSE 流式）
 │   │   ├── simulation_api.py   # 手动交易：账户、下单
 │   │   └── gostrategy_api.py   # 策略运行：启动/停止、K 线
 │   ├── core/         # 核心引擎
@@ -56,8 +56,8 @@ deltafstation/
 │   │   ├── backtest_engine.py
 │   │   ├── simulation_engine.py      # 手动交易 tick 撮合
 │   │   ├── strategy_engine.py     # 策略自动化 LiveEngine
-│   │   ├── llm/                     # AI Agent LLM 层（DeepSeek / OpenAI-compatible）
-│   │   │   └── deepseek_client.py
+│   │   ├── llm/                     # AI Agent LLM 层（OpenAI 兼容：DeepSeek / OpenAI / 通义等）
+│   │   │   └── llm_client.py
 │   │   ├── utils/
 │   │   │   ├── engine_snapshot.py
 │   │   │   ├── sim_persistence.py

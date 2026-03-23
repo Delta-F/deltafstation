@@ -1,5 +1,14 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [0.9.2] - 2026-03-23
+
+### 🔧 LLM 通用化与配置精简
+
+- **LLM 客户端通用化**：删除 `deepseek_client.py` 专用实现，新增通用 `llm_client.py`，支持任意 OpenAI 兼容 API（DeepSeek / OpenAI / 通义等），参数由 `config` 统一配置
+- **AI API 收窄**：仅保留 `POST /api/ai/chat/stream` 流式接口，移除非流式 `/api/ai/chat`；简化 system prompt 与 history 处理逻辑
+- **首页重构**：精简 `index.html` 结构，拆出 `index.css` 主页样式与 `_footer.html` 页脚组件，Hero 区与功能卡片布局优化
+- **配置与适配**：`config/config.py` 调整 LLM 相关配置；`_ai_assistant.html`、`ai-assistant.js`、`ai-assistant.css` 适配新流式接口
+
 ## [0.9.1] - 2026-03-19
 
 ### 🚀 AI Agent LLM 层与短期记忆增强（浏览器持久化）

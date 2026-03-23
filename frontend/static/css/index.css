@@ -1,0 +1,243 @@
+/* 主页样式 - DeltaFStation */
+
+body.page-index {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* Hero 区域 */
+.page-index .hero-section {
+    background: linear-gradient(135deg, #f0f4ff 0%, #e8efff 100%);
+    color: #495057;
+    padding: 1.5rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #e9ecef;
+    text-align: center;
+}
+
+.page-index .hero-title {
+    font-size: 1.6rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #343a40;
+}
+
+.page-index .hero-subtitle {
+    font-size: 0.95rem;
+    color: #6c757d;
+    margin-bottom: 0;
+    line-height: 1.4;
+}
+
+/* 功能卡片 */
+.page-index .feature-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: all 0.3s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #f0f0f0;
+    position: relative;
+    overflow: hidden;
+}
+
+.page-index .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.page-index .feature-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+    border-color: #e0e0e0;
+}
+
+.page-index .feature-card:hover::before {
+    transform: scaleX(1);
+}
+
+.page-index .feature-card.trading::before {
+    background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+}
+
+.page-index .feature-card.run::before {
+    background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.page-index .feature-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    margin-bottom: 0.9rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.page-index .feature-card.trading .feature-icon {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.page-index .feature-card.run .feature-icon {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.page-index .feature-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+    color: #1a1a1a;
+    letter-spacing: -0.3px;
+}
+
+.page-index .feature-description {
+    color: #666;
+    line-height: 1.5;
+    flex-grow: 1;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.page-index .feature-link {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+    padding: 0.35rem 0;
+}
+
+.page-index .feature-link:hover {
+    color: #764ba2;
+    gap: 0.75rem;
+}
+
+.page-index .feature-link i {
+    transition: transform 0.3s;
+}
+
+.page-index .feature-link:hover i {
+    transform: translateX(3px);
+}
+
+/* 学习资源区域 */
+.page-index .learning-section {
+    background: white;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.page-index .section-title {
+    font-size: 1.35rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #343a40;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.page-index .section-title i {
+    color: #667eea;
+}
+
+.page-index .resource-card {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 0;
+    border-left: 4px solid #667eea;
+    transition: all 0.3s;
+}
+
+.page-index .resource-card:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+}
+
+.page-index .resource-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.65rem;
+    color: #343a40;
+}
+
+.page-index .resource-description {
+    color: #6c757d;
+    line-height: 1.5;
+    margin-bottom: 0.9rem;
+    font-size: 0.85rem;
+}
+
+.page-index .resource-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s;
+    font-size: 0.85rem;
+}
+
+.page-index .resource-link:hover {
+    color: #764ba2;
+    gap: 0.75rem;
+}
+
+.page-index .resource-link i {
+    font-size: 0.8rem;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .page-index .hero-section {
+        padding: 1.25rem 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .page-index .hero-title {
+        font-size: 1.4rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .page-index .hero-subtitle {
+        font-size: 0.9rem;
+    }
+
+    .page-index .feature-card {
+        padding: 1.25rem;
+    }
+
+    .page-index .learning-section {
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .page-index .section-title {
+        font-size: 1.2rem;
+        margin-bottom: 0.75rem;
+    }
+}
