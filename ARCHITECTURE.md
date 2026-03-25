@@ -33,6 +33,12 @@
   ├── BacktestEngine*       backend/core/backtest_engine.py
   ├── SimulationEngine      backend/core/simulation_engine.py      # 手动交易（tick 撮合）
   ├── StrategyEngine*       backend/core/strategy_engine.py     # 策略自动化（deltafq LiveEngine）
+  ├── agent/                backend/core/agent/                # AI Agent（LLM + 工具编排）
+  │   ├── llm_client.py     backend/core/agent/llm_client.py
+  │   ├── tool_registry.py  backend/core/agent/tool_registry.py  # 工具 schema / handler 注册
+  │   ├── tool_runner.py    backend/core/agent/tool_runner.py    # 多轮 tool_calls 执行与回注
+  │   └── tools/            backend/core/agent/tools/            # 本地工具实现（function handlers）
+  │       └── fun_tools.py  backend/core/agent/tools/fun_tools.py # 今日一签等工具
   ├── sim_persistence    backend/core/utils/sim_persistence.py  # 仿真配置路径、同账户停机持久化
   └── engine_snapshot    backend/core/utils/engine_snapshot.py  # 引擎快照构建/恢复、订单续号与策略 ID 注入
 
@@ -89,36 +95,3 @@
     - `tool_registry.py`：工具 schema / handler 映射注册
     - `tool_runner.py`：多轮解析 `tool_calls`、执行本地工具、回注结果的循环
     - `tools/`：具体工具实现（当前提供趣味签文等工具）
-
-## 项目结构（简版）
-
-```
-backend/
-  ├── api/        # HTTP API (data, strategy, backtest, simulation, gostrategy)
-  ├── core/       # 引擎与数据管理
-  └── app.py      # Flask 入口
-
-frontend/
-  ├── templates/  # index / backtest / trader / gostrategy + 公共组件
-  │   └── _ai_assistant.html  # AI 小助手组件
-  └── static/
-      ├── css/    # style, common, backtest, trader, gostrategy, ai-assistant
-      └── js/     # common, backtest, trader, gostrategy, ai-assistant
-
-config/
-  └── config.py   # 应用配置
-
-data/             # 本地数据（已在 .gitignore 中忽略）
-data_cache/       # 本地缓存（已忽略）
-run.py            # 启动脚本
-requirements.txt  # 依赖
-```
-
-## 设计要点（一句话版）
-
-- **前后端分离但目录同仓**：Flask 只负责 API 和模板渲染，前端用 Bootstrap + 原生 JS。
-- **强依赖 deltafq**：回测与策略体系完全复用 `deltafq`，本项目更像一套 Web 外壳。
-- **双引擎模式**：`SimulationEngine` 用于手动交易，`StrategyEngine` 用于策略自动运行；同一账户同一时间仅一种模式。
-- **文件即数据库**：数据与结果全部以 CSV / JSON 落在 `data/` 目录，部署简单。
-- **易扩展**：新增策略 = 在 `data/strategies/` 写一个继承 `BaseStrategy` 的类，再通过前端选择即可。
-- **AI Agent**：前端负责 UI 与对话历史展示/持久化（`localStorage`）；后端通过 `backend/core/agent/llm_client.py` 生成回复，并在“工具模式”下由 `tool_runner.py` 完成多轮工具调用（工具 schema 来自 `tool_registry.py`）。
