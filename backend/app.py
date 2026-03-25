@@ -91,7 +91,7 @@ def create_app() -> Flask:
     cfg_name = os.environ.get('FLASK_ENV', 'development')
     cfg_cls = project_config.get(cfg_name) or project_config.get('default')
     app.config.from_object(cfg_cls)
-    
+
     # 启动市场数据服务
     try:
         live_data_manager.start()

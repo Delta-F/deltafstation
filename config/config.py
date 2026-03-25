@@ -8,10 +8,10 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'deltafstation_secret_key_2026'
     DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 
-    # AI / LLM（OpenAI 兼容 API，可配置任意 provider：DeepSeek、OpenAI、通义等）
-    LLM_API_KEY = os.environ.get("LLM_API_KEY") or "sk-aa5be993bb5d4e84b66246c664bb6d42"
-    LLM_BASE_URL = os.environ.get("LLM_BASE_URL") or "https://api.deepseek.com/v1"
-    LLM_MODEL = os.environ.get("LLM_MODEL") or "deepseek-chat"
+    # LLM 配置（OpenAI 兼容 API）
+    LLM_API_KEY = "sk-aa5be993bb5d4e84b66246c664bb6d42"
+    LLM_BASE_URL = "https://api.deepseek.com/v1"
+    LLM_MODEL = "deepseek-chat"
 
 class DevelopmentConfig(Config):
     """开发环境配置"""

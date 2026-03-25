@@ -1,8 +1,9 @@
 """
-LLM 客户端
+LLM Client (OpenAI-compatible)
 
-OpenAI 兼容 API 封装，支持 DeepSeek、OpenAI、通义、Azure 等。
-参数由调用方从 config 传入，timeout/max_retries 由 SDK 内置处理。
+提供两类调用：
+- `stream_chat()`：流式输出 delta（用于“纯对话”）
+- `chat_completion()`：非流式输出（支持携带 `tools` 做 function calling）
 """
 
 from __future__ import annotations
@@ -10,10 +11,11 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
+from openai.types.chat import ChatCompletion
 
 
 class LLMClient:
-    """OpenAI 兼容 API 客户端，可配置任意 provider。"""
+    """OpenAI 兼容客户端封装，可配置 provider/base_url/model。"""
 
     def __init__(
         self,
@@ -21,6 +23,7 @@ class LLMClient:
         base_url: str = "",
         model: str = "",
     ) -> None:
+        """初始化客户端：保存配置并延迟创建 OpenAI SDK 实例。"""
         self.model = (model or "").strip()
         self.api_key = (api_key or "").strip() or None
         self.base_url = (base_url or "").strip()
@@ -45,6 +48,30 @@ class LLMClient:
             if text:
                 yield text
 
+    def chat_completion(
+        self,
+        messages: List[Dict[str, Any]],
+        *,
+        temperature: float = 0.2,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: Optional[str] = "auto",
+    ) -> ChatCompletion:
+        """非流式对话。
+
+        当传入 `tools` 时，模型可能触发 function calling（tool_calls）。
+        """
+        client = self._get_client()
+        kwargs: Dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        if tools is not None:
+            kwargs["tools"] = tools
+            if tool_choice is not None:
+                kwargs["tool_choice"] = tool_choice
+        return client.chat.completions.create(**kwargs)
+
     def _get_client(self) -> OpenAI:
         """懒加载创建 OpenAI 客户端。"""
         if self._client is not None:
@@ -58,3 +85,4 @@ class LLMClient:
             max_retries=2,
         )
         return self._client
+

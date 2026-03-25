@@ -215,14 +215,22 @@ body.ai-sidebar-open .navbar.sticky-top {
     background: #ffffff;
 }
 
-/* 快捷操作 */
+/* 快捷提示词（单独一行） */
+.ai-quick-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px 0;
+    background: #ffffff;
+    border-top: 1px solid #eee;
+}
+
 .ai-quick-actions {
-    padding: 12px 16px;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    background: #ffffff;
-    border-top: 1px solid #eee;
+    align-items: center;
 }
 
 .ai-quick-btn {
@@ -239,52 +247,236 @@ body.ai-sidebar-open .navbar.sticky-top {
     background: #e9ecef;
 }
 
-/* 输入区域 */
+/* Cursor Composer 风格：单框 + 底栏内置模式与操作 */
 .ai-input-area {
-    padding: 12px 16px;
+    padding: 10px 16px 14px;
+    background: #ffffff;
+}
+
+.ai-composer {
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    border-radius: 12px;
     background: #ffffff;
-    align-items: center;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
 }
 
-#aiInput {
-    flex: 1;
-    padding: 10px 16px;
-    border: 1.5px solid #e9ecef;
-    border-radius: 24px;
-    font-size: 14px;
-    outline: none;
-    background: #f8f9fa;
-    transition: border-color 0.2s;
+.ai-composer:focus-within {
+    box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.35), 0 2px 12px rgba(102, 126, 234, 0.12);
 }
 
-#aiInput:focus {
-    border-color: #667eea;
-    background: #ffffff;
-}
-
-#aiSendBtn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+.ai-composer-input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
     border: none;
-    cursor: pointer;
+    outline: none;
+    padding: 12px 14px 8px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #1a1a1a;
+    background: transparent;
+    font-family: inherit;
+    min-height: 3.6em;
+    resize: vertical;
+    max-height: 200px;
+}
+
+.ai-composer-input::placeholder {
+    color: #b0b0b0;
+}
+
+.ai-composer-toolbar {
     display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px 8px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    min-height: 36px;
+}
+
+.ai-composer-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+
+/* Chat / Tools 分段点选（内嵌底栏） */
+.ai-composer-seg {
+    display: inline-flex;
+    padding: 2px;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.ai-composer-seg-btn {
+    border: none;
+    background: transparent;
+    padding: 4px 11px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: #6b6b6b;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.25;
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ai-composer-seg-btn:hover:not(.active) {
+    color: #333;
+}
+
+.ai-composer-seg-btn.active {
+    background: #fff;
+    color: #1a1a1a;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+.ai-composer-seg-btn:focus-visible {
+    outline: 2px solid rgba(102, 126, 234, 0.45);
+    outline-offset: 1px;
+}
+
+.ai-composer-model {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 11rem;
+    margin-left: 2px;
+}
+
+.ai-composer-toolbar-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.ai-composer-send {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    cursor: pointer;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    font-size: 13px;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
-#aiSendBtn:hover {
-    transform: scale(1.1);
+.ai-composer-send:hover:not(:disabled) {
+    transform: scale(1.06);
 }
 
-#aiSendBtn:disabled {
-    opacity: 0.5;
+.ai-composer-send:disabled {
+    opacity: 0.45;
     cursor: not-allowed;
+    transform: none;
+}
+
+/* 清空对话确认弹层 */
+.ai-modal-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+.ai-modal-overlay.is-open {
+    display: flex;
+}
+
+.ai-modal-dialog {
+    width: 100%;
+    max-width: 320px;
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px 20px 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.06);
+    animation: aiModalIn 0.2s ease;
+}
+
+@keyframes aiModalIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.ai-modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 8px;
+}
+
+.ai-modal-desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #6b7280;
+    margin: 0 0 18px;
+}
+
+.ai-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.ai-modal-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ai-modal-btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.ai-modal-btn-secondary:hover {
+    background: #e5e7eb;
+}
+
+.ai-modal-btn-danger {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.ai-modal-btn-danger:hover {
+    filter: brightness(1.05);
 }
 
 /* 动画与加载状态 (Animations) */

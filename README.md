@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-0.9.2-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-0.9.3-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -35,7 +35,7 @@ python run.py
 - 📉 回测中心 - 策略创建、历史数据回测、绩效分析与可视化报告
 - 🧾 手动交易 - 管理账户（选择/新建）、本地模拟基于 deltafq 按 tick 撮合、买卖执行与持仓盈亏跟踪
 - ⚡ 策略运行 - 自动交易、实时监控、信号执行与日志追踪
-- 🤖 AI Agent - 支持 LLM 配置、对话与工具调用（预留），并可接入系统知识 RAG（可扩展）
+- 🤖 AI Agent - 支持 LLM 配置、对话与工具调用（当前内置趣味签文等函数工具框架，已为扩展预留）
 
 ## 🗂️ 项目结构
 
@@ -56,8 +56,12 @@ deltafstation/
 │   │   ├── backtest_engine.py
 │   │   ├── simulation_engine.py      # 手动交易 tick 撮合
 │   │   ├── strategy_engine.py     # 策略自动化 LiveEngine
-│   │   ├── llm/                     # AI Agent LLM 层（OpenAI 兼容：DeepSeek / OpenAI / 通义等）
-│   │   │   └── llm_client.py
+│   │   ├── agent/                   # AI Agent 编排层（OpenAI 兼容：DeepSeek / OpenAI / 通义等）
+│   │   │   ├── llm_client.py
+│   │   │   ├── tool_registry.py     # 工具 schema / handler 注册
+│   │   │   ├── tool_runner.py       # 多轮 tool_calls 编排执行
+│   │   │   └── tools/              # 工具实现（handler）
+│   │   │       └── fun_tools.py
 │   │   ├── utils/
 │   │   │   ├── engine_snapshot.py
 │   │   │   ├── sim_persistence.py

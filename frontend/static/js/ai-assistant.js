@@ -17,6 +17,7 @@ const AIAssistantApp = {
     CONSTANTS: {
         STORAGE_KEY: 'ai_conversation_history',
         OPEN_STATE_KEY: 'ai_assistant_open',
+        CHAT_MODE_KEY: 'ai_chat_mode',
         MAX_HISTORY: 100
     },
 
@@ -24,6 +25,7 @@ const AIAssistantApp = {
     state: {
         isOpen: false,
         currentContext: 'home',
+        chatMode: 'tools',
         conversationHistory: [],
         elements: {} // 存放 DOM 引用
     },
@@ -49,6 +51,20 @@ const AIAssistantApp = {
         },
         loadOpenState() {
             return sessionStorage.getItem(AIAssistantApp.CONSTANTS.OPEN_STATE_KEY) === '1';
+        },
+
+        saveChatMode(m) {
+            try { sessionStorage.setItem(AIAssistantApp.CONSTANTS.CHAT_MODE_KEY, m); } catch (_) {}
+        },
+        loadChatMode() {
+            try {
+                const v = sessionStorage.getItem(AIAssistantApp.CONSTANTS.CHAT_MODE_KEY);
+                if (v === 'tools') return 'tools';
+                if (v === 'chat') return 'chat';
+                return 'tools';
+            } catch (_) {
+                return 'tools';
+            }
         },
 
         /** 清空所有存储的历史记录 */
@@ -117,7 +133,8 @@ const AIAssistantApp = {
                     body: JSON.stringify({
                         message: text,
                         context: AIAssistantApp.state.currentContext,
-                        history: AIAssistantApp.chat.toChatHistory(20)
+                        history: AIAssistantApp.chat.toChatHistory(20),
+                        mode: AIAssistantApp.state.chatMode
                     })
                 });
                 if (!res.ok) {
@@ -286,6 +303,22 @@ const AIAssistantApp = {
             if (el) el.remove();
         },
 
+        /** 清空对话确认弹层 */
+        openClearConfirmModal() {
+            const modal = document.getElementById('aiClearConfirmModal');
+            if (!modal) return;
+            modal.classList.add('is-open');
+            modal.setAttribute('aria-hidden', 'false');
+            document.getElementById('aiClearConfirmCancel')?.focus();
+        },
+
+        closeClearConfirmModal() {
+            const modal = document.getElementById('aiClearConfirmModal');
+            if (!modal) return;
+            modal.classList.remove('is-open');
+            modal.setAttribute('aria-hidden', 'true');
+        },
+
         /** 弹出 Toast 提示框 */
         showAlert(message, type = 'info') {
             const alertDiv = document.createElement('div');
@@ -318,7 +351,7 @@ const AIAssistantApp = {
             // 发送逻辑
             if (sendBtn) sendBtn.addEventListener('click', () => AIAssistantApp.chat.sendMessage());
             if (input) {
-                input.addEventListener('keypress', (e) => {
+                input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         AIAssistantApp.chat.sendMessage();
@@ -337,7 +370,32 @@ const AIAssistantApp = {
             
             if (historyBtn) historyBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (confirm('是否清空当前对话历史？')) AIAssistantApp.storage.clear();
+                AIAssistantApp.ui.openClearConfirmModal();
+            });
+
+            const clearModal = document.getElementById('aiClearConfirmModal');
+            const clearCancel = document.getElementById('aiClearConfirmCancel');
+            const clearOk = document.getElementById('aiClearConfirmOk');
+            if (clearCancel) {
+                clearCancel.addEventListener('click', () => AIAssistantApp.ui.closeClearConfirmModal());
+            }
+            if (clearOk) {
+                clearOk.addEventListener('click', () => {
+                    AIAssistantApp.ui.closeClearConfirmModal();
+                    AIAssistantApp.storage.clear();
+                });
+            }
+            if (clearModal) {
+                clearModal.addEventListener('click', (e) => {
+                    if (e.target === clearModal) AIAssistantApp.ui.closeClearConfirmModal();
+                });
+            }
+            document.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape') return;
+                const modal = document.getElementById('aiClearConfirmModal');
+                if (!modal?.classList.contains('is-open')) return;
+                e.preventDefault();
+                AIAssistantApp.ui.closeClearConfirmModal();
             });
 
             // 快捷操作代理
@@ -350,6 +408,23 @@ const AIAssistantApp = {
                     }
                 });
             }
+
+            const chat = document.getElementById('aiModeChat');
+            const tools = document.getElementById('aiModeTools');
+            const applyMode = (m) => {
+                AIAssistantApp.state.chatMode = m === 'tools' ? 'tools' : 'chat';
+                AIAssistantApp.storage.saveChatMode(AIAssistantApp.state.chatMode);
+                if (chat) {
+                    chat.classList.toggle('active', AIAssistantApp.state.chatMode === 'chat');
+                    chat.setAttribute('aria-selected', AIAssistantApp.state.chatMode === 'chat');
+                }
+                if (tools) {
+                    tools.classList.toggle('active', AIAssistantApp.state.chatMode === 'tools');
+                    tools.setAttribute('aria-selected', AIAssistantApp.state.chatMode === 'tools');
+                }
+            };
+            if (chat) chat.addEventListener('click', () => applyMode('chat'));
+            if (tools) tools.addEventListener('click', () => applyMode('tools'));
         }
     },
 
@@ -369,6 +444,17 @@ const AIAssistantApp = {
         // 2. 初始化状态
         AIAssistantApp.state.currentContext = AIAssistantApp.context.detect();
         AIAssistantApp.state.conversationHistory = AIAssistantApp.storage.load();
+        AIAssistantApp.state.chatMode = AIAssistantApp.storage.loadChatMode();
+        const chat = document.getElementById('aiModeChat');
+        const tools = document.getElementById('aiModeTools');
+        if (chat) {
+            chat.classList.toggle('active', AIAssistantApp.state.chatMode === 'chat');
+            chat.setAttribute('aria-selected', AIAssistantApp.state.chatMode === 'chat');
+        }
+        if (tools) {
+            tools.classList.toggle('active', AIAssistantApp.state.chatMode === 'tools');
+            tools.setAttribute('aria-selected', AIAssistantApp.state.chatMode === 'tools');
+        }
 
         // 3. 渲染历史记录
         if (AIAssistantApp.state.conversationHistory.length > 0) {
@@ -380,12 +466,21 @@ const AIAssistantApp = {
         // 4. 加载快捷操作 (模拟)
         const container = document.getElementById('aiQuickActions');
         if (container) {
-            const actions = ['如何上传数据？', '怎么开发策略？', '如何快速开始？'];
+            const actions = ['今日一签', '快速回测', '工具列表'];
             container.innerHTML = actions.map(a => `<button class="ai-quick-btn">${a}</button>`).join('');
         }
 
         // 5. 绑定事件
         AIAssistantApp.events.bindAll();
+
+        // 与后端同步模型名（避免模板未渲染到 config 时空白）
+        fetch('/api/ai/config')
+            .then((r) => (r.ok ? r.json() : Promise.reject()))
+            .then((d) => {
+                const el = document.getElementById('aiModelLabel');
+                if (el && d && typeof d.model === 'string' && d.model) el.textContent = d.model;
+            })
+            .catch(() => {});
 
         // 6. 恢复打开状态（跨页面保持）
         if (AIAssistantApp.storage.loadOpenState()) {

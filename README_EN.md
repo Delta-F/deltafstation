@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-0.9.2-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-0.9.3-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -35,7 +35,7 @@ python run.py
 - 📉 Backtest Hub - Strategy creation, historical backtesting, performance analysis, and visual reports
 - 🧾 Manual Trading - Manage accounts (select or create), local simulation via deltafq tick matching, buy/sell execution, and position & PnL tracking
 - ⚡ Strategy Running - Automated trading, real-time monitoring, signal execution, and logs
-- 🤖 AI Agent - supports LLM configuration, chat, and tool calling (reserved), and can be extended with system-knowledge RAG
+- 🤖 AI Agent - supports LLM configuration, chat, and tool calling (a built-in function tool framework is provided for now, ready to extend)
 
 ## 🗂️ Project Structure
 
@@ -56,8 +56,12 @@ deltafstation/
 │   │   ├── backtest_engine.py
 │   │   ├── simulation_engine.py      # Manual tick matching
 │   │   ├── strategy_engine.py     # Strategy automation (LiveEngine)
-│   │   ├── llm/                     # AI Agent LLM layer (OpenAI-compatible: DeepSeek / OpenAI / Tongyi etc.)
-│   │   │   └── llm_client.py
+│   │   ├── agent/                   # AI Agent orchestration layer (OpenAI-compatible: DeepSeek / OpenAI / Tongyi etc.)
+│   │   │   ├── llm_client.py
+│   │   │   ├── tool_registry.py   # tool schema / handler registration
+│   │   │   ├── tool_runner.py     # multi-round tool_calls execution loop
+│   │   │   └── tools/              # tool implementations (handlers)
+│   │   │       └── fun_tools.py
 │   │   ├── utils/
 │   │   │   ├── engine_snapshot.py
 │   │   │   ├── sim_persistence.py

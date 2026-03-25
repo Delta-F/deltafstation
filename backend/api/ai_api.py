@@ -5,11 +5,13 @@ AI Chat API
 
 路由:
   POST /api/ai/chat/stream
+  GET  /api/ai/config   当前模型名等（供前端展示，无密钥）
 
 请求体:
   message   str  必填，用户输入
   context   str  可选，页面上下文 home|backtest|trading|strategy_run
   history  list  可选，近期对话 [{role, content}]，最多保留 20 条
+  mode      str  可选，chat（流式，无 tools）| tools（run_chat_with_tools），默认 tools；兼容旧值 ask/agent
 
 响应 (SSE):
   data: {"delta": "..."}  逐 token
@@ -25,9 +27,21 @@ from flask import (
     Blueprint, Response, current_app, jsonify, request, stream_with_context,
 )
 
-from backend.core.llm.llm_client import LLMClient
+from backend.core.agent.llm_client import LLMClient
+from backend.core.agent.tool_runner import (
+    AGENT_TOOLS,
+    TOOLS_MAP,
+    run_chat_with_tools,
+)
 
 ai_bp = Blueprint("ai", __name__)
+
+
+@ai_bp.route("/config", methods=["GET"])
+def ai_config():
+    """返回当前 LLM 模型 id（与 LLMClient 使用的 LLM_MODEL 一致，不含密钥）。"""
+    model = (current_app.config.get("LLM_MODEL") or "").strip()
+    return jsonify({"model": model or None})
 
 
 @ai_bp.route("/chat/stream", methods=["POST"])
@@ -39,14 +53,23 @@ def chat_stream():
         return jsonify({"error": "message is required"}), 400
 
     context = payload.get("context") or "home"
+    mode = _normalize_chat_mode(payload.get("mode"))
+
     history = _normalize_history(payload.get("history"), max_items=20)
     client = _client_from_app()
     messages = _build_messages(context=context, client=client, history=history, message=message)
 
     def generate():
         try:
-            for token in client.stream_chat(messages):
-                yield f"data: {json.dumps({'delta': token}, ensure_ascii=False)}\n\n"
+            if mode == "tools":
+                msgs = [dict(m) for m in messages]
+                text = run_chat_with_tools(
+                    client, msgs, tools=AGENT_TOOLS, tool_handlers=TOOLS_MAP
+                )
+                yield f"data: {json.dumps({'delta': text}, ensure_ascii=False)}\n\n"
+            else:
+                for token in client.stream_chat(messages):
+                    yield f"data: {json.dumps({'delta': token}, ensure_ascii=False)}\n\n"
             yield "data: [DONE]\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
@@ -60,6 +83,16 @@ def _client_from_app() -> LLMClient:
     base_url = (current_app.config.get("LLM_BASE_URL") or "https://api.deepseek.com/v1").strip()
     model = (current_app.config.get("LLM_MODEL") or "deepseek-chat").strip()
     return LLMClient(api_key=api_key, base_url=base_url, model=model)
+
+
+def _normalize_chat_mode(raw: object) -> str:
+    """chat | tools，默认 tools；兼容 ask→chat、agent→tools。"""
+    m = (raw if isinstance(raw, str) else str(raw or "")).strip().lower()
+    if m in ("ask", "chat"):
+        return "chat"
+    if m in ("agent", "tools"):
+        return "tools"
+    return "tools"
 
 
 def _normalize_history(history: object, max_items: int = 20) -> list:

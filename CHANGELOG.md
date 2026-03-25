@@ -1,5 +1,15 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [0.9.3] - 2026-03-25
+
+### 🤖 AI Agent 工具模式（Function Calling）落地
+
+- 后端重构为 `backend/core/agent/`：`LLMClient` 新增 `chat_completion()` 以支持携带 `tools`。
+- 新增工具编排链路：`tool_registry.py` 注册工具 schema / handler，`tool_runner.py` 实现多轮 `tool_calls` 执行与回注；当前内置 `get_fun_station_tip`（今日一签）。
+- `POST /api/ai/chat/stream` 新增 `mode`：`tools`（默认）启用工具模式，`chat` 保持纯流式对话；同时新增 `GET /api/ai/config` 供前端展示模型名。
+- 前端 `ai-assistant` 更新：底栏切换 `Tools/Chat` 模式、清空对话改为弹窗确认，并同步展示当前 `LLM_MODEL`。
+- 文档同步：`ARCHITECTURE.md` / `README.md` / `README_EN.md` 更新 AI Agent 目录结构与工具模式说明。
+
 ## [0.9.2] - 2026-03-23
 
 ### 🔧 LLM 通用化与配置精简

@@ -82,10 +82,13 @@
   - 策略实现存放在 `data/strategies/*.py`，继承 `deltafq.BaseStrategy`
   - `strategy_api` 负责发现、列出、加载这些策略
 
-- **LLMClient（LLM 客户端）**
-  - 通用 OpenAI 兼容 API 封装，位于 `backend/core/llm/llm_client.py`
-  - 支持 DeepSeek、OpenAI、通义等任意 provider，参数由 `config` 配置
-  - 由 `ai_api` 调用，仅提供流式对话接口
+- **AI Agent（Agent 模块）**
+  - `LLMClient`：OpenAI 兼容 API 封装，位于 `backend/core/agent/llm_client.py`
+    - 支持 DeepSeek、OpenAI、通义等任意 provider，参数由 `config` 配置
+  - 工具编排（function calling）：
+    - `tool_registry.py`：工具 schema / handler 映射注册
+    - `tool_runner.py`：多轮解析 `tool_calls`、执行本地工具、回注结果的循环
+    - `tools/`：具体工具实现（当前提供趣味签文等工具）
 
 ## 项目结构（简版）
 
@@ -118,4 +121,4 @@ requirements.txt  # 依赖
 - **双引擎模式**：`SimulationEngine` 用于手动交易，`StrategyEngine` 用于策略自动运行；同一账户同一时间仅一种模式。
 - **文件即数据库**：数据与结果全部以 CSV / JSON 落在 `data/` 目录，部署简单。
 - **易扩展**：新增策略 = 在 `data/strategies/` 写一个继承 `BaseStrategy` 的类，再通过前端选择即可。
-- **AI Agent**：前端负责 UI 与对话历史展示/持久化（`localStorage`）；后端通过 LLM（`llm_client`，支持任意 OpenAI 兼容 API：DeepSeek / OpenAI / 通义等）生成回复，并使用短期 `history` 作为上下文输入（带截断以控制长度）。
+- **AI Agent**：前端负责 UI 与对话历史展示/持久化（`localStorage`）；后端通过 `backend/core/agent/llm_client.py` 生成回复，并在“工具模式”下由 `tool_runner.py` 完成多轮工具调用（工具 schema 来自 `tool_registry.py`）。

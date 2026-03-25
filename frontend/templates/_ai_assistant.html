@@ -41,14 +41,47 @@
 
         <!-- 5. 底部面板 (Footer: Actions & Input) -->
         <div class="ai-window-footer">
-            <div class="ai-quick-actions" id="aiQuickActions">
-                <!-- 快捷操作按钮将通过 JavaScript 动态添加 -->
+            <div class="ai-quick-row">
+                <div class="ai-quick-actions" id="aiQuickActions">
+                    <!-- 快捷操作按钮将通过 JavaScript 动态添加 -->
+                </div>
             </div>
             <div class="ai-input-area">
-                <input type="text" id="aiInput" placeholder="输入问题..." />
-                <button id="aiSendBtn" class="ai-send-btn">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
+                <div class="ai-composer" id="aiComposer">
+                    <textarea
+                        id="aiInput"
+                        class="ai-composer-input"
+                        rows="2"
+                        placeholder="输入问题…"
+                        autocomplete="off"
+                    ></textarea>
+                    <div class="ai-composer-toolbar">
+                        <div class="ai-composer-toolbar-left">
+                            <div class="ai-composer-seg" role="tablist" aria-label="对话模式">
+                                <button type="button" class="ai-composer-seg-btn active" id="aiModeTools" data-mode="tools" role="tab" aria-selected="true" title="带 tools 编排（回测等）">Tools</button>
+                                <button type="button" class="ai-composer-seg-btn" id="aiModeChat" data-mode="chat" role="tab" aria-selected="false" title="流式对话，不带 tools">Chat</button>
+                            </div>
+                            <span class="ai-composer-model" id="aiModelLabel" title="当前配置的模型（LLM_MODEL）">{{ config['LLM_MODEL'] or '—' }}</span>
+                        </div>
+                        <div class="ai-composer-toolbar-right">
+                            <button type="button" id="aiSendBtn" class="ai-composer-send" title="发送（Enter）；Shift+Enter 换行">
+                                <i class="fas fa-arrow-up"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 清空对话确认（替代原生 confirm） -->
+        <div class="ai-modal-overlay" id="aiClearConfirmModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="aiClearConfirmTitle">
+            <div class="ai-modal-dialog">
+                <div class="ai-modal-title" id="aiClearConfirmTitle">清空对话</div>
+                <p class="ai-modal-desc">将删除当前侧边栏中的消息记录，此操作不可撤销。</p>
+                <div class="ai-modal-actions">
+                    <button type="button" class="ai-modal-btn ai-modal-btn-secondary" id="aiClearConfirmCancel">取消</button>
+                    <button type="button" class="ai-modal-btn ai-modal-btn-danger" id="aiClearConfirmOk">清空</button>
+                </div>
             </div>
         </div>
 
