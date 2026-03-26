@@ -35,10 +35,11 @@
   ├── StrategyEngine*       backend/core/strategy_engine.py     # 策略自动化（deltafq LiveEngine）
   ├── agent/                backend/core/agent/                # AI Agent（LLM + 工具编排）
   │   ├── llm_client.py     backend/core/agent/llm_client.py
-  │   ├── tool_registry.py  backend/core/agent/tool_registry.py  # 工具 schema / handler 注册
+  │   ├── tool_registry.py  backend/core/agent/tool_registry.py  # 工具 schema / handler 注册（TOOL_DEFINITIONS）
   │   ├── tool_runner.py    backend/core/agent/tool_runner.py    # 多轮 tool_calls 执行与回注
   │   └── tools/            backend/core/agent/tools/            # 本地工具实现（function handlers）
-  │       └── fun_tools.py  backend/core/agent/tools/fun_tools.py # 今日一签等工具
+  │       ├── fun_tools.py       backend/core/agent/tools/fun_tools.py       # 今日一签
+  │       └── backtest_tools.py  backend/core/agent/tools/backtest_tools.py  # 回测执行（模糊匹配 + 结构化摘要）
   ├── sim_persistence    backend/core/utils/sim_persistence.py  # 仿真配置路径、同账户停机持久化
   └── engine_snapshot    backend/core/utils/engine_snapshot.py  # 引擎快照构建/恢复、订单续号与策略 ID 注入
 
@@ -92,6 +93,7 @@
   - `LLMClient`：OpenAI 兼容 API 封装，位于 `backend/core/agent/llm_client.py`
     - 支持 DeepSeek、OpenAI、通义等任意 provider，参数由 `config` 配置
   - 工具编排（function calling）：
-    - `tool_registry.py`：工具 schema / handler 映射注册
+    - `tool_registry.py`：工具 schema / handler 映射注册（通过 `TOOL_DEFINITIONS` 统一维护）
     - `tool_runner.py`：多轮解析 `tool_calls`、执行本地工具、回注结果的循环
-    - `tools/`：具体工具实现（当前提供趣味签文等工具）
+    - `tools/`：具体工具实现（当前提供趣味签文、回测执行工具）
+      - `backtest_tools.py`：支持 `strategy_id` / `data_file` 模糊匹配；成功返回 `resolved.date_range`、`summary_metrics`、`trade_preview`

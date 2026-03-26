@@ -1,5 +1,15 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [0.9.4] - 2026-03-26
+
+### 🤖 AI Agent 回测工具增强（模糊匹配 + 结构化摘要）
+
+- 新增 Agent 回测工具实现 `backend/core/agent/tools/backtest_tools.py`，支持在 tools 模式下直接执行回测并复用 Core 回测引擎与结果落盘流程。
+- 回测工具支持必填参数模糊匹配：`strategy_id`（关键词/大小写不敏感）与 `data_file`（优先按 symbol 匹配）；匹配歧义时返回候选列表而非误执行。
+- 回测工具返回升级为结构化模板：`resolved.date_range`、`summary_metrics`、`trade_preview`（支持 `trade_preview_count` 控制预览条数，默认 10）。
+- `backend/core/agent/tool_registry.py` 增加 `run_backtest` 工具 schema，并重构为单一注册源（`TOOL_DEFINITIONS`）以统一生成 `AGENT_TOOLS` 与 `TOOLS_MAP`，提升扩展维护性。
+- 文档新增并更新：`docs/agent-backtest-tool.md`（记录工具设计、返回模板、指标映射与调用约定）；同时优化 `backtest_tools.py` 头部中文方法说明与模块分组目录，便于快速理解与维护。
+
 ## [0.9.3] - 2026-03-25
 
 ### 🤖 AI Agent 工具模式（Function Calling）落地
