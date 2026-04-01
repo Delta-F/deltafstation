@@ -28,6 +28,10 @@ from flask import (
 )
 
 from backend.core.agent.llm_client import LLMClient
+from backend.core.agent.skill_prompt import (
+    load_backtest_skill_markdown,
+    should_inject_backtest_skill,
+)
 from backend.core.agent.tool_runner import (
     AGENT_TOOLS,
     TOOLS_MAP,
@@ -112,15 +116,23 @@ def _normalize_history(history: object, max_items: int = 20) -> list:
 def _build_messages(*, context: str, client: LLMClient, history: list, message: str) -> list:
     """构建 messages：system prompt + history + 当前 user message。"""
     return [
-        {"role": "system", "content": _system_prompt_with_model(context, model=client.model)},
+        {
+            "role": "system",
+            "content": _system_prompt_with_model(context, model=client.model, message=message),
+        },
         *history,
         {"role": "user", "content": message},
     ]
 
 
-def _system_prompt_with_model(context: str, *, model: str) -> str:
-    """system prompt 基础内容 + 模型名。"""
-    return _system_prompt(context) + f"Model name: {model}\n"
+def _system_prompt_with_model(context: str, *, model: str, message: str) -> str:
+    """system prompt 基础内容 + 命中关键词时的回测 skill + 模型名。"""
+    prompt = _system_prompt(context)
+    if should_inject_backtest_skill(message):
+        skill_md = load_backtest_skill_markdown()
+        if skill_md:
+            prompt += f"\nProject backtest skill:\n{skill_md}\n"
+    return prompt + f"Model name: {model}\n"
 
 
 def _system_prompt(context: str) -> str:

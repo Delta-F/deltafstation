@@ -1,5 +1,15 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [0.9.5] - 2026-04-01
+
+### 🤖 Agent 回测 Skill 注入 + 自动拉数回测工具
+
+- **回测 Skill 动态注入**：新增 `backend/core/agent/skill_prompt.py`，当用户消息命中中英文关键词（如「回测」「跑策略」「backtest」「strategy test」等）时，将 `backend/core/agent/skills/backtest/SKILL.md` 追加进 system prompt；`backend/api/ai_api.py` 在构建对话消息时接入上述逻辑。
+- **新工具 `run_backtest_auto`**：新增 `backend/core/agent/tools/backtest_auto_tools.py` 并在 `tool_registry.py` 注册；仅需 `symbol` 即可通过 `DataManager` 拉取或复用数据后执行回测，`strategy_id` 可选（默认 `BOLLStrategy`）；若策略类不存在则在 `data/strategies/` 写入最小可运行策略后再回测。
+- **回测摘要与落盘复用**：`backtest_tools.py` 抽取 `build_backtest_brief_and_persist`，供 `run_backtest` 与自动回测共用；结构化摘要的 `summary_metrics` 增加 `total_trades`、`avg_trades_per_day`；支持可选 `extra` 写入落盘 JSON 与 brief。
+- **文档**：`docs/agent-backtest-tool.md` 同步新指标说明；新增 `docs/agent-backtest-skill.md` 描述 Skill 注入与 `run_backtest_auto` 行为。
+- **回测页**：`frontend/templates/backtest.html` 在「回测历史」卡片增加刷新列表按钮（与清空并列）。
+
 ## [0.9.4] - 2026-03-26
 
 ### 🤖 AI Agent 回测工具增强（模糊匹配 + 结构化摘要）

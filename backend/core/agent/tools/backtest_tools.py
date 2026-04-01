@@ -325,6 +325,103 @@ def _build_trade_preview(trades: Any, preview_count: int = 10) -> Dict[str, Any]
     return {"count": len(items), "items": items}
 
 
+def _trade_count_and_avg_per_day(trades_df: Any, values_df: Any) -> tuple[int, Optional[float]]:
+    """总成交笔数；日均笔数 = 总笔数 / 净值序列长度（日线下一行对应一个交易日）。"""
+    if isinstance(trades_df, list):
+        total = len(trades_df)
+    elif hasattr(trades_df, "__len__") and not isinstance(trades_df, (str, bytes)):
+        try:
+            total = len(trades_df)  # type: ignore[arg-type]
+        except TypeError:
+            total = 0
+    else:
+        total = 0
+
+    if isinstance(values_df, list) and len(values_df) > 0:
+        bar_days = len(values_df)
+    else:
+        bar_days = 0
+
+    if bar_days <= 0:
+        return total, None
+    return total, round(total / bar_days, 6)
+
+
+def build_backtest_brief_and_persist(
+    *,
+    engine: BacktestEngine,
+    strategy_id: str,
+    used_symbol: str,
+    data_file: str,
+    start_date: Optional[str],
+    end_date: Optional[str],
+    initial_capital: float,
+    commission: float,
+    slippage: float,
+    trade_preview_count: int,
+    extra: Optional[Dict[str, Any]] = None,
+) -> str:
+    """统一落盘并返回精简回测摘要。"""
+    result_id = _build_result_id(strategy_id, used_symbol, start_date, end_date)
+    result = {
+        "trades_df": _convert_to_json_serializable(engine.get_trades_df()),
+        "values_df": _convert_to_json_serializable(engine.get_values_df()),
+        "values_metrics": _convert_to_json_serializable(engine.get_values_metrics()),
+        "metrics": _convert_to_json_serializable(engine.get_metrics()),
+    }
+    result_data: Dict[str, Any] = {
+        "id": result_id,
+        "strategy_id": strategy_id,
+        "symbol": used_symbol,
+        "data_file": data_file,
+        "start_date": start_date,
+        "end_date": end_date,
+        "initial_capital": initial_capital,
+        "commission": commission,
+        "slippage": slippage,
+        "created_at": datetime.now().isoformat(),
+        "result": result,
+    }
+    if isinstance(extra, dict) and extra:
+        result_data["extra"] = _convert_to_json_serializable(extra)
+
+    os.makedirs(_DATA_RESULTS_FOLDER, exist_ok=True)
+    with open(os.path.join(_DATA_RESULTS_FOLDER, f"{result_id}.json"), "w", encoding="utf-8") as f:
+        json.dump(_convert_to_json_serializable(result_data), f, ensure_ascii=False, indent=2)
+
+    metrics = result.get("metrics", {}) if isinstance(result, dict) else {}
+    values_df = result.get("values_df", []) if isinstance(result, dict) else []
+    trades_df = result.get("trades_df", []) if isinstance(result, dict) else []
+    date_range = _pick_date_range(start_date, end_date, values_df)
+    total_trades, avg_trades_per_day = _trade_count_and_avg_per_day(trades_df, values_df)
+
+    brief: Dict[str, Any] = {
+        "status": "success",
+        "message": "Backtest completed successfully",
+        "result_id": result_id,
+        "resolved": {
+            "strategy_id": strategy_id,
+            "symbol": used_symbol,
+            "data_file": data_file,
+            "date_range": date_range,
+        },
+        "summary_metrics": {
+            "total_return_pct": (metrics.get("total_return", 0) * 100) if isinstance(metrics, dict) else None,
+            "annualized_return_pct": (metrics.get("annualized_return", 0) * 100) if isinstance(metrics, dict) else None,
+            "max_drawdown_pct": (metrics.get("max_drawdown", 0) * 100) if isinstance(metrics, dict) else None,
+            "sharpe_ratio": metrics.get("sharpe_ratio") if isinstance(metrics, dict) else None,
+            "win_rate_pct": (metrics.get("win_rate", 0) * 100) if isinstance(metrics, dict) else None,
+            "profit_loss_ratio": metrics.get("profit_loss_ratio") if isinstance(metrics, dict) else None,
+            "total_trades": total_trades,
+            "avg_trades_per_day": avg_trades_per_day,
+        },
+        "trade_preview": _build_trade_preview(trades_df, preview_count=trade_preview_count),
+    }
+    if isinstance(extra, dict) and extra:
+        brief["extra"] = _convert_to_json_serializable(extra)
+    return json.dumps(_convert_to_json_serializable(brief), ensure_ascii=False)
+
+
 # ---------------------------------------------------------------------------
 # 对外 handler
 # ---------------------------------------------------------------------------
@@ -361,55 +458,18 @@ def handle_run_backtest(args: Dict[str, Any]) -> str:
         symbol=symbol,
     )
 
-    result_id = _build_result_id(strategy_id, used_symbol, start_date, end_date)
-    result = {
-        "trades_df": _convert_to_json_serializable(engine.get_trades_df()),
-        "values_df": _convert_to_json_serializable(engine.get_values_df()),
-        "values_metrics": _convert_to_json_serializable(engine.get_values_metrics()),
-        "metrics": _convert_to_json_serializable(engine.get_metrics()),
-    }
-    result_data = {
-        "id": result_id,
-        "strategy_id": strategy_id,
-        "symbol": used_symbol,
-        "data_file": data_file,
-        "start_date": start_date,
-        "end_date": end_date,
-        "initial_capital": initial_capital,
-        "commission": commission,
-        "slippage": slippage,
-        "created_at": datetime.now().isoformat(),
-        "result": result,
-    }
-    os.makedirs(_DATA_RESULTS_FOLDER, exist_ok=True)
-    with open(os.path.join(_DATA_RESULTS_FOLDER, f"{result_id}.json"), "w", encoding="utf-8") as f:
-        json.dump(_convert_to_json_serializable(result_data), f, ensure_ascii=False, indent=2)
-
-    metrics = result.get("metrics", {}) if isinstance(result, dict) else {}
-    values_df = result.get("values_df", []) if isinstance(result, dict) else []
-    trades_df = result.get("trades_df", []) if isinstance(result, dict) else []
-    date_range = _pick_date_range(start_date, end_date, values_df)
-    brief = {
-        "status": "success",
-        "message": "Backtest completed successfully",
-        "result_id": result_id,
-        "resolved": {
-            "strategy_id": strategy_id,
-            "symbol": used_symbol,
-            "data_file": data_file,
-            "date_range": date_range,
-        },
-        "summary_metrics": {
-            "total_return_pct": (metrics.get("total_return", 0) * 100) if isinstance(metrics, dict) else None,
-            "annualized_return_pct": (metrics.get("annualized_return", 0) * 100) if isinstance(metrics, dict) else None,
-            "max_drawdown_pct": (metrics.get("max_drawdown", 0) * 100) if isinstance(metrics, dict) else None,
-            "sharpe_ratio": metrics.get("sharpe_ratio") if isinstance(metrics, dict) else None,
-            "win_rate_pct": (metrics.get("win_rate", 0) * 100) if isinstance(metrics, dict) else None,
-            "profit_loss_ratio": metrics.get("profit_loss_ratio") if isinstance(metrics, dict) else None,
-        },
-        "trade_preview": _build_trade_preview(trades_df, preview_count=trade_preview_count),
-    }
-    return json.dumps(_convert_to_json_serializable(brief), ensure_ascii=False)
+    return build_backtest_brief_and_persist(
+        engine=engine,
+        strategy_id=strategy_id,
+        used_symbol=used_symbol,
+        data_file=data_file,
+        start_date=start_date,
+        end_date=end_date,
+        initial_capital=initial_capital,
+        commission=commission,
+        slippage=slippage,
+        trade_preview_count=trade_preview_count,
+    )
 
 
-__all__ = ["handle_run_backtest"]
+__all__ = ["build_backtest_brief_and_persist", "handle_run_backtest"]

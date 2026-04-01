@@ -97,7 +97,9 @@ aiApi --> sse[SSE_delta_to_frontend]
     "max_drawdown_pct": -13.08,
     "sharpe_ratio": 1.03,
     "win_rate_pct": 80.0,
-    "profit_loss_ratio": 1.04
+    "profit_loss_ratio": 1.04,
+    "total_trades": 120,
+    "avg_trades_per_day": 0.15
   },
   "trade_preview": {
     "count": 10,
@@ -122,6 +124,8 @@ aiApi --> sse[SSE_delta_to_frontend]
 - `summary_metrics.sharpe_ratio` <- `metrics.sharpe_ratio`
 - `summary_metrics.win_rate_pct` <- `metrics.win_rate * 100`
 - `summary_metrics.profit_loss_ratio` <- `metrics.profit_loss_ratio`
+- `summary_metrics.total_trades` <- `len(trades_df)`（成交记录条数）
+- `summary_metrics.avg_trades_per_day` <- `total_trades / len(values_df)`（日线净值序列长度作分母；无净值序列时为 `null`）
 
 
 

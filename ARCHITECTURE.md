@@ -22,7 +22,7 @@
   ├── 回测 API        backend/api/backtest_api.py
   ├── 仿真/账户 API   backend/api/simulation_api.py   # 创建、列表、状态、开启、停止、下单
   ├── 策略运行 API    backend/api/gostrategy_api.py   # 启动/停止策略、K 线图表（按 signal_interval）
-  ├── AI Agent API    backend/api/ai_api.py          # LLM 对话（SSE 流式）
+  ├── AI Agent API    backend/api/ai_api.py          # LLM 对话（SSE 流式）；命中关键词时注入回测 SKILL
   └── 日志流 (SSE)    backend/app.py (stdout pipe)
 
            │  业务调用
@@ -35,11 +35,14 @@
   ├── StrategyEngine*       backend/core/strategy_engine.py     # 策略自动化（deltafq LiveEngine）
   ├── agent/                backend/core/agent/                # AI Agent（LLM + 工具编排）
   │   ├── llm_client.py     backend/core/agent/llm_client.py
+  │   ├── skill_prompt.py   backend/core/agent/skill_prompt.py   # 关键词命中时加载回测 SKILL 并注入 system prompt
+  │   ├── skills/           backend/core/agent/skills/           # Agent 可加载的 Markdown Skill（如 backtest/SKILL.md）
   │   ├── tool_registry.py  backend/core/agent/tool_registry.py  # 工具 schema / handler 注册（TOOL_DEFINITIONS）
   │   ├── tool_runner.py    backend/core/agent/tool_runner.py    # 多轮 tool_calls 执行与回注
   │   └── tools/            backend/core/agent/tools/            # 本地工具实现（function handlers）
-  │       ├── fun_tools.py       backend/core/agent/tools/fun_tools.py       # 今日一签
-  │       └── backtest_tools.py  backend/core/agent/tools/backtest_tools.py  # 回测执行（模糊匹配 + 结构化摘要）
+  │       ├── fun_tools.py          backend/core/agent/tools/fun_tools.py          # 今日一签
+  │       ├── backtest_tools.py     backend/core/agent/tools/backtest_tools.py     # 回测（模糊匹配 + 结构化摘要 + 落盘复用）
+  │       └── backtest_auto_tools.py backend/core/agent/tools/backtest_auto_tools.py # 自动拉数回测（run_backtest_auto）
   ├── sim_persistence    backend/core/utils/sim_persistence.py  # 仿真配置路径、同账户停机持久化
   └── engine_snapshot    backend/core/utils/engine_snapshot.py  # 引擎快照构建/恢复、订单续号与策略 ID 注入
 
@@ -92,8 +95,10 @@
 - **AI Agent（Agent 模块）**
   - `LLMClient`：OpenAI 兼容 API 封装，位于 `backend/core/agent/llm_client.py`
     - 支持 DeepSeek、OpenAI、通义等任意 provider，参数由 `config` 配置
+  - **回测 Skill 注入**：`skill_prompt.py` 在用户消息命中中英文关键词（如「回测」「backtest」等）时，将 `skills/backtest/SKILL.md` 追加进 system prompt；由 `ai_api` 在组装 messages 时调用。
   - 工具编排（function calling）：
     - `tool_registry.py`：工具 schema / handler 映射注册（通过 `TOOL_DEFINITIONS` 统一维护）
     - `tool_runner.py`：多轮解析 `tool_calls`、执行本地工具、回注结果的循环
-    - `tools/`：具体工具实现（当前提供趣味签文、回测执行工具）
-      - `backtest_tools.py`：支持 `strategy_id` / `data_file` 模糊匹配；成功返回 `resolved.date_range`、`summary_metrics`、`trade_preview`
+    - `tools/`：具体工具实现（趣味签文、`run_backtest`、`run_backtest_auto`）
+      - `backtest_tools.py`：`run_backtest`，支持 `strategy_id` / `data_file` 模糊匹配；成功返回 `resolved.date_range`、`summary_metrics`（含 `total_trades`、`avg_trades_per_day`）、`trade_preview`，并与落盘逻辑复用 `build_backtest_brief_and_persist`
+      - `backtest_auto_tools.py`：`run_backtest_auto`，仅需 `symbol` 即可拉取/复用数据后回测，策略默认可为 `BOLLStrategy`；若策略类缺失可在 `data/strategies/` 写入最小可运行策略后再执行

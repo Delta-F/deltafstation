@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-0.9.4-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-0.9.5-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -35,7 +35,7 @@ python run.py
 - 📉 回测中心 - 策略创建、历史数据回测、绩效分析与可视化报告
 - 🧾 手动交易 - 管理账户（选择/新建）、本地模拟基于 deltafq 按 tick 撮合、买卖执行与持仓盈亏跟踪
 - ⚡ 策略运行 - 自动交易、实时监控、信号执行与日志追踪
-- 🤖 AI Agent - 支持 LLM 配置、对话与工具调用（当前内置趣味签文与回测执行工具，支持模糊匹配与结构化摘要）
+- 🤖 AI Agent - 支持 LLM 配置、对话与工具调用（趣味签文、`run_backtest` 模糊匹配与结构化摘要、`run_backtest_auto` 自动拉数回测；命中关键词时注入回测 Skill）
 
 ## 🗂️ 项目结构
 
@@ -47,7 +47,7 @@ deltafstation/
 │   │   ├── data_api.py
 │   │   ├── strategy_api.py
 │   │   ├── backtest_api.py
-│   │   ├── ai_api.py          # AI Agent：LLM 对话（SSE 流式）
+│   │   ├── ai_api.py          # AI Agent：LLM 对话（SSE 流式）；可选注入回测 SKILL
 │   │   ├── simulation_api.py   # 手动交易：账户、下单
 │   │   └── gostrategy_api.py   # 策略运行：启动/停止、K 线
 │   ├── core/         # 核心引擎
@@ -58,11 +58,14 @@ deltafstation/
 │   │   ├── strategy_engine.py     # 策略自动化 LiveEngine
 │   │   ├── agent/                   # AI Agent 编排层（OpenAI 兼容：DeepSeek / OpenAI / 通义等）
 │   │   │   ├── llm_client.py
+│   │   │   ├── skill_prompt.py      # 关键词命中时加载 skills/*/SKILL.md 注入 system prompt
+│   │   │   ├── skills/              # Markdown Skill（如 backtest/SKILL.md）
 │   │   │   ├── tool_registry.py     # 工具 schema / handler 注册（TOOL_DEFINITIONS）
 │   │   │   ├── tool_runner.py       # 多轮 tool_calls 编排执行
 │   │   │   └── tools/              # 工具实现（handler）
 │   │   │       ├── fun_tools.py
-│   │   │       └── backtest_tools.py
+│   │   │       ├── backtest_tools.py
+│   │   │       └── backtest_auto_tools.py
 │   │   ├── utils/
 │   │   │   ├── engine_snapshot.py
 │   │   │   ├── sim_persistence.py

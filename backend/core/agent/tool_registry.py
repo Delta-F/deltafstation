@@ -13,12 +13,14 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, List
 
 from backend.core.agent.tools.backtest_tools import handle_run_backtest
+from backend.core.agent.tools.backtest_auto_tools import handle_run_backtest_auto
 from backend.core.agent.tools.fun_tools import handle_fun_station_tip
 
 ToolHandler = Callable[[Dict[str, Any]], str]
 
 _FUN_STATION_TIP = "get_fun_station_tip"
 _RUN_BACKTEST = "run_backtest"
+_RUN_BACKTEST_AUTO = "run_backtest_auto"
 
 
 TOOL_DEFINITIONS: List[Dict[str, Any]] = [
@@ -58,6 +60,29 @@ TOOL_DEFINITIONS: List[Dict[str, Any]] = [
             "required": ["strategy_id", "data_file"],
         },
     },
+    {
+        "name": _RUN_BACKTEST_AUTO,
+        "handler": handle_run_backtest_auto,
+        "description": (
+            "自动回测工具：仅需 symbol 即可先拉取/复用数据，再执行回测。"
+            "strategy_id 可选，缺省使用 BOLLStrategy。"
+            "若策略类不存在，会在 data/strategies 自动写入最小可运行策略后继续回测。"
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "symbol": {"type": "string", "description": "投资标的代码，例如 000001.SS"},
+                "strategy_id": {"type": "string", "description": "可选，策略类名；缺省使用 BOLLStrategy"},
+                "start_date": {"type": "string", "description": "可选，起始日期，建议 YYYY-MM-DD"},
+                "end_date": {"type": "string", "description": "可选，结束日期，建议 YYYY-MM-DD"},
+                "initial_capital": {"type": "number", "description": "可选，初始资金，默认 100000"},
+                "commission": {"type": "number", "description": "可选，手续费率，默认 0.001"},
+                "slippage": {"type": "number", "description": "可选，滑点率，默认 0.0005"},
+                "trade_preview_count": {"type": "integer", "description": "可选，交易记录预览条数，默认 10，建议 1~50"},
+            },
+            "required": ["symbol"],
+        },
+    },
 ]
 
 
@@ -83,6 +108,7 @@ __all__ = [
     "TOOL_DEFINITIONS",
     "ToolHandler",
     "handle_run_backtest",
+    "handle_run_backtest_auto",
     "handle_fun_station_tip",
 ]
 
