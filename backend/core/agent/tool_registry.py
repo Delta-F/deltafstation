@@ -39,6 +39,7 @@ TOOL_DEFINITIONS: List[Dict[str, Any]] = [
         "handler": handle_run_backtest,
         "description": (
             "执行策略回测。优先在用户明确提出回测时调用。"
+            "行情数据默认经 yfinance 拉取（与项目 DataManager 一致）。"
             "必填参数 strategy_id 和 data_file 支持模糊匹配："
             "strategy_id 按关键词匹配且忽略大小写；data_file 优先按投资标的代码匹配。"
             "若匹配结果不唯一，返回候选列表并要求进一步确认。"
@@ -48,7 +49,10 @@ TOOL_DEFINITIONS: List[Dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "strategy_id": {"type": "string", "description": "策略 ID 或关键词，例如 boll、every2bar"},
-                "data_file": {"type": "string", "description": "数据文件名或标的代码，例如 000001.SS、000001.SS.csv"},
+                "data_file": {
+                    "type": "string",
+                    "description": "数据文件名或 yfinance 标的代码，例如 000001.SS、GLD、000001.SS.csv",
+                },
                 "start_date": {"type": "string", "description": "可选，起始日期，建议 YYYY-MM-DD"},
                 "end_date": {"type": "string", "description": "可选，结束日期，建议 YYYY-MM-DD"},
                 "symbol": {"type": "string", "description": "可选，交易标的覆盖值"},
@@ -65,13 +69,14 @@ TOOL_DEFINITIONS: List[Dict[str, Any]] = [
         "handler": handle_run_backtest_auto,
         "description": (
             "自动回测工具：仅需 symbol 即可先拉取/复用数据，再执行回测。"
+            "行情默认经 yfinance 拉取（与项目 DataManager 一致）。"
             "strategy_id 可选，缺省使用 BOLLStrategy。"
             "若策略类不存在，会在 data/strategies 自动写入最小可运行策略后继续回测。"
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "symbol": {"type": "string", "description": "投资标的代码，例如 000001.SS"},
+                "symbol": {"type": "string", "description": "yfinance 标的代码，例如 000001.SS、AAPL、GLD"},
                 "strategy_id": {"type": "string", "description": "可选，策略类名；缺省使用 BOLLStrategy"},
                 "start_date": {"type": "string", "description": "可选，起始日期，建议 YYYY-MM-DD"},
                 "end_date": {"type": "string", "description": "可选，结束日期，建议 YYYY-MM-DD"},

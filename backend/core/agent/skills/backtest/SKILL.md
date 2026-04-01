@@ -5,15 +5,17 @@ description: Trigger this skill when users ask for backtesting, strategy testing
 
 # Backtest Skill
 
-## Trigger
+## Context
 
-Use this skill when user intent includes backtest-related requests, including:
-- 回测
-- 跑策略
-- 测试策略
-- backtest
-- strategy test
-- run strategy
+Server injects this block for backtest-related user messages (keyword gating is outside this file).
+
+## Data
+
+Market data uses **yfinance**; pass `symbol` as a yfinance ticker (e.g. `000001.SS`, `AAPL`, `GLD`).
+
+## Dates
+
+For relative ranges (e.g. last 2 years), use the **Server date** line in the system message as `end_date`, compute `start_date`, both `YYYY-MM-DD`.
 
 ## Goal
 
@@ -51,4 +53,3 @@ After tool returns:
 - summarize key metrics in concise Chinese (include `summary_metrics.total_trades` and `summary_metrics.avg_trades_per_day` when present),
 - mention whether strategy was existing/default/generated,
 - if generation happened, include generated strategy class name.
-

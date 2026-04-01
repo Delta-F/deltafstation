@@ -21,7 +21,8 @@ from backend.core.agent.tool_registry import (
     handle_fun_station_tip,
 )
 
-DEFAULT_MAX_ROUNDS = 5
+# 每轮：一次 chat completion；若模型返回 tool_calls 则执行后再请求。复杂任务可调大或通过 Flask LLM_TOOL_MAX_ROUNDS 配置。
+DEFAULT_MAX_ROUNDS = 12
 
 
 def _assistant_message_dict(msg: Any) -> Dict[str, Any]:

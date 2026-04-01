@@ -1,5 +1,15 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [0.9.6] - 2026-04-01
+
+### 🤖 Agent 提示与回测 Skill 对齐（日期锚定 + yfinance 说明）
+
+- **System prompt**：`backend/api/ai_api.py` 在每条对话中注入 **Server date (local)**（`YYYY-MM-DD`）及相对区间（如「近 N 年」）的换算说明，要求以该日期为 `end_date`、向工具传 `YYYY-MM-DD`，减少模型凭训练数据猜年份。
+- **回测 SKILL**：`backend/core/agent/skills/backtest/SKILL.md` 将原 Trigger 关键词列表改为简短 **Context**，并新增 **Data**（默认 **yfinance**、`symbol` 为 ticker 示例）与 **Dates**（与 system 中 Server date 对齐）。
+- **Skill 加载**：`backend/core/agent/skill_prompt.py` 使用 `pathlib` 定位 `SKILL.md`，`load_backtest_skill_markdown` 使用 `@lru_cache(maxsize=1)` 进程内缓存读盘；补充模块与函数说明。
+- **工具 schema**：`backend/core/agent/tool_registry.py` 为 `run_backtest` / `run_backtest_auto` 补充「行情经 yfinance、与 DataManager 一致」说明；`data_file` / `symbol` 参数描述增加 yfinance 代码示例（如 `GLD`、`AAPL`）。
+- **工具轮数**：`backend/core/agent/tool_runner.py` 将 `DEFAULT_MAX_ROUNDS` 由 5 调整为 **12**，降低多步工具链误触「超过最大工具调用轮数」的概率。
+
 ## [0.9.5] - 2026-04-01
 
 ### 🤖 Agent 回测 Skill 注入 + 自动拉数回测工具

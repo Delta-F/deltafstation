@@ -28,6 +28,9 @@ isProject: false
 ## 目标行为
 
 - **触发词**：当用户消息命中一组中英文关键词（如：`回测`、`backtest`、`跑策略`、`测试策略`、`strategy test` 等，维护于 [backend/core/agent/skill_prompt.py](backend/core/agent/skill_prompt.py)）时，将回测 skill 的正文追加进 **system prompt**。
+- **System 日期锚定**：[backend/api/ai_api.py](backend/api/ai_api.py) 在每条对话的 system 中注入服务器本地日 `Server date (local): YYYY-MM-DD`，并说明相对区间（如「近 N 年/月」）须以此日为 `end_date`、换算出 `start_date`，向工具传 `YYYY-MM-DD`，勿凭模型训练知识猜当前年份。
+- **Skill 正文约定**：[SKILL.md](backend/core/agent/skills/backtest/SKILL.md) 写明行情走 **yfinance**、`symbol` 为 yfinance ticker；相对区间与上述 **Server date** 对齐。
+- **Skill 加载**：`skill_prompt` 用 `pathlib` 定位 `skills/backtest/SKILL.md`，`load_backtest_skill_markdown` 带 `@lru_cache` 进程内只读盘一次。
 - **默认策略**：用户未指定策略时，使用 **`BOLLStrategy`**（与 [data/strategies/boll_strategy.py](data/strategies/boll_strategy.py) 对齐）。
 - **缺失策略（写入文件）**：若用户指定的 `strategy_id` 在 [backend/core/utils/strategy_loader.py](backend/core/utils/strategy_loader.py) 中 `load_strategy_class` 找不到，则在 [data/strategies/](data/strategies/) **新建一个 `.py` 文件**，写入继承 `BaseStrategy` 的最小策略类（参考 [data/strategies/a_every2bar_flip_strategy.py](data/strategies/a_every2bar_flip_strategy.py)），然后再次 `load_strategy_class` 并执行回测。
 

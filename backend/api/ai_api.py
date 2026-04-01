@@ -22,6 +22,7 @@ AI Chat API
 from __future__ import annotations
 
 import json
+from datetime import date
 
 from flask import (
     Blueprint, Response, current_app, jsonify, request, stream_with_context,
@@ -126,8 +127,13 @@ def _build_messages(*, context: str, client: LLMClient, history: list, message: 
 
 
 def _system_prompt_with_model(context: str, *, model: str, message: str) -> str:
-    """system prompt 基础内容 + 命中关键词时的回测 skill + 模型名。"""
+    """system prompt 基础内容 + 命中关键词时的回测 skill + 模型名 + 服务器日期。"""
     prompt = _system_prompt(context)
+    prompt += f"Server date (local): {date.today().isoformat()}\n"
+    prompt += (
+        'For relative time ranges (e.g. "last N years/months/days"), use this server date as end_date '
+        "and compute start_date; pass YYYY-MM-DD to tools. Do not infer the current calendar from prior knowledge.\n"
+    )
     if should_inject_backtest_skill(message):
         skill_md = load_backtest_skill_markdown()
         if skill_md:

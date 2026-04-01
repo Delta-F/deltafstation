@@ -22,7 +22,7 @@
   ├── 回测 API        backend/api/backtest_api.py
   ├── 仿真/账户 API   backend/api/simulation_api.py   # 创建、列表、状态、开启、停止、下单
   ├── 策略运行 API    backend/api/gostrategy_api.py   # 启动/停止策略、K 线图表（按 signal_interval）
-  ├── AI Agent API    backend/api/ai_api.py          # LLM 对话（SSE 流式）；命中关键词时注入回测 SKILL
+  ├── AI Agent API    backend/api/ai_api.py          # LLM 对话（SSE 流式）；命中关键词时注入回测 SKILL；system 含 Server date（本地日）
   └── 日志流 (SSE)    backend/app.py (stdout pipe)
 
            │  业务调用

@@ -25,6 +25,8 @@ isProject: false
 - 现有工具注册与分发在 [backend/core/agent/tool_registry.py](backend/core/agent/tool_registry.py) 与 [backend/core/agent/tool_runner.py](backend/core/agent/tool_runner.py)。
 - AI 入口已在 [backend/api/ai_api.py](backend/api/ai_api.py) 调用 `run_chat_with_tools(...)`，无需改动调用链。
 - 回测能力已在 [backend/core/backtest_engine.py](backend/core/backtest_engine.py) 与 [backend/api/backtest_api.py](backend/api/backtest_api.py) 可复用。
+- **工具 schema 与数据源**：`run_backtest` / `run_backtest_auto` 的 description 与 `data_file`、`symbol` 等字段向模型声明行情经 **yfinance**（与 [DataManager](backend/core/data_manager.py) 拉数路径一致），标的宜填 yfinance 可识别的 ticker（如 `000001.SS`、`GLD`）。
+- **多轮工具上限**：`run_chat_with_tools` 用 `DEFAULT_MAX_ROUNDS` 限制「模型一轮 + tool 回注」循环次数，避免无限 `tool_calls`；默认值见 [tool_runner.py](backend/core/agent/tool_runner.py)。
 
 ## 实施步骤
 
@@ -126,8 +128,6 @@ aiApi --> sse[SSE_delta_to_frontend]
 - `summary_metrics.profit_loss_ratio` <- `metrics.profit_loss_ratio`
 - `summary_metrics.total_trades` <- `len(trades_df)`（成交记录条数）
 - `summary_metrics.avg_trades_per_day` <- `total_trades / len(values_df)`（日线净值序列长度作分母；无净值序列时为 `null`）
-
-
 
 ## 交付结果
 
