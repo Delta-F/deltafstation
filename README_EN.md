@@ -4,12 +4,12 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-0.9.6-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
 
-An open-source quantitative trading cloud platform built on deltafq, integrating data services, strategy management, and trading access with support for simulation and live trading.
+An open-source quantitative trading cloud platform built on deltafq, integrating data services, strategy management, and trading access. **v1.0** productizes backtesting, data, local simulation, and strategy running (non-live); live broker integration is planned for a future release.
 
 <img src="assets/trader.png" style="width:32%; height:200px; object-fit:contain;" />
 <img src="assets/backtest.png" style="width:32%; height:200px; object-fit:contain;" />
