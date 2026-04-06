@@ -1,6 +1,6 @@
 ---
 name: backtest-minimal
-description: Trigger this skill when users ask for backtesting, strategy testing, or running strategies. It guides the model to call run_backtest_auto with symbol-first inputs, default BOLL strategy, and auto strategy generation when missing.
+description: Trigger this skill when users ask for backtesting, strategy testing, or running strategies. New strategies must be written via ensure_strategy (full source), then run_backtest_auto with symbol; default BOLLStrategy when no strategy_id.
 ---
 
 # Backtest Skill
@@ -19,37 +19,64 @@ For relative ranges (e.g. last 2 years), use the **Server date** line in the sys
 
 ## Goal
 
-Provide a minimal backtest workflow:
-1. Input can be as little as a trading symbol.
-2. Prefer existing strategy if provided.
-3. If no strategy is provided, default to `BOLLStrategy`.
-4. If the requested strategy cannot be loaded, auto-generate a minimal strategy file and continue.
+1. Input can be as little as a trading symbol (uses default `BOLLStrategy` if it exists under `data/strategies`).
+2. For a **new or custom** strategy (e.g. RSI, KDJ): first call **`ensure_strategy`** with `class_name` and full `source_code`, then call **`run_backtest_auto`** with `symbol` and `strategy_id` equal to that class name.
+3. If the user only asks for a quick demo and `BOLLStrategy` is present, you may skip `ensure_strategy` and only call `run_backtest_auto`.
 
-## Tool to call
+## Tools
 
-Call `run_backtest_auto` with:
-- required: `symbol`
-- optional: `strategy_id`, `start_date`, `end_date`, `initial_capital`, `commission`, `slippage`, `trade_preview_count`
+### 1. `ensure_strategy` (when you need new code)
+
+- **Required:** `class_name`, `source_code` (complete file).
+- **Optional:** `file_basename`, `overwrite`.
+- Strategy must subclass `BaseStrategy` from `deltafq.strategy.base` and implement `generate_signals(self, data: pd.DataFrame) -> pd.Series` with values in `{-1, 0, 1}` (or as engine expects).
+
+**Indicator and signal policy**
+
+- **Do not** default to `deltafq.indicators.TechnicalIndicators` or `deltafq.strategy.SignalGenerator`. That package does **not** guarantee every indicator you need; treat it as optional, not the standard path.
+- **You** (the model) implement whatever math is required—typically **pandas / numpy** on `data["Open"]`, `High`, `Low`, `Close`, `Volume`—and **derive the signal series** yourself. Same for any custom or niche factor.
+
+**Minimal shape (structure only — you fill in all indicator and signal logic):**
+
+```python
+import numpy as np
+import pandas as pd
+from deltafq.strategy.base import BaseStrategy
+
+
+class MyStrategy(BaseStrategy):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def generate_signals(self, data: pd.DataFrame) -> pd.Series:
+        close = data["Close"]
+        # Example: roll your own rules; replace entirely for RSI/KDJ/…
+        fast = close.rolling(window=5).mean()
+        slow = close.rolling(window=20).mean()
+        raw = np.where(fast > slow, 1, np.where(fast < slow, -1, 0))
+        return pd.Series(raw, index=data.index, dtype=int)
+```
+
+For interface-only reference (uses deltafq helpers internally): [`data/strategies/boll_strategy.py`](data/strategies/boll_strategy.py).
+
+### 2. `run_backtest_auto`
+
+- **Required:** `symbol`
+- **Optional:** `strategy_id` (defaults to `BOLLStrategy`), dates, capital, fees, `trade_preview_count`
+- If `strategy_id` cannot be loaded from `data/strategies`, the tool returns **`strategy_not_found`** — use `ensure_strategy` first, then retry.
 
 ## Tool behavior expectations
 
 `run_backtest_auto` should:
+
 1. Ensure/refresh local CSV data for symbol.
-2. Resolve strategy:
-   - use provided `strategy_id`, or
-   - fallback to `BOLLStrategy`.
-3. If strategy class does not exist:
-   - create a minimal strategy `.py` under `data/strategies/`,
-   - load it and run backtest.
-4. Return structured result JSON with:
-   - `status`, `result_id`
-   - `resolved` (`strategy_id`, `symbol`, `data_file`, `date_range`)
-   - `summary_metrics`
-   - `trade_preview`
+2. Resolve strategy: load `strategy_id` or default `BOLLStrategy`; **do not** auto-generate placeholder files.
+3. Return structured result JSON with `status`, `result_id`, `resolved`, `summary_metrics`, `trade_preview`.
 
 ## Response style
 
 After tool returns:
-- summarize key metrics in concise Chinese (include `summary_metrics.total_trades` and `summary_metrics.avg_trades_per_day` when present),
-- mention whether strategy was existing/default/generated,
-- if generation happened, include generated strategy class name.
+
+- Summarize key metrics in concise Chinese (include `summary_metrics.total_trades` and `summary_metrics.avg_trades_per_day` when present).
+- If `ensure_strategy` was used, mention the saved class name and file.
+- If `strategy_not_found` was returned, explain that the model must write the strategy with `ensure_strategy` first.

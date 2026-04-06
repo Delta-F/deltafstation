@@ -13,13 +13,14 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, List
 
 from backend.core.agent.tools.backtest_tools import handle_run_backtest
-from backend.core.agent.tools.backtest_auto_tools import handle_run_backtest_auto
+from backend.core.agent.tools.backtest_auto_tools import handle_ensure_strategy, handle_run_backtest_auto
 from backend.core.agent.tools.fun_tools import handle_fun_station_tip
 
 ToolHandler = Callable[[Dict[str, Any]], str]
 
 _FUN_STATION_TIP = "get_fun_station_tip"
 _RUN_BACKTEST = "run_backtest"
+_ENSURE_STRATEGY = "ensure_strategy"
 _RUN_BACKTEST_AUTO = "run_backtest_auto"
 
 
@@ -65,13 +66,33 @@ TOOL_DEFINITIONS: List[Dict[str, Any]] = [
         },
     },
     {
+        "name": _ENSURE_STRATEGY,
+        "handler": handle_ensure_strategy,
+        "description": (
+            "将完整 Python 策略源码写入 data/strategies 并校验可加载。"
+            "新策略必须先成功调用本工具，再使用 run_backtest_auto。"
+            "必填：class_name（与源码中 class 定义一致）、source_code（整文件内容，须继承 BaseStrategy 并实现 generate_signals）。"
+            "可选：file_basename（仅允许安全文件名 *.py）、overwrite（为 true 时删除已存在同名类的旧文件后再写入）。"
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "class_name": {"type": "string", "description": "策略类名，须与 source_code 中 class 名称一致"},
+                "source_code": {"type": "string", "description": "完整 .py 文件内容"},
+                "file_basename": {"type": "string", "description": "可选，目标文件名，如 my_rsi.py"},
+                "overwrite": {"type": "boolean", "description": "可选，是否覆盖已存在的同名策略类文件"},
+            },
+            "required": ["class_name", "source_code"],
+        },
+    },
+    {
         "name": _RUN_BACKTEST_AUTO,
         "handler": handle_run_backtest_auto,
         "description": (
             "自动回测工具：仅需 symbol 即可先拉取/复用数据，再执行回测。"
             "行情默认经 yfinance 拉取（与项目 DataManager 一致）。"
-            "strategy_id 可选，缺省使用 BOLLStrategy。"
-            "若策略类不存在，会在 data/strategies 自动写入最小可运行策略后继续回测。"
+            "strategy_id 可选，缺省使用 BOLLStrategy；该类须已在 data/strategies 中存在。"
+            "自定义策略请先调用 ensure_strategy 写入源码；本工具不会自动生成占位策略。"
         ),
         "parameters": {
             "type": "object",
@@ -113,6 +134,7 @@ __all__ = [
     "TOOL_DEFINITIONS",
     "ToolHandler",
     "handle_run_backtest",
+    "handle_ensure_strategy",
     "handle_run_backtest_auto",
     "handle_fun_station_tip",
 ]

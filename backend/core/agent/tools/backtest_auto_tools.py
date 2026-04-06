@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import ast
 import json
 import os
 import re
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from backend.core.agent.tools.backtest_tools import build_backtest_brief_and_persist
 from backend.core.backtest_engine import BacktestEngine
@@ -15,6 +16,7 @@ _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.p
 _DATA_FOLDER = os.path.join(_BASE_DIR, "data")
 _STRATEGIES_FOLDER = os.path.join(_DATA_FOLDER, "strategies")
 _DEFAULT_STRATEGY_ID = "BOLLStrategy"
+_MAX_SOURCE_BYTES = 512_000
 
 
 def _clean_date(value: Any) -> Optional[str]:
@@ -40,82 +42,170 @@ def _is_valid_class_name(name: str) -> bool:
     return bool(re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name or ""))
 
 
-def _sanitize_class_name(raw_name: str) -> str:
-    if _is_valid_class_name(raw_name):
-        return raw_name
-
-    cleaned = re.sub(r"[^A-Za-z0-9_]+", "", raw_name or "")
-    if not cleaned:
-        cleaned = "AgentGeneratedStrategy"
-    if cleaned[0].isdigit():
-        cleaned = f"S{cleaned}"
-    if not _is_valid_class_name(cleaned):
-        cleaned = "AgentGeneratedStrategy"
-    return cleaned
-
-
 def _snake_case(name: str) -> str:
     s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
     s2 = re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1)
-    return re.sub(r"[^a-z0-9_]+", "_", s2.lower()).strip("_")
+    return re.sub(r"[^a-z0-9_]+", "_", s2.lower()).strip("_") or "strategy"
 
 
-def _strategy_py_template(class_name: str) -> str:
-    return f'''"""Auto-generated strategy template for agent backtesting."""
-import pandas as pd
-from deltafq.strategy.base import BaseStrategy
+def _safe_basename(name: str) -> bool:
+    return bool(re.match(r"^[a-zA-Z0-9_.-]+\.py$", name)) and ".." not in name
 
 
-class {class_name}(BaseStrategy):
-    """Simple generated strategy: flip signal every 2 bars."""
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def generate_signals(self, data: pd.DataFrame) -> pd.Series:  # type: ignore[name-defined]
-        n = len(data)
-        signals = [1 if (i // 2) % 2 == 0 else -1 for i in range(n)]
-        return pd.Series(signals, index=data.index)
-'''
+def _strategies_realpath() -> str:
+    return os.path.realpath(_STRATEGIES_FOLDER)
 
 
-def _ensure_strategy_exists_or_generate(strategy_id: str) -> tuple[str, Optional[str], bool]:
+def _file_in_strategies_dir(path: str) -> bool:
     try:
-        load_strategy_class(strategy_id)
-        return strategy_id, None, False
-    except RuntimeError:
-        pass
+        return os.path.commonpath([_strategies_realpath(), os.path.realpath(path)]) == _strategies_realpath()
+    except ValueError:
+        return False
 
-    class_name = _sanitize_class_name(strategy_id)
+
+def _class_names_in_source(source: str) -> List[str]:
+    tree = ast.parse(source)
+    return [n.name for n in tree.body if isinstance(n, ast.ClassDef)]
+
+
+def _files_defining_class(class_name: str) -> List[str]:
+    if not os.path.isdir(_STRATEGIES_FOLDER):
+        return []
+    out: List[str] = []
+    for fn in os.listdir(_STRATEGIES_FOLDER):
+        if not fn.endswith(".py"):
+            continue
+        path = os.path.join(_STRATEGIES_FOLDER, fn)
+        try:
+            with open(path, encoding="utf-8") as f:
+                src = f.read()
+        except OSError:
+            continue
+        try:
+            names = _class_names_in_source(src)
+        except SyntaxError:
+            continue
+        if class_name in names:
+            out.append(fn)
+    return out
+
+
+def handle_ensure_strategy(args: Dict[str, Any]) -> str:
+    """
+    Write LLM-authored strategy source to data/strategies, then validate via load_strategy_class.
+
+    Required: class_name, source_code.
+    Optional: file_basename (safe *.py), overwrite (remove existing files that define the same class).
+    """
+    class_name = str(args.get("class_name") or "").strip()
+    source_code = str(args.get("source_code") or "")
+    file_basename = str(args.get("file_basename") or "").strip()
+    overwrite = bool(args.get("overwrite"))
+
     if not class_name:
-        class_name = "AgentGeneratedStrategy"
+        return json.dumps({"error": "missing_required_field", "field": "class_name"}, ensure_ascii=False)
+    if not _is_valid_class_name(class_name):
+        return json.dumps({"error": "invalid_class_name", "class_name": class_name}, ensure_ascii=False)
+    if not source_code.strip():
+        return json.dumps({"error": "missing_required_field", "field": "source_code"}, ensure_ascii=False)
 
-    # avoid collision by suffixing timestamp if class exists or name not equal original
+    if len(source_code.encode("utf-8")) > _MAX_SOURCE_BYTES:
+        return json.dumps(
+            {"error": "source_too_large", "max_bytes": _MAX_SOURCE_BYTES},
+            ensure_ascii=False,
+        )
+
+    if class_name not in _class_names_in_source(source_code):
+        return json.dumps(
+            {
+                "error": "class_not_in_source",
+                "class_name": class_name,
+                "hint": "source_code must define a class with the same name as class_name",
+            },
+            ensure_ascii=False,
+        )
+
+    try:
+        compile(source_code, "<ensure_strategy>", "exec")
+    except SyntaxError as e:
+        return json.dumps(
+            {"error": "syntax_error", "details": str(e), "lineno": getattr(e, "lineno", None)},
+            ensure_ascii=False,
+        )
+
+    existing = _files_defining_class(class_name)
+    if existing and not overwrite:
+        return json.dumps(
+            {
+                "error": "strategy_class_exists",
+                "class_name": class_name,
+                "existing_files": existing,
+                "hint": "使用不同 class_name，或设置 overwrite 为 true 覆盖（将删除列出的旧文件）",
+            },
+            ensure_ascii=False,
+        )
+
+    if existing and overwrite:
+        for fn in existing:
+            path = os.path.join(_STRATEGIES_FOLDER, fn)
+            if _file_in_strategies_dir(path):
+                try:
+                    os.remove(path)
+                except OSError as e:
+                    return json.dumps(
+                        {"error": "remove_failed", "file": fn, "details": str(e)},
+                        ensure_ascii=False,
+                    )
+
+    os.makedirs(_STRATEGIES_FOLDER, exist_ok=True)
+
+    if file_basename:
+        if not _safe_basename(file_basename):
+            return json.dumps({"error": "invalid_file_basename", "file_basename": file_basename}, ensure_ascii=False)
+        file_name = file_basename
+    else:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_name = f"agent_llm_{_snake_case(class_name)}_{ts}.py"
+
+    file_path = os.path.join(_STRATEGIES_FOLDER, file_name)
+    if not _file_in_strategies_dir(file_path):
+        return json.dumps({"error": "invalid_target_path"}, ensure_ascii=False)
+
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(source_code)
+    except OSError as e:
+        return json.dumps({"error": "write_failed", "details": str(e)}, ensure_ascii=False)
+
     try:
         load_strategy_class(class_name)
-        class_name = f"{class_name}_{datetime.now().strftime('%H%M%S')}"
-    except RuntimeError:
-        pass
+    except Exception as e:  # noqa: BLE001
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
+        return json.dumps(
+            {"error": "load_strategy_failed", "class_name": class_name, "details": str(e)},
+            ensure_ascii=False,
+        )
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_name = f"agent_generated_{_snake_case(class_name)}_{timestamp}.py"
-    os.makedirs(_STRATEGIES_FOLDER, exist_ok=True)
-    file_path = os.path.join(_STRATEGIES_FOLDER, file_name)
-
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(_strategy_py_template(class_name))
-
-    # validate loadability
-    load_strategy_class(class_name)
-    return class_name, file_name, True
+    return json.dumps(
+        {
+            "status": "success",
+            "class_name": class_name,
+            "strategy_id": class_name,
+            "file": file_name,
+        },
+        ensure_ascii=False,
+    )
 
 
 def handle_run_backtest_auto(args: Dict[str, Any]) -> str:
     """
-    最小自动回测：
+    自动回测：
     1) symbol 拉取/复用数据；
-    2) strategy_id 缺省为 BOLLStrategy；
-    3) 若策略不存在则自动写入策略文件并加载；
+    2) strategy_id 缺省为 BOLLStrategy（须已在 data/strategies 可加载）；
+    3) 新策略须先由 ensure_strategy 写入源码；
     4) 执行回测并返回结构化摘要。
     """
     symbol = str(args.get("symbol") or "").strip().upper()
@@ -147,12 +237,23 @@ def handle_run_backtest_auto(args: Dict[str, Any]) -> str:
         )
 
     try:
-        resolved_strategy_id, generated_file, generated = _ensure_strategy_exists_or_generate(strategy_id)
-    except Exception as e:  # noqa: BLE001
+        load_strategy_class(strategy_id)
+    except RuntimeError:
         return json.dumps(
-            {"error": "strategy_prepare_failed", "strategy_id": strategy_id, "details": str(e)},
+            {
+                "error": "strategy_not_found",
+                "strategy_id": strategy_id,
+                "hint": "请先用 ensure_strategy 写入完整策略源码到 data/strategies，或改用已存在的类名（如 BOLLStrategy）",
+            },
             ensure_ascii=False,
         )
+    except Exception as e:  # noqa: BLE001
+        return json.dumps(
+            {"error": "strategy_load_failed", "strategy_id": strategy_id, "details": str(e)},
+            ensure_ascii=False,
+        )
+
+    resolved_strategy_id = strategy_id
 
     engine = BacktestEngine(
         initial_capital=initial_capital,
@@ -183,8 +284,6 @@ def handle_run_backtest_auto(args: Dict[str, Any]) -> str:
         "requested_strategy_id": requested_strategy_id or None,
         "resolved_strategy_id": resolved_strategy_id,
         "used_default_strategy": not requested_strategy_id,
-        "strategy_generated": generated,
-        "generated_strategy_file": generated_file,
         "data_fetch_status": data_status,
         "data_source": data_source,
     }
@@ -203,5 +302,4 @@ def handle_run_backtest_auto(args: Dict[str, Any]) -> str:
     )
 
 
-__all__ = ["handle_run_backtest_auto"]
-
+__all__ = ["handle_run_backtest_auto", "handle_ensure_strategy"]

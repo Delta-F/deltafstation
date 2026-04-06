@@ -99,6 +99,6 @@
   - 工具编排（function calling）：
     - `tool_registry.py`：工具 schema / handler 映射注册（通过 `TOOL_DEFINITIONS` 统一维护）
     - `tool_runner.py`：多轮解析 `tool_calls`、执行本地工具、回注结果的循环
-    - `tools/`：具体工具实现（趣味签文、`run_backtest`、`run_backtest_auto`）
+    - `tools/`：具体工具实现（趣味签文、`run_backtest`、`ensure_strategy`、`run_backtest_auto`）
       - `backtest_tools.py`：`run_backtest`，支持 `strategy_id` / `data_file` 模糊匹配；成功返回 `resolved.date_range`、`summary_metrics`（含 `total_trades`、`avg_trades_per_day`）、`trade_preview`，并与落盘逻辑复用 `build_backtest_brief_and_persist`
-      - `backtest_auto_tools.py`：`run_backtest_auto`，仅需 `symbol` 即可拉取/复用数据后回测，策略默认可为 `BOLLStrategy`；若策略类缺失可在 `data/strategies/` 写入最小可运行策略后再执行
+      - `backtest_auto_tools.py`：`ensure_strategy` 将模型给出的完整策略源码写入 `data/strategies/` 并校验加载；`run_backtest_auto` 仅需 `symbol` 即可拉取/复用数据后回测，默认 `BOLLStrategy`；若策略类缺失则返回 `strategy_not_found`（不自动生成占位策略）

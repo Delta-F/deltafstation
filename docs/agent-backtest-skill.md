@@ -1,6 +1,6 @@
 ---
 name: Agent Backtest Skill
-overview: 在 backend/core/agent/skills/ 放置回测 SKILL；按关键词将 SKILL 注入 system prompt；新增 run_backtest_auto 工具（拉数、默认 BOLLStrategy、缺失策略则写入 data/strategies 后回测）。
+overview: 在 backend/core/agent/skills/ 放置回测 SKILL；按关键词将 SKILL 注入 system prompt；run_backtest_auto 拉数并回测；新策略由 ensure_strategy 写入源码后再 run_backtest_auto。
 todos:
   - id: add-skill-md
     content: 新增 backend/core/agent/skills/backtest/SKILL.md
@@ -32,7 +32,7 @@ isProject: false
 - **Skill 正文约定**：[SKILL.md](backend/core/agent/skills/backtest/SKILL.md) 写明行情走 **yfinance**、`symbol` 为 yfinance ticker；相对区间与上述 **Server date** 对齐。
 - **Skill 加载**：`skill_prompt` 用 `pathlib` 定位 `skills/backtest/SKILL.md`，`load_backtest_skill_markdown` 带 `@lru_cache` 进程内只读盘一次。
 - **默认策略**：用户未指定策略时，使用 **`BOLLStrategy`**（与 [data/strategies/boll_strategy.py](data/strategies/boll_strategy.py) 对齐）。
-- **缺失策略（写入文件）**：若用户指定的 `strategy_id` 在 [backend/core/utils/strategy_loader.py](backend/core/utils/strategy_loader.py) 中 `load_strategy_class` 找不到，则在 [data/strategies/](data/strategies/) **新建一个 `.py` 文件**，写入继承 `BaseStrategy` 的最小策略类（参考 [data/strategies/a_every2bar_flip_strategy.py](data/strategies/a_every2bar_flip_strategy.py)），然后再次 `load_strategy_class` 并执行回测。
+- **新策略**：由模型调用 **`ensure_strategy`**，传入 `class_name` 与完整 `source_code`，写入 [data/strategies/](data/strategies/) 并经 `compile` + `load_strategy_class` 校验；**不再**由服务端自动生成占位策略。随后用 **`run_backtest_auto`** 传入对应 `strategy_id`。若类未找到，`run_backtest_auto` 返回 `strategy_not_found`。
 
 ## 架构与数据流
 
@@ -43,14 +43,14 @@ flowchart TD
   keywordHit -->|no| basePrompt[BaseSystemPromptOnly]
   injectSkill --> llm[LLM_tool_calls]
   basePrompt --> llm
+  llm --> ensureTool[ensure_strategy_optional]
+  ensureTool --> writePy[WriteStrategySourceToDataStrategies]
   llm --> toolAuto[run_backtest_auto_handler]
   toolAuto --> dm[DataManager_fetch_data]
   dm --> rawCsv[data_raw_SYMBOL_csv]
   toolAuto --> tryLoad[load_strategy_class]
   tryLoad -->|found| bt[BacktestEngine_run_backtest_from_file]
-  tryLoad -->|missing| writePy[WriteMinimalStrategyPy]
-  writePy --> tryLoad2[load_strategy_class]
-  tryLoad2 --> bt
+  tryLoad -->|missing| notFound[strategy_not_found]
   bt --> resultJson[SameShapeAs_run_backtest]
 ```
 
@@ -63,18 +63,24 @@ flowchart TD
 | Prompt 注入 | [backend/api/ai_api.py](backend/api/ai_api.py) |
 | 自动回测工具 | [backend/core/agent/tools/backtest_auto_tools.py](backend/core/agent/tools/backtest_auto_tools.py) |
 | 结果落盘与摘要复用 | [backend/core/agent/tools/backtest_tools.py](backend/core/agent/tools/backtest_tools.py)（`build_backtest_brief_and_persist`） |
-| 工具注册 | [backend/core/agent/tool_registry.py](backend/core/agent/tool_registry.py)（`run_backtest_auto`） |
+| 工具注册 | [backend/core/agent/tool_registry.py](backend/core/agent/tool_registry.py)（`ensure_strategy`、`run_backtest_auto`） |
+
+## 工具 `ensure_strategy` 要点
+
+- **入参**：`class_name`、`source_code` 必填；可选 `file_basename`、`overwrite`。
+- **流程**：`compile` → 写入 `data/strategies/` → `load_strategy_class(class_name)`；失败则回滚文件。
 
 ## 工具 `run_backtest_auto` 要点
 
 - **入参**：`symbol` 必填；`strategy_id` 可选（缺省 `BOLLStrategy`）；可选 `start_date`、`end_date`、`initial_capital`、`commission`、`slippage`、`trade_preview_count`。
-- **流程**：`DataManager.fetch_data` → `load_strategy_class`；失败则写 `data/strategies/agent_generated_*.py` → 再 `load_strategy_class` → `BacktestEngine.run_backtest_from_file`。
-- **返回**：与 `run_backtest` 成功结构一致；`summary_metrics` 含 `total_trades`、`avg_trades_per_day`（总成交笔数、日均笔数，分母为净值序列 bar 数）；`extra` 字段含是否默认策略、是否生成、生成文件名、拉数状态等。
+- **流程**：`DataManager.fetch_data` → `load_strategy_class`；若类不存在则返回 **`strategy_not_found`**（不自动写文件）→ 否则 `BacktestEngine.run_backtest_from_file`。
+- **返回**：与 `run_backtest` 成功结构一致；`summary_metrics` 含 `total_trades`、`avg_trades_per_day`；`extra` 含拉数状态等（不再包含「自动生成策略」字段）。
 
 ## 验证方式
 
-- 本地调用 `handle_run_backtest_auto({'symbol':'000001.SS'})`，不传 `strategy_id`，应默认 `BOLLStrategy`。
-- 指定不存在类名，应生成 `data/strategies/agent_generated_*.py` 并完成回测。
+- 本地调用 `handle_run_backtest_auto({'symbol':'000001.SS'})`，不传 `strategy_id`，在存在 `BOLLStrategy` 时应成功。
+- 指定不存在类名，应返回 `strategy_not_found`，且不应新建占位 `agent_generated_*.py`。
+- 先 `handle_ensure_strategy` 写入合法类，再 `run_backtest_auto` 带该 `strategy_id`，应成功。
 - 用户消息含「回测」等关键词时，system prompt 应包含 `Project backtest skill:` 与 SKILL 正文。
 
 ## 风险与约束
