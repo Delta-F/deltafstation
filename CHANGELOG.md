@@ -1,5 +1,8 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [1.0.1] - 2026-04-21
+- `frontend/templates/*.html`：Font Awesome 改为国内镜像 `BootCDN`
+
 ## [1.0.0] - 2026-04-06
 
 ### 🎉 正式版：非实盘能力产品化
