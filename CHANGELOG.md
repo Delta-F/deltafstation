@@ -1,5 +1,9 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [1.0.2] - 2026-04-21
+- `requirements.txt`：`deltafq` 依赖由 `>=0.5.0` 升级为 `>=0.7.7`
+- `README.md`：更新项目简介与核心功能描述，新增「接口集成」说明
+
 ## [1.0.1] - 2026-04-21
 - `frontend/templates/*.html`：Font Awesome 改为国内镜像 `BootCDN`
 

@@ -4,12 +4,12 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-1.0.0-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-1.0.2-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
 
-An open-source quantitative trading cloud platform built on deltafq, integrating data services, strategy management, and trading access. **v1.0** productizes backtesting, data, local simulation, and strategy running (non-live); live broker integration is planned for a future release.
+DeltaFStation is an open-source quantitative trading workstation built on deltafq, delivering an integrated web experience for market data management, strategy development and backtesting, manual simulated trading, automated strategy running, and AI Agent-assisted analysis.
 
 <img src="assets/trader.png" style="width:32%; height:200px; object-fit:contain;" />
 <img src="assets/backtest.png" style="width:32%; height:200px; object-fit:contain;" />
@@ -32,10 +32,19 @@ python run.py
 
 ## ✨ Core Features
 
-- 📉 Backtest Hub - Strategy creation, historical backtesting, performance analysis, and visual reports
-- 🧾 Manual Trading - Manage accounts (select or create), local simulation via deltafq tick matching, buy/sell execution, and position & PnL tracking
-- ⚡ Strategy Running - Automated trading, real-time monitoring, signal execution, and logs
-- 🤖 AI Agent - LLM configuration, chat, and tool calling (fun tip, `run_backtest` with fuzzy matching and structured summaries, `run_backtest_auto` for fetch-and-backtest; injects backtest Skill when keywords match)
+- 📊 Data Services - Market data management and updates as a unified data entry point for backtesting, simulation, and strategy running
+- 📉 Backtest Hub - Strategy creation, historical backtesting, performance analysis, persisted results, and visual reports
+- 🧾 Manual Trading - Manage accounts (select or create), local simulation with tick-level matching, buy/sell execution, and position & PnL tracking
+- ⚡ Strategy Running - Automated trading workflow orchestration, real-time monitoring, signal execution, and runtime logs
+- 🤖 AI Agent - Supports LLM configuration, chat, tool calls, and skill injection
+
+### 🔌 Interface Integrations
+
+- [Data] yfinance ✅ - US equities, A-shares, HK equities, crypto, and indices
+- [Data] eastmoney ✅ - Off-exchange funds (index, QDII, equity, bond, hybrid)
+- [Data] miniQMT ⏳ - A-share market data access (see the live-trading chapter in the course)
+- [Trade] PaperTrade ✅ - Local simulated trading, tick-level order matching, positions and order management
+- [Trade] miniQMT Trade ⏳ - A-share live trading (see the live-trading chapter in the course)
 
 ## 🗂️ Project Structure
 

@@ -4,12 +4,12 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-1.0.0-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-1.0.2-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
 
-基于 deltafq 的开源量化交易云平台，集成数据服务、策略管理与交易接入。**v1.0** 已产品化：回测、数据、本地模拟与策略运行（非实盘）；实盘接入为后续版本规划。
+DeltaFStation 是基于 deltafq 的开源量化交易工作站，提供行情数据管理、策略开发与回测、手动模拟交易、策略自动运行及 AI Agent 辅助分析的一体化 Web 体验。
 
 <img src="assets/trader.png" style="width:32%; height:200px; object-fit:contain;" />
 <img src="assets/backtest.png" style="width:32%; height:200px; object-fit:contain;" />
@@ -32,10 +32,19 @@ python run.py
 
 ## ✨ 核心功能
 
-- 📉 回测中心 - 策略创建、历史数据回测、绩效分析与可视化报告
-- 🧾 手动交易 - 管理账户（选择/新建）、本地模拟基于 deltafq 按 tick 撮合、买卖执行与持仓盈亏跟踪
-- ⚡ 策略运行 - 自动交易、实时监控、信号执行与日志追踪
-- 🤖 AI Agent - 支持 LLM 配置、对话与工具调用（趣味签文、`run_backtest` 模糊匹配与结构化摘要、`run_backtest_auto` 自动拉数回测；命中关键词时注入回测 Skill）
+- 📊 数据服务 - 行情数据管理与更新，统一回测、模拟与策略运行的数据入口
+- 📉 回测中心 - 策略创建、历史数据回测、绩效分析、结果落盘与可视化报告
+- 🧾 手动交易 - 管理账户（选择/新建）、本地模拟按 tick 撮合、买卖执行与持仓盈亏跟踪
+- ⚡ 策略运行 - 自动交易流程编排、实时监控、信号执行与运行日志追踪
+- 🤖 AI Agent - 支持 LLM 配置、对话、工具（Tool）与技能（Skills）调用
+
+### 🔌 接口集成
+
+- [Data] yfinance ✅ - 美股、A股、港股、加密、股指
+- [Data] eastmoney ✅ - 场外基金（指数、QDII、股、债、混合）
+- [Data] miniQMT ⏳ - A 股行情接入（详情见课程实盘章节）
+- [Trade] PaperTrade ✅ - 本地模拟交易、挂单按 Tick 撮合、持仓与订单管理
+- [Trade] miniQMT Trade ⏳ - A 股实盘交易（详情见课程实盘章节）
 
 ## 🗂️ 项目结构
 
