@@ -1,15 +1,13 @@
 """
 数据管理模块
 """
-import pandas as pd
 import os
 from datetime import datetime, timedelta
-import yfinance as yf
 
-try:
-    from deltafq.data import DataFetcher
-except ImportError:
-    DataFetcher = None
+import pandas as pd
+
+from deltafq.data import DataFetcher
+
 
 class DataManager:
     """数据管理器"""
@@ -20,6 +18,24 @@ class DataManager:
         
         # 确保文件夹存在
         os.makedirs(self.raw_folder, exist_ok=True)
+
+    def _resolve_period_range(self, period):
+        """将 period 转为 (start_date, end_date)。"""
+        end_date = datetime.now().date()
+        p = (period or "").strip().lower()
+        if not p:
+            return None, None
+        if p == "max":
+            return (end_date - timedelta(days=365 * 20)), end_date
+        if p.endswith("y") and p[:-1].isdigit():
+            return (end_date - timedelta(days=365 * int(p[:-1]))), end_date
+        if p.endswith("mo") and p[:-2].isdigit():
+            return (end_date - timedelta(days=30 * int(p[:-2]))), end_date
+        if p.endswith("m") and p[:-1].isdigit():
+            return (end_date - timedelta(days=30 * int(p[:-1]))), end_date
+        if p.endswith("d") and p[:-1].isdigit():
+            return (end_date - timedelta(days=int(p[:-1]))), end_date
+        raise ValueError(f"Unsupported period: {period}")
     
     def save_data(self, df, filename, index=False):
         """保存数据到CSV文件"""
@@ -84,7 +100,7 @@ class DataManager:
             pass
         return None, None
     
-    def fetch_data(self, symbol, start_date=None, end_date=None, period=None, update_existing=True):
+    def fetch_data(self, symbol, start_date=None, end_date=None, period=None, update_existing=True, data_source=None, force_refresh=False):
         """
         统一的数据获取方法，支持多种数据源和增量更新
         
@@ -94,21 +110,29 @@ class DataManager:
             end_date: 结束日期（datetime.date 或 str）
             period: 时间周期（如 '1y', 'max'），与 start_date/end_date 二选一
             update_existing: 是否检查并更新已有文件
+            data_source: 数据源，可选 yfinance/miniqmt，默认按旧逻辑自动选择
+            force_refresh: 是否强制刷新（忽略本地范围命中，重新拉取并覆盖）
         
         Returns:
             tuple: (filename, df, status, source) - 文件名、数据框、状态信息、数据源
         """
         symbol = symbol.upper()
+        selected_source = (data_source or "yfinance").strip().lower()
+        if selected_source not in {"yfinance", "miniqmt"}:
+            raise ValueError(f"Unsupported data source: {data_source}")
+        fetcher_source = "yahoo" if selected_source == "yfinance" else "miniqmt"
         
         # 转换日期格式
         if start_date and isinstance(start_date, str):
             start_date = datetime.fromisoformat(start_date).date()
         if end_date and isinstance(end_date, str):
             end_date = datetime.fromisoformat(end_date).date()
+        if period:
+            start_date, end_date = self._resolve_period_range(period)
         
         # 1. 检查本地文件（如果需要增量更新）
         latest_file = None
-        if update_existing:
+        if update_existing and not force_refresh:
             latest_file = self.find_latest_file(symbol)
             
             # 如果指定了日期范围，检查现有文件是否已包含所需日期范围
@@ -129,37 +153,22 @@ class DataManager:
             status = "updated"
         else:
             # 首次下载或指定了日期范围（需要全量重新下载）
-            if period:
-                # 使用 period 参数
-                start_date = None
-                end_date = None
-            else:
-                if not start_date:
-                    start_date = (datetime.now() - timedelta(days=365*20)).date()
-                if not end_date:
-                    end_date = datetime.now().date()
+            if not start_date:
+                start_date = (datetime.now() - timedelta(days=365*20)).date()
+            if not end_date:
+                end_date = datetime.now().date()
             status = "downloaded_full"
         
-        # 3. 获取数据（优先使用 DataFetcher，否则使用 yfinance）
+        # 3. 获取数据
         try:
-            if DataFetcher is not None:
-                fetcher = DataFetcher()
-                if period:
-                    df = fetcher.fetch_data(symbol=symbol, period=period)
-                else:
-                    df = fetcher.fetch_data(symbol=symbol, start_date=start_date, end_date=end_date)
-                source = 'deltafq'
-            else:
-                ticker = yf.Ticker(symbol)
-                if period:
-                    df = ticker.history(period=period)
-                elif not latest_file and not start_date:
-                    df = ticker.history(period="max")
-                else:
-                    start_dt = datetime.combine(start_date, datetime.min.time())
-                    end_dt = datetime.combine(end_date, datetime.max.time())
-                    df = ticker.history(start=start_dt, end=end_dt + timedelta(days=1))
-                source = 'yfinance'
+            fetcher = DataFetcher(source=fetcher_source)
+            df = fetcher.fetch_data(
+                symbol=symbol,
+                start_date=start_date.isoformat(),
+                end_date=end_date.isoformat(),
+                interval='1d'
+            )
+            source = selected_source
         except Exception as download_error:
             if latest_file:
                 # 下载失败，返回已有文件
@@ -171,7 +180,7 @@ class DataManager:
             if latest_file:
                 df = pd.read_csv(os.path.join(self.raw_folder, latest_file))
                 return latest_file, df, "using_local_on_error", "local"
-                raise ValueError(f"No data found for symbol {symbol}")
+            raise ValueError(f"No data found for symbol {symbol}")
             
         # 4. 标准化数据格式
         df = self._standardize_dataframe(df)

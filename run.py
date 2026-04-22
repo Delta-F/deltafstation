@@ -26,7 +26,7 @@ def main():
     print(f"调试模式: {'开启' if debug else '关闭'}")
     # 开发环境默认关闭自动重载，避免保存 data/strategies 等文件时重启进程、打断 AI 流式与日志 SSE。
     # 改 backend 代码需手动重启；需要热重载时：FLASK_USE_RELOADER=1 python run.py
-    use_reloader = debug and os.environ.get("FLASK_USE_RELOADER", "0").strip().lower() not in (
+    use_reloader = debug and os.environ.get("FLASK_USE_RELOADER", "1").strip().lower() not in (
         "0",
         "false",
         "no",

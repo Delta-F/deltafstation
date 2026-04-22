@@ -1,5 +1,14 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [1.1.0] - 2026-04-22
+
+### 🚀 回测数据源扩展 + 标的检索体验升级
+
+- **数据源透传与强制刷新**：`backend/core/data_manager.py` 的 `fetch_data` 新增 `data_source`（`yfinance`/`miniqmt`）与 `force_refresh`，并统一通过 `DataFetcher(source=...)` 拉取数据；新增 period 解析辅助逻辑，支持按周期转日期范围。
+- **数据 API 增强**：`backend/api/data_api.py` 新增 `GET /api/data/symbols/catalog`，从 `data/raw/symbol_code_name_dict.json` 返回结构化标的目录；`POST /api/data/files` 与 `POST /api/data/symbols/<symbol>/files` 支持 `data_source` / `force_refresh` 入参。
+- **回测结果元数据补全**：`backend/api/backtest_api.py` 在回测执行与历史列表中补充 `data_source` 字段，确保结果可追溯数据来源。
+- **回测页交互升级**：`frontend/templates/backtest.html` 与 `frontend/static/js/backtest.js` 新增标的建议面板（代码+名称检索、键盘选择、点击填充），并新增“数据源”下拉；回测、基准对齐与数据同步链路全面透传 `data_source`。
+
 ## [1.0.2] - 2026-04-21
 - `requirements.txt`：`deltafq` 依赖由 `>=0.5.0` 升级为 `>=0.7.7`
 - `README.md`：更新项目简介与核心功能描述，新增「接口集成」说明

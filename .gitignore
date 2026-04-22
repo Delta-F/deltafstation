@@ -1,11 +1,13 @@
 # DeltaFStation .gitignore
 
-# 数据文件夹
-data/
+# 数据文件夹（默认忽略，按白名单放行）
+data/*
 data_cache/
-# 策略文件白名单（保留代码，AA 前缀便于排位第一用于快速测试）
 !data/strategies/
 !data/strategies/*.py
+!data/raw/
+data/raw/*
+!data/raw/symbol_code_name_dict.json
 
 # Python
 __pycache__/

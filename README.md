@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-1.0.2-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -42,7 +42,7 @@ python run.py
 
 - [Data] yfinance ✅ - 美股、A股、港股、加密、股指
 - [Data] eastmoney ✅ - 场外基金（指数、QDII、股、债、混合）
-- [Data] miniQMT ⏳ - A 股行情接入（详情见课程实盘章节）
+- [Data] miniQMT ✅ - A股、场内ETF、债券（详情见课程实盘章节）
 - [Trade] PaperTrade ✅ - 本地模拟交易、挂单按 Tick 撮合、持仓与订单管理
 - [Trade] miniQMT Trade ⏳ - A 股实盘交易（详情见课程实盘章节）
 

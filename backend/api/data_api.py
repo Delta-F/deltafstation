@@ -9,10 +9,12 @@
 - GET  /api/data/live/<symbol>    实时行情，?history=true 带当日历史
 - GET  /api/data/symbols/<symbol>/files  该标的对应数据文件信息
 - POST /api/data/symbols/<symbol>/files  按标的拉取并创建/更新数据文件
+- GET  /api/data/symbols/catalog  获取标的目录（读取本地 symbol_code_name_dict.json）
 """
 from flask import Blueprint, request, jsonify, send_file, current_app
 import os
 import io
+import json
 import pandas as pd
 from datetime import datetime
 from backend.core.data_manager import DataManager
@@ -81,12 +83,18 @@ def create_file_from_source():
         data = request.get_json() or {}
         symbol = data.get('symbol', '').upper()
         period = data.get('period', '1y')
+        data_source = data.get('data_source')
         
         if not symbol:
             return jsonify({'error': 'Symbol is required when fetching from data source'}), 400
         
         dm = get_data_manager()
-        filename, df, status, source = dm.fetch_data(symbol, period=period, update_existing=False)
+        filename, df, status, source = dm.fetch_data(
+            symbol,
+            period=period,
+            update_existing=False,
+            data_source=data_source
+        )
         
         return jsonify({
             'id': filename,
@@ -222,6 +230,46 @@ def get_live_quote(symbol):
         return jsonify({'error': str(e)}), 500
 
 
+@data_bp.route('/symbols/catalog', methods=['GET'])
+def get_symbol_catalog():
+    """获取标的目录（固定格式: {"source","count","items"}）- GET /api/data/symbols/catalog"""
+    try:
+        dm = get_data_manager()
+        symbol_dict_file = os.path.join(dm.raw_folder, 'symbol_code_name_dict.json')
+        if not os.path.exists(symbol_dict_file):
+            return jsonify({'error': 'symbol_code_name_dict.json not found, please generate it first'}), 404
+
+        with open(symbol_dict_file, 'r', encoding='utf-8') as f:
+            payload = json.load(f)
+
+        if not isinstance(payload, dict) or not isinstance(payload.get('items'), list):
+            return jsonify({'error': 'Invalid symbol_code_name_dict.json format'}), 400
+
+        items = [
+            {
+                'code': str(item.get('code', '')).upper(),
+                'name': str(item.get('name', '')),
+                'label': (
+                    str(item.get('label'))
+                    if item.get('label')
+                    else f"{str(item.get('name', ''))} ({str(item.get('code', '')).upper()})"
+                ),
+            }
+            for item in payload.get('items', [])
+            if str(item.get('code', '')).strip()
+        ]
+
+        return jsonify({
+            'source': payload.get('source', 'local_json'),
+            'count': len(items),
+            'items': items,
+            'from_cache': True,
+            'fetched_at': payload.get('fetched_at') or datetime.fromtimestamp(os.path.getmtime(symbol_dict_file)).isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @data_bp.route('/symbols/<symbol>/files', methods=['GET', 'POST'])
 def handle_symbol_files(symbol):
     """
@@ -243,12 +291,16 @@ def handle_symbol_files(symbol):
             data = request.get_json() or {}
             start_date = data.get('start_date')
             end_date = data.get('end_date')
+            data_source = data.get('data_source')
+            force_refresh = bool(data.get('force_refresh', False))
             
             filename, df, status, source = dm.fetch_data(
                 symbol=symbol,
                 start_date=start_date,
                 end_date=end_date,
-                update_existing=True
+                update_existing=True,
+                data_source=data_source,
+                force_refresh=force_refresh
             )
             
             return jsonify({

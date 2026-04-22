@@ -61,6 +61,8 @@
 
 - **DataManager**
   - 处理 CSV 上传 / 下载 / 预览等数据管理
+  - 支持回测链路按 `data_source`（`yfinance` / `miniqmt`）拉取数据
+  - 提供标的目录读取能力（`symbol_code_name_dict.json`），用于回测页代码-名称检索
   - 封装在 `backend/core/data_manager.py`，对外通过 `data_api` 暴露
 
 - **LiveDataManager**

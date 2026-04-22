@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-1.0.2-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -42,7 +42,7 @@ python run.py
 
 - [Data] yfinance ✅ - US equities, A-shares, HK equities, crypto, and indices
 - [Data] eastmoney ✅ - Off-exchange funds (index, QDII, equity, bond, hybrid)
-- [Data] miniQMT ⏳ - A-share market data access (see the live-trading chapter in the course)
+- [Data] miniQMT ✅ - A-shares, indices, ETF (see the live-trading chapter in the course)
 - [Trade] PaperTrade ✅ - Local simulated trading, tick-level order matching, positions and order management
 - [Trade] miniQMT Trade ⏳ - A-share live trading (see the live-trading chapter in the course)
 

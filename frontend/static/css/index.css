@@ -177,6 +177,27 @@ body.page-index {
     transform: translateX(5px);
 }
 
+.page-index .resource-card-course {
+    border-left-color: #d10735;
+    background: #f8f9fa;
+}
+
+.page-index .resource-card-course:hover {
+    background: #e9ecef;
+}
+
+.page-index .resource-link-course {
+    color: #d10735;
+}
+
+.page-index .resource-link-course:hover {
+    color: #a9052a;
+}
+
+.page-index .resource-card-course .resource-title i.fa-fire {
+    color: #d10735;
+}
+
 .page-index .resource-title {
     font-size: 1rem;
     font-weight: 600;

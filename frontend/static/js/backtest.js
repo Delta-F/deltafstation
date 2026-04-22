@@ -1,6 +1,11 @@
 // DeltaFStation 策略分析页面JavaScript
 // DOM 辅助函数 $ 已在 common.js 中定义
 let currentStrategy = null;
+// 标的目录与自动补全状态
+let symbolCatalogLoaded = false;
+let symbolCatalogWarned = false;
+let symbolCatalogItems = [];
+let symbolSuggestionIndex = -1;
 
 // =========================
 // 日期处理辅助函数（优化：统一日期格式化）
@@ -184,6 +189,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // 首先加载策略列表（最关键的交互）
     await loadStrategies();
+    bindSymbolAutocomplete();
+    await loadSymbolCatalog();
 
     // 回测历史和数据文件改为分步、延迟加载，减轻首屏卡顿
     setTimeout(() => {
@@ -242,6 +249,160 @@ function initLogStream() {
         console.error("SSE connection lost. Reconnecting...");
         // 浏览器会自动尝试重新连接，这里仅作记录
     };
+}
+
+// =========================
+// 标的输入与目录模块
+// =========================
+function escapeHtml(text) {
+    return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function extractSymbolCode(rawValue) {
+    // 兼容 "000001.SS - 上证指数" 这类展示值，提取真实代码用于接口请求。
+    const input = (rawValue || '').trim().toUpperCase();
+    if (!input) return '';
+    const match = input.match(/[A-Z0-9]+(?:\.[A-Z]{2,3})/);
+    return match ? match[0] : input.split(/\s|-/)[0];
+}
+
+function normalizeSymbolItems(items) {
+    return (items || []).map(item => {
+        const code = String(item.code || '').trim().toUpperCase();
+        const name = String(item.name || '').trim();
+        if (!code) return null;
+        return { code, name };
+    }).filter(Boolean);
+}
+
+function hideSymbolSuggestions() {
+    const panel = $('backtestSymbolSuggestions');
+    if (!panel) return;
+    panel.classList.add('d-none');
+    symbolSuggestionIndex = -1;
+}
+
+function renderSymbolSuggestions(rawKeyword = '') {
+    const panel = $('backtestSymbolSuggestions');
+    if (!panel) return;
+    const keyword = String(rawKeyword || '').trim().toUpperCase();
+    const source = symbolCatalogItems || [];
+    if (source.length === 0) {
+        hideSymbolSuggestions();
+        return;
+    }
+
+    const filtered = keyword
+        ? source.filter(item => item.code.includes(keyword) || item.name.toUpperCase().includes(keyword))
+        : source;
+    const displayItems = filtered.slice(0, 50);
+    if (displayItems.length === 0) {
+        hideSymbolSuggestions();
+        return;
+    }
+
+    panel.innerHTML = displayItems.map((item, idx) => `
+        <div class="symbol-suggestion-item ${idx === symbolSuggestionIndex ? 'active' : ''}" data-code="${escapeHtml(item.code)}" data-name="${escapeHtml(item.name)}">
+            <span class="symbol-suggestion-code">${escapeHtml(item.code)}</span>
+            <span class="symbol-suggestion-name">${escapeHtml(item.name || '--')}</span>
+        </div>
+    `).join('');
+    panel.classList.remove('d-none');
+}
+
+function updateSymbolSuggestionHighlight(panel) {
+    const suggestionPanel = panel || $('backtestSymbolSuggestions');
+    if (!suggestionPanel) return;
+    const visibleItems = suggestionPanel.querySelectorAll('.symbol-suggestion-item');
+    visibleItems.forEach((item, idx) => {
+        item.classList.toggle('active', idx === symbolSuggestionIndex);
+    });
+}
+
+function applySymbolSelection(code, name = '') {
+    const input = $('backtestSymbol');
+    if (!input) return;
+    input.value = name ? `${code} - ${name}` : code;
+    hideSymbolSuggestions();
+}
+
+function bindSymbolAutocomplete() {
+    const input = $('backtestSymbol');
+    const panel = $('backtestSymbolSuggestions');
+    if (!input || !panel) return;
+
+    input.addEventListener('focus', () => {
+        renderSymbolSuggestions(input.value);
+    });
+
+    input.addEventListener('input', () => {
+        symbolSuggestionIndex = -1;
+        renderSymbolSuggestions(input.value);
+    });
+
+    // 支持键盘上下选择建议项，Enter 确认。
+    input.addEventListener('keydown', (event) => {
+        const visibleItems = panel.querySelectorAll('.symbol-suggestion-item');
+        if (panel.classList.contains('d-none') || visibleItems.length === 0) return;
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            symbolSuggestionIndex = (symbolSuggestionIndex + 1) % visibleItems.length;
+            updateSymbolSuggestionHighlight(panel);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            symbolSuggestionIndex = symbolSuggestionIndex <= 0 ? visibleItems.length - 1 : symbolSuggestionIndex - 1;
+            updateSymbolSuggestionHighlight(panel);
+        } else if (event.key === 'Enter') {
+            if (symbolSuggestionIndex >= 0 && symbolSuggestionIndex < visibleItems.length) {
+                event.preventDefault();
+                const target = visibleItems[symbolSuggestionIndex];
+                applySymbolSelection(target.dataset.code || '', target.dataset.name || '');
+            }
+        } else if (event.key === 'Escape') {
+            hideSymbolSuggestions();
+        }
+    });
+
+    panel.addEventListener('mousedown', (event) => {
+        const target = event.target.closest('.symbol-suggestion-item');
+        if (!target) return;
+        event.preventDefault();
+        applySymbolSelection(target.dataset.code || '', target.dataset.name || '');
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!input.contains(event.target) && !panel.contains(event.target)) {
+            hideSymbolSuggestions();
+        }
+    });
+}
+
+async function loadSymbolCatalog(refresh = false) {
+    const refreshParam = refresh ? '&refresh=true' : '';
+    const { ok, data } = await apiRequest(`/api/data/symbols/catalog?source=miniqmt${refreshParam}`);
+
+    if (ok && data && Array.isArray(data.items) && data.items.length > 0) {
+        symbolCatalogItems = normalizeSymbolItems(data.items);
+        renderSymbolSuggestions($('backtestSymbol')?.value || '');
+        symbolCatalogLoaded = true;
+        if (data.stale && data.warning && !symbolCatalogWarned) {
+            showAlert(`标的目录使用本地缓存：${data.warning}`, 'warning');
+            symbolCatalogWarned = true;
+        }
+        return;
+    }
+
+    symbolCatalogLoaded = false;
+    if (!symbolCatalogWarned) {
+        showAlert((data && data.error) || 'xtdata 标的列表加载失败，仍可手工输入代码回测', 'warning');
+        symbolCatalogWarned = true;
+    }
 }
 
 function clearConsole() {
@@ -305,12 +466,12 @@ async function loadDataFiles() {
     }
     
     // 同时更新回测参数中的 datalist
-    const datalist = $('availableSymbols');
-    if (datalist) {
-        datalist.innerHTML = data.files.map(f => {
+    if (!symbolCatalogLoaded) {
+        symbolCatalogItems = data.files.map(f => {
             const symbol = f.filename.replace('.csv', '');
-            return `<option value="${symbol}">${f.filename}</option>`;
-        }).join('');
+            return { code: symbol.toUpperCase(), name: '', label: symbol.toUpperCase() };
+        });
+        renderSymbolSuggestions($('backtestSymbol')?.value || '');
     }
     
     list.innerHTML = data.files.map(file => {
@@ -436,9 +597,13 @@ async function clearBacktestHistory() {
 }
 
 function getBacktestParams() {
+    const symbolInput = $('backtestSymbol')?.value || '';
+    // 输入框可能是 "CODE - NAME" 展示格式，回测接口只需要代码。
+    const normalizedSymbol = extractSymbolCode(symbolInput);
     return {
         strategyId: currentStrategy?.id,
-        symbol: $('backtestSymbol')?.value.trim().toUpperCase() || '',
+        symbol: normalizedSymbol,
+        dataSource: $('backtestDataSource')?.value || 'yfinance',
         startDate: $('backtestStartDate')?.value || '',
         endDate: $('backtestEndDate')?.value || '',
         initialCapital: parseFloat($('backtestInitialCapital')?.value || 100000),
@@ -447,29 +612,34 @@ function getBacktestParams() {
     };
 }
 
-async function syncMarketData(symbol, startDate, endDate, silent = false) {
+async function syncMarketData(symbol, startDate, endDate, dataSource = 'yfinance', silent = false) {
+    // 传了数据源时走后端强制刷新，确保按当前选中源拉取最新数据。
+    const shouldForceRefresh = !!dataSource;
+
     // 首先检查本地文件是否存在，以及日期范围是否已包含所需数据
-    const { ok, data } = await apiRequest(`/api/data/symbols/${symbol}/files`, {
-        method: 'GET'
-    });
-    
-    // 如果文件存在，检查日期范围
-    if (ok && data && data.filename) {
-        // 获取文件详细信息，检查日期范围
-        const fileInfo = await apiRequest(`/api/data/files/${data.filename}`);
-        if (fileInfo.ok && fileInfo.data.start_date && fileInfo.data.end_date) {
-            const fileStartDate = new Date(fileInfo.data.start_date);
-            const fileEndDate = new Date(fileInfo.data.end_date);
-            const requiredStartDate = new Date(startDate);
-            const requiredEndDate = new Date(endDate);
-            
-            // 检查文件的日期范围是否包含所需的日期范围
-            if (fileStartDate <= requiredStartDate && fileEndDate >= requiredEndDate) {
-                // 日期范围已存在，无需重新下载
-                if (!silent) {
-                    showAlert(`${symbol} 数据已存在，无需下载`, 'info');
+    if (!shouldForceRefresh) {
+        const { ok, data } = await apiRequest(`/api/data/symbols/${symbol}/files`, {
+            method: 'GET'
+        });
+        
+        // 如果文件存在，检查日期范围
+        if (ok && data && data.filename) {
+            // 获取文件详细信息，检查日期范围
+            const fileInfo = await apiRequest(`/api/data/files/${data.filename}`);
+            if (fileInfo.ok && fileInfo.data.start_date && fileInfo.data.end_date) {
+                const fileStartDate = new Date(fileInfo.data.start_date);
+                const fileEndDate = new Date(fileInfo.data.end_date);
+                const requiredStartDate = new Date(startDate);
+                const requiredEndDate = new Date(endDate);
+                
+                // 检查文件的日期范围是否包含所需的日期范围
+                if (fileStartDate <= requiredStartDate && fileEndDate >= requiredEndDate) {
+                    // 日期范围已存在，无需重新下载
+                    if (!silent) {
+                        showAlert(`${symbol} 数据已存在，无需下载`, 'info');
+                    }
+                    return data.filename;
                 }
-                return data.filename;
             }
         }
     }
@@ -478,7 +648,12 @@ async function syncMarketData(symbol, startDate, endDate, silent = false) {
     const fetchResult = await apiRequest(`/api/data/symbols/${symbol}/files`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ start_date: startDate, end_date: endDate })
+        body: JSON.stringify({
+            start_date: startDate,
+            end_date: endDate,
+            data_source: dataSource,
+            force_refresh: shouldForceRefresh
+        })
     });
     
     if (!fetchResult.ok) {
@@ -507,7 +682,7 @@ async function runBacktest() {
         return;
     }
     
-    const filename = await syncMarketData(params.symbol, params.startDate, params.endDate);
+    const filename = await syncMarketData(params.symbol, params.startDate, params.endDate, params.dataSource);
     if (!filename) return;
     
     const result = await apiRequest('/api/backtests', {
@@ -517,6 +692,7 @@ async function runBacktest() {
             strategy_id: params.strategyId,
             symbol: params.symbol,
             data_file: filename,
+            data_source: params.dataSource,
             start_date: params.startDate,
             end_date: params.endDate,
             initial_capital: params.initialCapital,
@@ -543,7 +719,8 @@ async function runBacktest() {
             initial_capital: params.initialCapital,
             start_date: params.startDate,
             end_date: params.endDate,
-            symbol: params.symbol
+            symbol: params.symbol,
+            data_source: params.dataSource
         };
         showBacktestResult(resultsWithParams);
         loadBacktestHistory();
@@ -615,7 +792,7 @@ function formatCurrency(value) {
 
 let charts = { priceTrend: null, equity: null, drawdown: null, dailyReturn: null, pnlDist: null };
 
-async function getBenchmarkNormalizedData(symbol, rawDates) {
+async function getBenchmarkNormalizedData(symbol, rawDates, dataSource = 'yfinance') {
     if (!rawDates || rawDates.length === 0) return null;
     
     const startDate = rawDates[0];
@@ -623,7 +800,7 @@ async function getBenchmarkNormalizedData(symbol, rawDates) {
     
     try {
         // 1. 直接复用同步逻辑 (开启静默模式)，确保本地有基准数据
-        const filename = await syncMarketData(symbol, startDate, endDate, true);
+        const filename = await syncMarketData(symbol, startDate, endDate, dataSource, true);
         if (!filename) return null;
         
         // 2. 获取完整数据内容
@@ -711,16 +888,17 @@ async function drawBacktestCharts(results) {
     const { rawDates, dates } = normalizeBacktestDates(results, portfolioValues);
     
     const initialCapital = results.initial_capital || portfolioValues[0] || 100000;
+    const dataSource = results.data_source || $('backtestDataSource')?.value || 'yfinance';
     const dailyReturnRawDates = rawDates.slice(1);
     const dailyReturnDates = generateMonthLabels(dailyReturnRawDates);
     
     // 获取 000001.SS 作为 Benchmark
-    const benchmarkData = await getBenchmarkNormalizedData('000001.SS', rawDates);
+    const benchmarkData = await getBenchmarkNormalizedData('000001.SS', rawDates, dataSource);
     
     // 获取投资标的本身的归一化价格 (Underlying Asset)
     let underlyingData = null;
     if (results.symbol && results.symbol.toUpperCase() !== '000001.SS') {
-        underlyingData = await getBenchmarkNormalizedData(results.symbol, rawDates);
+        underlyingData = await getBenchmarkNormalizedData(results.symbol, rawDates, dataSource);
     }
     
     drawPriceTrendChart(dates, rawDates, benchmarkData, underlyingData, results.symbol);
@@ -1088,7 +1266,8 @@ async function viewBacktestResult(resultId) {
         initial_capital: resultData.initial_capital || 100000,
         start_date: resultData.start_date || '',
         end_date: resultData.end_date || '',
-        symbol: resultData.symbol || ''
+        symbol: resultData.symbol || '',
+        data_source: resultData.data_source || ''
     };
     
     showBacktestResult(resultsWithParams);

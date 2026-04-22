@@ -163,6 +163,58 @@
         .btn-link {
             text-decoration: none !important;
         }
+
+        .symbol-input-wrap {
+            position: relative;
+            width: 100%;
+        }
+
+        .symbol-suggestions {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+            max-height: 260px;
+            overflow-y: auto;
+            z-index: 1050;
+            padding: 4px;
+        }
+
+        .symbol-suggestion-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            line-height: 1.35;
+        }
+
+        .symbol-suggestion-item:hover,
+        .symbol-suggestion-item.active {
+            background: #f1f3f5;
+        }
+
+        .symbol-suggestion-code {
+            font-size: 13px;
+            font-weight: 600;
+            color: #212529;
+            min-width: 90px;
+            letter-spacing: 0.2px;
+        }
+
+        .symbol-suggestion-name {
+            font-size: 12px;
+            color: #495057;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
         
     </style>
 </head>
@@ -204,14 +256,24 @@
                             </div>
                             <div class="mb-3 d-flex align-items-center">
                                 <label for="backtestSymbol" class="form-label mb-0 me-2" style="min-width: 80px; font-size: 12px;">投资标的</label>
-                                <input type="text"
-                                       class="form-control form-control-sm"
-                                       id="backtestSymbol"
-                                       list="availableSymbols"
-                                       placeholder="例如：AAPL 或 000001.SS"
-                                       value="000001.SS"
-                                       required>
-                                <datalist id="availableSymbols"></datalist>
+                                <div class="symbol-input-wrap">
+                                    <input type="text"
+                                           class="form-control form-control-sm"
+                                           id="backtestSymbol"
+                                           placeholder="例如：AAPL 或 000001.SS"
+                                           value="000001.SS"
+                                           autocomplete="off"
+                                           required>
+                                    <div id="backtestSymbolSuggestions" class="symbol-suggestions d-none"></div>
+                                    <datalist id="availableSymbols"></datalist>
+                                </div>
+                            </div>
+                            <div class="mb-3 d-flex align-items-center">
+                                <label for="backtestDataSource" class="form-label mb-0 me-2" style="min-width: 80px; font-size: 12px;">数据源</label>
+                                <select class="form-select form-select-sm" id="backtestDataSource">
+                                    <option value="yfinance" selected>yfinance</option>
+                                    <option value="miniqmt">miniqmt</option>
+                                </select>
                             </div>
                             <div class="mb-3 d-flex align-items-center">
                                 <label for="backtestStartDate" class="form-label mb-0 me-2" style="min-width: 80px; font-size: 12px;">开始日期</label>
