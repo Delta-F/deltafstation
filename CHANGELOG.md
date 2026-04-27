@@ -1,5 +1,16 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [1.2.0] - 2026-04-27
+
+### 🚀 实时行情多数据源切换 + 交易/回测标的体验升级
+
+- **实时数据源切换 API**：`backend/api/data_api.py` 新增 `GET/PUT /api/data/source`，支持在 `yfinance` 与 `miniqmt` 之间动态切换；`/api/data/live/<symbol>` 在 `loading` 状态也返回 `data_source`，便于前端状态对齐。
+- **标的目录按数据源读取**：`GET /api/data/symbols/catalog` 新增并启用 `source` 参数，按源读取 `symbols_dict_yfinance.json` / `symbols_dict_miniqmt.json`，并补充更清晰的缺失文件与格式错误提示。
+- **实时行情管理器重构**：`backend/core/live_data_manager.py` 增加网关工厂、运行态缓存清理、数据源迁移订阅能力；新增五档盘口缓存（TTL）与 OHLC 缓存统一逻辑，提升切源后的稳定性与行情渲染一致性。
+- **交易页交互增强**：`frontend/templates/trader.html`、`frontend/static/js/trader.js`、`frontend/static/css/trader.css` 新增全局数据源切换控件（YF/QMT）、买入标的自动补全建议（代码+名称+键盘选择）、盘口无真实数据时空态展示，以及本地持久化当前数据源。
+- **回测页联动优化**：`frontend/static/js/backtest.js` 新增回测数据源切换联动，标的建议列表按当前数据源动态加载；切源失败时保留旧建议列表，避免输入体验闪断。
+- **数据与依赖整理**：`data/raw/` 数据字典切换为分源文件（移除 `symbol_code_name_dict.json`，新增 `symbols_dict_yfinance.json` / `symbols_dict_miniqmt.json`），并补充示例 CSV；`requirements.txt` 统一 `deltafq>=1.0.2`。
+
 ## [1.1.0] - 2026-04-22
 
 ### 🚀 回测数据源扩展 + 标的检索体验升级

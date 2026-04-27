@@ -190,6 +190,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // 首先加载策略列表（最关键的交互）
     await loadStrategies();
     bindSymbolAutocomplete();
+    bindBacktestDataSourceSwitch();
     await loadSymbolCatalog();
 
     // 回测历史和数据文件改为分步、延迟加载，减轻首屏卡顿
@@ -278,6 +279,14 @@ function normalizeSymbolItems(items) {
         if (!code) return null;
         return { code, name };
     }).filter(Boolean);
+}
+
+function normalizeBacktestDataSource(source) {
+    return source === 'miniqmt' ? 'miniqmt' : 'yfinance';
+}
+
+function getBacktestDataSource() {
+    return normalizeBacktestDataSource($('backtestDataSource')?.value || 'yfinance');
 }
 
 function hideSymbolSuggestions() {
@@ -384,8 +393,9 @@ function bindSymbolAutocomplete() {
 }
 
 async function loadSymbolCatalog(refresh = false) {
+    const source = getBacktestDataSource();
     const refreshParam = refresh ? '&refresh=true' : '';
-    const { ok, data } = await apiRequest(`/api/data/symbols/catalog?source=miniqmt${refreshParam}`);
+    const { ok, data } = await apiRequest(`/api/data/symbols/catalog?source=${encodeURIComponent(source)}${refreshParam}`);
 
     if (ok && data && Array.isArray(data.items) && data.items.length > 0) {
         symbolCatalogItems = normalizeSymbolItems(data.items);
@@ -398,11 +408,27 @@ async function loadSymbolCatalog(refresh = false) {
         return;
     }
 
-    symbolCatalogLoaded = false;
+    // 切源失败时保留旧字典，避免建议列表瞬间清空。
+    symbolCatalogLoaded = symbolCatalogItems.length > 0;
     if (!symbolCatalogWarned) {
-        showAlert((data && data.error) || 'xtdata 标的列表加载失败，仍可手工输入代码回测', 'warning');
+        showAlert((data && data.error) || `${source} 标的列表加载失败，仍可手工输入代码回测`, 'warning');
         symbolCatalogWarned = true;
     }
+}
+
+function bindBacktestDataSourceSwitch() {
+    const sourceSelect = $('backtestDataSource');
+    const symbolInput = $('backtestSymbol');
+    if (!sourceSelect || !symbolInput) return;
+
+    sourceSelect.addEventListener('change', async () => {
+        const source = getBacktestDataSource();
+        if (source === 'miniqmt' && !symbolInput.value.trim()) {
+            symbolInput.value = '000001.SZ';
+        }
+        await loadSymbolCatalog();
+        renderSymbolSuggestions(symbolInput.value);
+    });
 }
 
 function clearConsole() {

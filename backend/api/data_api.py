@@ -7,6 +7,8 @@
 - DELETE /api/data/files/<filename>  删除文件
 - GET  /api/data/template        下载 CSV 模板
 - GET  /api/data/live/<symbol>    实时行情，?history=true 带当日历史
+- GET  /api/data/source         获取当前实时行情数据源
+- PUT  /api/data/source         切换实时行情数据源（yfinance|miniqmt）
 - GET  /api/data/symbols/<symbol>/files  该标的对应数据文件信息
 - POST /api/data/symbols/<symbol>/files  按标的拉取并创建/更新数据文件
 - GET  /api/data/symbols/catalog  获取标的目录（读取本地 symbol_code_name_dict.json）
@@ -219,13 +221,35 @@ def get_live_quote(symbol):
         if quote:
             return jsonify(quote)
             
-        # 优化：数据未就绪时不再返回 404，而是返回 200 + loading 状态
+        # 数据未就绪时返回 200 + loading 状态
         live_data_manager.subscribe([symbol])
         return jsonify({
             'symbol': symbol,
+            'data_source': live_data_manager.get_data_source(),
             'status': 'loading',
             'message': 'Quote not yet available, subscribing...'
         }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@data_bp.route('/source', methods=['GET', 'PUT'])
+def handle_live_data_source():
+    """获取/切换实时行情数据源 - GET/PUT /api/data/source"""
+    try:
+        if request.method == 'GET':
+            return jsonify({'data_source': live_data_manager.get_data_source()})
+
+        payload = request.get_json() or {}
+        source = (payload.get('data_source') or '').strip().lower()
+        if source not in {'yfinance', 'miniqmt'}:
+            return jsonify({'error': 'data_source must be one of: yfinance, miniqmt'}), 400
+
+        ok, result = live_data_manager.set_data_source(source)
+        if not ok:
+            return jsonify({'error': result}), 500
+
+        return jsonify({'message': 'Data source switched successfully', 'data_source': result})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -235,15 +259,26 @@ def get_symbol_catalog():
     """获取标的目录（固定格式: {"source","count","items"}）- GET /api/data/symbols/catalog"""
     try:
         dm = get_data_manager()
-        symbol_dict_file = os.path.join(dm.raw_folder, 'symbol_code_name_dict.json')
+        source = (request.args.get('source') or '').strip().lower()
+        if source not in {'yfinance', 'miniqmt'}:
+            source = 'yfinance'
+
+        source_file_map = {
+            'miniqmt': 'symbols_dict_miniqmt.json',
+            'yfinance': 'symbols_dict_yfinance.json',
+        }
+        symbol_dict_file = os.path.join(dm.raw_folder, source_file_map[source])
         if not os.path.exists(symbol_dict_file):
-            return jsonify({'error': 'symbol_code_name_dict.json not found, please generate it first'}), 404
+            return jsonify({
+                'error': f'{source_file_map[source]} not found, please generate it first',
+                'source': source
+            }), 404
 
         with open(symbol_dict_file, 'r', encoding='utf-8') as f:
             payload = json.load(f)
 
         if not isinstance(payload, dict) or not isinstance(payload.get('items'), list):
-            return jsonify({'error': 'Invalid symbol_code_name_dict.json format'}), 400
+            return jsonify({'error': f'Invalid {source_file_map[source]} format', 'source': source}), 400
 
         items = [
             {
@@ -260,7 +295,7 @@ def get_symbol_catalog():
         ]
 
         return jsonify({
-            'source': payload.get('source', 'local_json'),
+            'source': payload.get('source', source),
             'count': len(items),
             'items': items,
             'from_cache': True,

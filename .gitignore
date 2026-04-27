@@ -7,7 +7,11 @@ data_cache/
 !data/strategies/*.py
 !data/raw/
 data/raw/*
-!data/raw/symbol_code_name_dict.json
+!data/raw/symbols_dict_miniqmt.json
+!data/raw/symbols_dict_yfinance.json
+!data/raw/000001.SS.csv
+!data/raw/BTC-USD.csv
+!data/raw/000001.SZ.csv
 
 # Python
 __pycache__/

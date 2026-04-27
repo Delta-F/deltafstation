@@ -1,0 +1,182 @@
+{
+  "source": "yfinance_multi_market",
+  "fetched_at": "2026-04-27T15:14:00+08:00",
+  "count": 36,
+  "items": [
+    {
+      "code": "AAPL",
+      "name": "苹果公司",
+      "label": "苹果公司 (AAPL)"
+    },
+    {
+      "code": "MSFT",
+      "name": "微软公司",
+      "label": "微软公司 (MSFT)"
+    },
+    {
+      "code": "NVDA",
+      "name": "英伟达公司",
+      "label": "英伟达公司 (NVDA)"
+    },
+    {
+      "code": "AMZN",
+      "name": "亚马逊公司",
+      "label": "亚马逊公司 (AMZN)"
+    },
+    {
+      "code": "GOOGL",
+      "name": "谷歌 (Alphabet Inc. Class A)",
+      "label": "谷歌 (Alphabet Inc. Class A) (GOOGL)"
+    },
+    {
+      "code": "TSLA",
+      "name": "特斯拉公司",
+      "label": "特斯拉公司 (TSLA)"
+    },
+    {
+      "code": "JPM",
+      "name": "摩根大通",
+      "label": "摩根大通 (JPM)"
+    },
+    {
+      "code": "V",
+      "name": "Visa公司",
+      "label": "Visa公司 (V)"
+    },
+    {
+      "code": "JNJ",
+      "name": "强生公司",
+      "label": "强生公司 (JNJ)"
+    },
+    {
+      "code": "WMT",
+      "name": "沃尔玛公司",
+      "label": "沃尔玛公司 (WMT)"
+    },
+    {
+      "code": "600519.SS",
+      "name": "贵州茅台",
+      "label": "贵州茅台 (600519.SS)"
+    },
+    {
+      "code": "300750.SZ",
+      "name": "宁德时代",
+      "label": "宁德时代 (300750.SZ)"
+    },
+    {
+      "code": "002594.SZ",
+      "name": "比亚迪",
+      "label": "比亚迪 (002594.SZ)"
+    },
+    {
+      "code": "601398.SS",
+      "name": "工商银行",
+      "label": "工商银行 (601398.SS)"
+    },
+    {
+      "code": "600036.SS",
+      "name": "招商银行",
+      "label": "招商银行 (600036.SS)"
+    },
+    {
+      "code": "600000.SS",
+      "name": "浦发银行",
+      "label": "浦发银行 (600000.SS)"
+    },
+    {
+      "code": "000001.SZ",
+      "name": "平安银行",
+      "label": "平安银行 (000001.SZ)"
+    },
+    {
+      "code": "601857.SS",
+      "name": "中国石油",
+      "label": "中国石油 (601857.SS)"
+    },
+    {
+      "code": "600028.SS",
+      "name": "中国石化",
+      "label": "中国石化 (600028.SS)"
+    },
+    {
+      "code": "BTC-USD",
+      "name": "比特币",
+      "label": "比特币 (BTC-USD)"
+    },
+    {
+      "code": "ETH-USD",
+      "name": "以太坊",
+      "label": "以太坊 (ETH-USD)"
+    },
+    {
+      "code": "USDT-USD",
+      "name": "泰达币",
+      "label": "泰达币 (USDT-USD)"
+    },
+    {
+      "code": "XRP-USD",
+      "name": "瑞波币",
+      "label": "瑞波币 (XRP-USD)"
+    },
+    {
+      "code": "SOL-USD",
+      "name": "Solana",
+      "label": "Solana (SOL-USD)"
+    },
+    {
+      "code": "ADA-USD",
+      "name": "卡尔达诺",
+      "label": "卡尔达诺 (ADA-USD)"
+    },
+    {
+      "code": "DOGE-USD",
+      "name": "狗狗币",
+      "label": "狗狗币 (DOGE-USD)"
+    },
+    {
+      "code": "BNB-USD",
+      "name": "币安币",
+      "label": "币安币 (BNB-USD)"
+    },
+    {
+      "code": "^GSPC",
+      "name": "标普500指数 (S&P 500)",
+      "label": "标普500指数 (S&P 500) (^GSPC)"
+    },
+    {
+      "code": "^IXIC",
+      "name": "纳斯达克综合指数 (Nasdaq Composite)",
+      "label": "纳斯达克综合指数 (Nasdaq Composite) (^IXIC)"
+    },
+    {
+      "code": "^DJI",
+      "name": "道琼斯工业平均指数 (Dow Jones Industrial Average)",
+      "label": "道琼斯工业平均指数 (Dow Jones Industrial Average) (^DJI)"
+    },
+    {
+      "code": "000001.SS",
+      "name": "上证综合指数 (SSE Composite Index)",
+      "label": "上证综合指数 (SSE Composite Index) (000001.SS)"
+    },
+    {
+      "code": "399001.SZ",
+      "name": "深证成份指数 (SZSE Component Index)",
+      "label": "深证成份指数 (SZSE Component Index) (399001.SZ)"
+    },
+    {
+      "code": "000300.SS",
+      "name": "沪深300指数 (CSI 300 Index)",
+      "label": "沪深300指数 (CSI 300 Index) (000300.SS)"
+    },
+    {
+      "code": "^HSI",
+      "name": "恒生指数 (Hang Seng Index)",
+      "label": "恒生指数 (Hang Seng Index) (^HSI)"
+    },
+    {
+      "code": "^N225",
+      "name": "日经225指数 (Nikkei 225)",
+      "label": "日经225指数 (Nikkei 225) (^N225)"
+    }
+  ]
+}

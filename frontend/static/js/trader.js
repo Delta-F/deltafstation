@@ -19,7 +19,8 @@ const TraderApp = {
         MAX_TRADES_DISPLAY: 50,
         MAX_ORDERS_DISPLAY: 20,
         REFRESH_RATE_ACCOUNT: 5000,
-        REFRESH_RATE_MARKET: 5000
+        REFRESH_RATE_MARKET: 5000,
+        DATA_SOURCE_STORAGE_KEY: 'trader_data_source'
     },
 
     /** 全局运行状态：当前账户、行情缓存、图表偏好与定时器句柄。 */
@@ -28,8 +29,12 @@ const TraderApp = {
         marketData: {},
         orders: [],
         trades: [],
+        symbolCatalogLoaded: false,
+        symbolCatalogItems: [],
+        symbolSuggestionIndex: -1,
         currentChartType: 'intraday',
         currentIndicator: 'ma',
+        currentDataSource: 'yfinance',
         timers: {
             account: null,
             market: null,
@@ -72,6 +77,244 @@ const TraderApp = {
 
     /** 行情模块：订阅与轮询、标的加载、报价区与盘口更新。 */
     market: {
+        escapeHtml(text) {
+            return String(text ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        },
+
+        normalizeSymbolItems(items) {
+            return (items || []).map(item => {
+                const code = String(item.code || '').trim().toUpperCase();
+                const name = String(item.name || '').trim();
+                if (!code) return null;
+                return { code, name };
+            }).filter(Boolean);
+        },
+
+        extractSymbolCode(rawValue) {
+            const input = (rawValue || '').trim().toUpperCase();
+            if (!input) return '';
+            const match = input.match(/[A-Z0-9]+(?:\.[A-Z]{2,3})?(?:-[A-Z]{3,4})?/);
+            return match ? match[0] : input.split(/\s|-/)[0];
+        },
+
+        resolveSymbolName(code) {
+            const symbol = (code || '').toUpperCase();
+            if (!symbol) return '';
+            const match = (TraderApp.state.symbolCatalogItems || []).find(item => item.code === symbol);
+            return match?.name || '';
+        },
+
+        hideSymbolSuggestions() {
+            const panel = $('buySymbolSuggestions');
+            if (!panel) return;
+            panel.classList.add('d-none');
+            TraderApp.state.symbolSuggestionIndex = -1;
+        },
+
+        renderSymbolSuggestions(rawKeyword = '') {
+            const panel = $('buySymbolSuggestions');
+            if (!panel) return;
+            const keyword = this.extractSymbolCode(rawKeyword);
+            const source = TraderApp.state.symbolCatalogItems || [];
+            if (source.length === 0) {
+                this.hideSymbolSuggestions();
+                return;
+            }
+
+            const filtered = keyword
+                ? source.filter(item => item.code.includes(keyword) || item.name.toUpperCase().includes(keyword))
+                : source;
+            const displayItems = filtered.slice(0, 50);
+            if (displayItems.length === 0) {
+                this.hideSymbolSuggestions();
+                return;
+            }
+
+            panel.innerHTML = displayItems.map((item, idx) => `
+                <div class="symbol-suggestion-item ${idx === TraderApp.state.symbolSuggestionIndex ? 'active' : ''}" data-code="${this.escapeHtml(item.code)}" data-name="${this.escapeHtml(item.name)}">
+                    <span class="symbol-suggestion-code">${this.escapeHtml(item.code)}</span>
+                    <span class="symbol-suggestion-name">${this.escapeHtml(item.name || '--')}</span>
+                </div>
+            `).join('');
+            panel.classList.remove('d-none');
+        },
+
+        updateSymbolSuggestionHighlight(panel) {
+            const suggestionPanel = panel || $('buySymbolSuggestions');
+            if (!suggestionPanel) return;
+            const visibleItems = suggestionPanel.querySelectorAll('.symbol-suggestion-item');
+            visibleItems.forEach((item, idx) => {
+                item.classList.toggle('active', idx === TraderApp.state.symbolSuggestionIndex);
+            });
+        },
+
+        applySymbolSelection(code, name = '') {
+            const input = $('buySymbol');
+            if (!input) return;
+            input.value = (code || '').toUpperCase();
+            if (name && $('buyName')) $('buyName').value = name;
+            if (code) {
+                const symbol = code.toUpperCase();
+                if (!TraderApp.state.marketData[symbol]) TraderApp.state.marketData[symbol] = { symbol, latest_price: 0 };
+                if (name) TraderApp.state.marketData[symbol].name = name;
+            }
+            this.hideSymbolSuggestions();
+        },
+
+        bindSymbolAutocomplete() {
+            const input = $('buySymbol');
+            const panel = $('buySymbolSuggestions');
+            if (!input || !panel) return;
+
+            input.addEventListener('focus', () => this.renderSymbolSuggestions(input.value));
+            input.addEventListener('input', () => {
+                TraderApp.state.symbolSuggestionIndex = -1;
+                this.renderSymbolSuggestions(input.value);
+            });
+            input.addEventListener('keydown', (event) => {
+                const visibleItems = panel.querySelectorAll('.symbol-suggestion-item');
+                if (panel.classList.contains('d-none') || visibleItems.length === 0) return;
+
+                if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    TraderApp.state.symbolSuggestionIndex = (TraderApp.state.symbolSuggestionIndex + 1) % visibleItems.length;
+                    this.updateSymbolSuggestionHighlight(panel);
+                } else if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    TraderApp.state.symbolSuggestionIndex = TraderApp.state.symbolSuggestionIndex <= 0 ? visibleItems.length - 1 : TraderApp.state.symbolSuggestionIndex - 1;
+                    this.updateSymbolSuggestionHighlight(panel);
+                } else if (event.key === 'Enter') {
+                    if (TraderApp.state.symbolSuggestionIndex >= 0 && TraderApp.state.symbolSuggestionIndex < visibleItems.length) {
+                        event.preventDefault();
+                        const target = visibleItems[TraderApp.state.symbolSuggestionIndex];
+                        this.applySymbolSelection(target.dataset.code || '', target.dataset.name || '');
+                    }
+                } else if (event.key === 'Escape') {
+                    this.hideSymbolSuggestions();
+                }
+            });
+
+            panel.addEventListener('mousedown', (event) => {
+                const target = event.target.closest('.symbol-suggestion-item');
+                if (!target) return;
+                event.preventDefault();
+                this.applySymbolSelection(target.dataset.code || '', target.dataset.name || '');
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!input.contains(event.target) && !panel.contains(event.target)) {
+                    this.hideSymbolSuggestions();
+                }
+            });
+        },
+
+        async loadSymbolCatalog(source = null) {
+            const targetSource = this.normalizeDataSource(source || TraderApp.state.currentDataSource);
+            const { ok, data } = await apiRequest(`/api/data/symbols/catalog?source=${encodeURIComponent(targetSource)}`);
+            if (ok && data && Array.isArray(data.items) && data.items.length > 0) {
+                TraderApp.state.symbolCatalogItems = this.normalizeSymbolItems(data.items);
+                TraderApp.state.symbolCatalogLoaded = true;
+                this.renderSymbolSuggestions($('buySymbol')?.value || '');
+                return true;
+            }
+            TraderApp.state.symbolCatalogLoaded = (TraderApp.state.symbolCatalogItems || []).length > 0;
+            return false;
+        },
+
+        normalizeDataSource(source) {
+            return source === 'miniqmt' ? 'miniqmt' : 'yfinance';
+        },
+
+        applySourceSwitchUI(source) {
+            const current = this.normalizeDataSource(source);
+            const yfBtn = $('dataSourceYfinance');
+            const qmtBtn = $('dataSourceMiniqmt');
+            if (yfBtn) yfBtn.classList.toggle('active', current === 'yfinance');
+            if (qmtBtn) qmtBtn.classList.toggle('active', current === 'miniqmt');
+        },
+
+        async syncDataSourceOnInit() {
+            const saved = this.normalizeDataSource(localStorage.getItem(TraderApp.CONSTANTS.DATA_SOURCE_STORAGE_KEY));
+            const current = this.normalizeDataSource(TraderApp.state.currentDataSource);
+            this.applySourceSwitchUI(saved);
+            TraderApp.state.currentDataSource = saved;
+            if (saved === current) return true;
+            return await this.setDataSource(saved, { silent: true, force: true });
+        },
+
+        async setDataSource(source, { silent = false, force = false } = {}) {
+            const target = this.normalizeDataSource(source);
+            const previous = this.normalizeDataSource(TraderApp.state.currentDataSource);
+            if (!force && target === previous) {
+                this.applySourceSwitchUI(target);
+                localStorage.setItem(TraderApp.CONSTANTS.DATA_SOURCE_STORAGE_KEY, target);
+                return true;
+            }
+
+            this.applySourceSwitchUI(target);
+            const { ok, data } = await apiRequest('/api/data/source', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data_source: target })
+            });
+
+            if (!ok) {
+                this.applySourceSwitchUI(previous);
+                TraderApp.state.currentDataSource = previous;
+                localStorage.setItem(TraderApp.CONSTANTS.DATA_SOURCE_STORAGE_KEY, previous);
+                if (!silent) showAlert(data.error || '数据源切换失败', 'danger');
+                return false;
+            }
+
+            const active = this.normalizeDataSource(data.data_source || target);
+            TraderApp.state.currentDataSource = active;
+            localStorage.setItem(TraderApp.CONSTANTS.DATA_SOURCE_STORAGE_KEY, active);
+            this.applySourceSwitchUI(active);
+            await this.loadSymbolCatalog(active);
+
+            if (active === 'miniqmt') {
+                const buySymbolInput = $('buySymbol');
+                if (buySymbolInput && !buySymbolInput.value.trim()) {
+                    buySymbolInput.value = '000001.SZ';
+                } else if (buySymbolInput) {
+                    buySymbolInput.value = '000001.SZ';
+                }
+                if ($('buyName')) $('buyName').value = this.resolveSymbolName('000001.SZ') || '平安银行';
+            }
+
+            Object.values(TraderApp.state.marketData).forEach(stock => {
+                stock.hasLoadedHistory = false;
+                stock.bids = null;
+                stock.asks = null;
+            });
+
+            if (active === 'miniqmt') {
+                const symbol = '000001.SZ';
+                if (!TraderApp.state.marketData[symbol]) {
+                    TraderApp.state.marketData[symbol] = { symbol, latest_price: 0 };
+                }
+                const fallbackName = this.resolveSymbolName(symbol) || '平安银行';
+                TraderApp.state.marketData[symbol].name = fallbackName;
+                window.location.hash = symbol;
+            }
+            await this.updateAll();
+
+            const currentSymbol = $('quoteSymbol')?.textContent?.trim();
+            if (currentSymbol && currentSymbol !== '--' && TraderApp.state.marketData[currentSymbol]) {
+                this.updateQuoteUI(TraderApp.state.marketData[currentSymbol]);
+            } else if (active === 'miniqmt') {
+                await this.loadStockInfo('buy');
+            }
+
+            if (!silent) showAlert(`已切换数据源: ${active}`, 'success');
+            return true;
+        },
+
         /** 启动行情定时轮询，拉取已订阅标的并刷新当前报价。 */
         async startUpdateLoop() {
             if (TraderApp.state.timers.market) clearInterval(TraderApp.state.timers.market);
@@ -109,8 +352,13 @@ const TraderApp = {
                         if (data.low) stock.low = data.low;
                         if (data.history) stock.history = data.history;
                         if (data.volume != null) stock.volume = data.volume;
-                        if (data.bids) stock.bids = data.bids;
-                        if (data.asks) stock.asks = data.asks;
+                        if ('bids' in data) stock.bids = Array.isArray(data.bids) ? data.bids : [];
+                        if ('asks' in data) stock.asks = Array.isArray(data.asks) ? data.asks : [];
+                        if (data.data_source) {
+                            stock.data_source = data.data_source;
+                            TraderApp.state.currentDataSource = this.normalizeDataSource(data.data_source);
+                            this.applySourceSwitchUI(TraderApp.state.currentDataSource);
+                        }
                         
                         const currentSymbol = $('quoteSymbol')?.textContent;
                         if (currentSymbol === symbol) {
@@ -129,7 +377,7 @@ const TraderApp = {
             const symbolInput = $(type === 'buy' ? 'buySymbol' : 'sellSymbol');
             if (!symbolInput) return;
             
-            const symbol = symbolInput.value.toUpperCase().trim();
+            const symbol = this.extractSymbolCode(symbolInput.value);
             if (!symbol) return;
             symbolInput.value = symbol;
 
@@ -146,13 +394,15 @@ const TraderApp = {
             
             const stock = TraderApp.state.marketData[symbol];
             const price = stock.latest_price || 0;
+            const resolvedName = stock.name || this.resolveSymbolName(symbol) || symbol;
+            stock.name = resolvedName;
             
             const priceInput = $(type === 'buy' ? 'buyPrice' : 'sellPrice');
             if (priceInput) {
                 if (symbolChanged) priceInput.value = price > 0 ? price.toFixed(2) : '';
                 else if (!priceInput.value && price > 0) priceInput.value = price.toFixed(2);
             }
-            if (type === 'buy' && $('buyName')) $('buyName').value = symbol;
+            if (type === 'buy' && $('buyName')) $('buyName').value = resolvedName;
             TraderApp.ui.calculateEstimatedAmount(type);
             this.updateQuoteUI(stock);
             if (type === 'buy') window.location.hash = symbol;
@@ -165,9 +415,16 @@ const TraderApp = {
                 TraderApp.state.marketData[symbol] = {
                     ...TraderApp.state.marketData[symbol],
                     latest_price: data.price, timestamp: data.timestamp, minute: data.minute,
-                    open: data.open, high: data.high, low: data.low, name: data.name || symbol,
-                    volume: data.volume, bids: data.bids, asks: data.asks
+                    open: data.open, high: data.high, low: data.low, name: data.name || resolvedName,
+                    volume: data.volume,
+                    bids: ('bids' in data) ? (Array.isArray(data.bids) ? data.bids : []) : (TraderApp.state.marketData[symbol]?.bids || []),
+                    asks: ('asks' in data) ? (Array.isArray(data.asks) ? data.asks : []) : (TraderApp.state.marketData[symbol]?.asks || []),
+                    data_source: data.data_source
                 };
+                if (data.data_source) {
+                    TraderApp.state.currentDataSource = this.normalizeDataSource(data.data_source);
+                    this.applySourceSwitchUI(TraderApp.state.currentDataSource);
+                }
                 this.updateQuoteUI(TraderApp.state.marketData[symbol]);
                 const priceEl = $(type === 'buy' ? 'buyPrice' : 'sellPrice');
                 if (priceEl && (!priceEl.value || priceEl.value === '0.00')) priceEl.value = data.price.toFixed(2);
@@ -208,6 +465,10 @@ const TraderApp = {
             
             if (els.symbol) els.symbol.textContent = stock.symbol || '--';
             if (els.name) els.name.textContent = stock.name || '--';
+            if (TraderApp.charts.instance.intraday?.data?.datasets?.[0]) {
+                const titleName = stock.name ? `${stock.name} (${stock.symbol})` : (stock.symbol || '价格');
+                TraderApp.charts.instance.intraday.data.datasets[0].label = titleName;
+            }
             if (els.price) {
                 const price = stock.latest_price || 0;
                 const open = stock.open;
@@ -264,9 +525,9 @@ const TraderApp = {
         updateQuoteBoard(stock) {
             if (!stock) return;
             const currentPrice = stock.latest_price || 0;
-            const baseVol = stock.volume ?? 5000;
-            const spread = 0.01;
-            const synthVol = () => Math.floor((baseVol && baseVol > 0 ? baseVol * 0.001 : 5000) * (0.8 + Math.random() * 0.4));
+            const hasRealBids = Array.isArray(stock.bids) && stock.bids.length >= 5;
+            const hasRealAsks = Array.isArray(stock.asks) && stock.asks.length >= 5;
+            const hasRealOrderBook = hasRealBids && hasRealAsks;
 
             const setRow = (prefix, i, price, vol) => {
                 const el = $(prefix + i);
@@ -284,12 +545,19 @@ const TraderApp = {
                 return;
             }
 
+            if (!hasRealOrderBook) {
+                for (let i = 1; i <= 5; i++) {
+                    ['quoteBid', 'quoteAsk'].forEach(prefix => setRow(prefix, i, null, null));
+                }
+                return;
+            }
+
             for (let i = 1; i <= 5; i++) {
-                const bidPrice = stock.bids?.[i - 1]?.[0] ?? (currentPrice - spread * i);
-                const bidVol = stock.bids?.[i - 1]?.[1] ?? synthVol();
+                const bidPrice = stock.bids?.[i - 1]?.[0];
+                const bidVol = stock.bids?.[i - 1]?.[1];
                 setRow('quoteBid', i, bidPrice, bidVol);
-                const askPrice = stock.asks?.[i - 1]?.[0] ?? (currentPrice + spread * i);
-                const askVol = stock.asks?.[i - 1]?.[1] ?? synthVol();
+                const askPrice = stock.asks?.[i - 1]?.[0];
+                const askVol = stock.asks?.[i - 1]?.[1];
                 setRow('quoteAsk', i, askPrice, askVol);
             }
         },
@@ -1420,8 +1688,11 @@ const TraderApp = {
     async init() {
         this.ui.initListeners();
         this.ui.syncChartCardHeight();
+        this.market.bindSymbolAutocomplete();
+        await this.market.loadSymbolCatalog();
         this.charts.initIntraday();
         this.ui.startClock();
+        await this.market.syncDataSourceOnInit();
         await this.account.loadActive();
         this.state.timers.account = setInterval(() => {
             if (this.state.simulation) this.account.updateStatus();
@@ -1446,6 +1717,7 @@ const setQuantity = (type, val, isPct) => TraderApp.market.setQuantity(type, val
 const switchChartType = (type) => TraderApp.charts.switchType(type);
 const switchIndicator = (ind, btn) => TraderApp.charts.switchIndicator(ind, btn);
 const switchDataView = (type, btn) => TraderApp.ui.switchDataView(type, btn);
+const setGlobalDataSource = (source) => TraderApp.market.setDataSource(source);
 function showManageAccount() { TraderApp.ui.showManageAccountModal(); }
 function switchManageView(view) {
     const listEl = $('manageAccountList');

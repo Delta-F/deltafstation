@@ -62,6 +62,19 @@
         <div class="row trading-panel equal-height-row">
             <!-- 左侧：买卖模块 + 交易账户 -->
             <div class="col-md-3 trading-left-panel">
+                <div class="card data-source-card mb-2">
+                    <div class="card-body">
+                        <div class="data-source-row">
+                            <label class="data-source-label">
+                                <i class="fas fa-database me-1"></i>数据源
+                            </label>
+                            <div class="data-source-tabs" role="tablist" aria-label="数据源切换">
+                                <button type="button" class="data-source-tab-btn active" id="dataSourceYfinance" onclick="setGlobalDataSource('yfinance')">YF</button>
+                                <button type="button" class="data-source-tab-btn" id="dataSourceMiniqmt" onclick="setGlobalDataSource('miniqmt')">QMT</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <!-- 买卖模块 -->
                 <div class="card trade-form-card mb-2">
                     <div class="card-header p-0">
@@ -86,15 +99,13 @@
                                     <div class="trade-form-row">
                                         <label class="form-label">投资标的</label>
                                         <div class="trade-form-content">
-                                            <input type="text" class="form-control form-control-sm" id="buySymbol" 
-                                                   value="BTC-USD" autocomplete="off" list="defaultSymbols" placeholder="代码" 
-                                                   onblur="loadStockInfo('buy')"
-                                                   onkeydown="if(event.key==='Enter') this.blur()">
-                                            <datalist id="defaultSymbols">
-                                                <option value="BTC-USD"></option>
-                                                <option value="000001.SS"></option>
-                                                <option value="AAPL"></option>
-                                            </datalist>
+                                            <div class="symbol-input-wrap">
+                                                <input type="text" class="form-control form-control-sm" id="buySymbol" 
+                                                       value="BTC-USD" autocomplete="off" placeholder="代码"
+                                                       onblur="loadStockInfo('buy')"
+                                                       onkeydown="if(event.key==='Enter') this.blur()">
+                                                <div id="buySymbolSuggestions" class="symbol-suggestions d-none"></div>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="trade-form-row">
