@@ -19,8 +19,7 @@ const TraderApp = {
         MAX_TRADES_DISPLAY: 50,
         MAX_ORDERS_DISPLAY: 20,
         REFRESH_RATE_ACCOUNT: 5000,
-        REFRESH_RATE_MARKET: 5000,
-        DATA_SOURCE_STORAGE_KEY: 'trader_data_source'
+        REFRESH_RATE_MARKET: 5000
     },
 
     /** 全局运行状态：当前账户、行情缓存、图表偏好与定时器句柄。 */
@@ -72,6 +71,72 @@ const TraderApp = {
             if (s.endsWith('.SS') || s.endsWith('.SZ') || s.endsWith('.SH')) return 'A-Share';
             if (s.endsWith('-USD') || s.includes('BTC') || s.includes('ETH')) return 'Crypto';
             return 'US-Stock';
+        },
+
+        /** 按资产类型返回分时日期过滤用时区。 */
+        getTimeZoneForSymbol(symbol) {
+            const assetType = this.getAssetType(symbol);
+            if (assetType === 'A-Share') return 'Asia/Shanghai';
+            if (assetType === 'US-Stock') return 'America/New_York';
+            return 'UTC';
+        },
+
+        /** 将日期转为 yyyy-mm-dd（按给定时区）。 */
+        toDateKeyInTimeZone(date, timeZone) {
+            if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+            const parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).formatToParts(date);
+            const year = parts.find(p => p.type === 'year')?.value;
+            const month = parts.find(p => p.type === 'month')?.value;
+            const day = parts.find(p => p.type === 'day')?.value;
+            return (year && month && day) ? `${year}-${month}-${day}` : '';
+        },
+
+        /**
+         * 解析后端 timestamp：
+         * - 含时区（Z / +08:00）按原语义解析
+         * - 不含时区时，按 symbol 对应时区解析（Crypto 按 UTC）
+         */
+        parseTimestampForSymbol(timestamp, symbol) {
+            if (!timestamp) return null;
+            const raw = String(timestamp).trim();
+            if (!raw) return null;
+
+            const hasOffset = /(?:Z|[+-]\d{2}:\d{2})$/i.test(raw);
+            const normalized = raw.replace(' ', 'T');
+            const direct = new Date(normalized);
+
+            if (hasOffset) {
+                return Number.isNaN(direct.getTime()) ? null : direct;
+            }
+
+            const assetType = this.getAssetType(symbol);
+            if (assetType === 'Crypto') {
+                const utcDate = new Date(`${normalized}Z`);
+                return Number.isNaN(utcDate.getTime()) ? (Number.isNaN(direct.getTime()) ? null : direct) : utcDate;
+            }
+
+            return Number.isNaN(direct.getTime()) ? null : direct;
+        },
+
+        /** 仅保留该标的在对应时区“今天”的分时历史。 */
+        filterHistoryToCurrentTradingDate(symbol, history) {
+            if (!Array.isArray(history) || history.length === 0) return [];
+            const tz = this.getTimeZoneForSymbol(symbol);
+            const todayKey = this.toDateKeyInTimeZone(new Date(), tz);
+            if (!todayKey) return history;
+            return history.filter((tick) => {
+                const ts = tick?.timestamp;
+                if (!ts) return false;
+                const date = this.parseTimestampForSymbol(ts, symbol);
+                if (!(date instanceof Date) || Number.isNaN(date.getTime())) return true;
+                const tickKey = this.toDateKeyInTimeZone(date, tz);
+                return tickKey === todayKey;
+            });
         }
     },
 
@@ -238,81 +303,125 @@ const TraderApp = {
             if (qmtBtn) qmtBtn.classList.toggle('active', current === 'miniqmt');
         },
 
-        async syncDataSourceOnInit() {
-            const saved = this.normalizeDataSource(localStorage.getItem(TraderApp.CONSTANTS.DATA_SOURCE_STORAGE_KEY));
-            const current = this.normalizeDataSource(TraderApp.state.currentDataSource);
-            this.applySourceSwitchUI(saved);
-            TraderApp.state.currentDataSource = saved;
-            if (saved === current) return true;
-            return await this.setDataSource(saved, { silent: true, force: true });
+        getDataSourceFromUrl() {
+            const source = new URL(window.location.href).searchParams.get('source');
+            return this.normalizeDataSource(source);
         },
 
-        async setDataSource(source, { silent = false, force = false } = {}) {
+        setDataSourceToUrl(source) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('source', this.normalizeDataSource(source));
+            history.replaceState(null, '', url.toString());
+        },
+
+        async initDataSourceState() {
+            const source = this.getDataSourceFromUrl();
+            TraderApp.state.currentDataSource = source;
+            this.applySourceSwitchUI(source);
+            this.setDataSourceToUrl(source);
+            await this.loadSymbolCatalog(source);
+            return true;
+        },
+
+        /** 拉取单个 symbol 行情并合并到 marketData。 */
+        async fetchAndMergeLiveQuote(symbol, { includeHistory = false } = {}) {
+            const source = this.normalizeDataSource(TraderApp.state.currentDataSource);
+            const params = new URLSearchParams({ source });
+            if (includeHistory) params.set('history', 'true');
+            const response = await fetch(`/api/data/live/${symbol}?${params.toString()}`);
+            if (!response.ok) return null;
+            const data = await response.json();
+            if (!data || data.error || data.status === 'loading') return null;
+
+            const previous = TraderApp.state.marketData[symbol] || { symbol, latest_price: 0 };
+            const next = {
+                ...previous,
+                latest_price: data.price,
+                timestamp: data.timestamp,
+                minute: data.minute,
+                open: data.open,
+                high: data.high,
+                low: data.low,
+                name: data.name || previous.name || this.resolveSymbolName(symbol) || symbol,
+                volume: data.volume,
+                bids: ('bids' in data) ? (Array.isArray(data.bids) ? data.bids : []) : (previous.bids || []),
+                asks: ('asks' in data) ? (Array.isArray(data.asks) ? data.asks : []) : (previous.asks || []),
+                data_source: data.data_source || previous.data_source
+            };
+            if (data.history) {
+                next.history = data.history;
+                next.hasLoadedHistory = true;
+            }
+            TraderApp.state.marketData[symbol] = next;
+
+            if (next.data_source) {
+                TraderApp.state.currentDataSource = this.normalizeDataSource(next.data_source);
+                this.applySourceSwitchUI(TraderApp.state.currentDataSource);
+            }
+            return next;
+        },
+
+        async setDataSource(source, { silent = false } = {}) {
             const target = this.normalizeDataSource(source);
-            const previous = this.normalizeDataSource(TraderApp.state.currentDataSource);
-            if (!force && target === previous) {
+            if (target === this.normalizeDataSource(TraderApp.state.currentDataSource)) {
                 this.applySourceSwitchUI(target);
-                localStorage.setItem(TraderApp.CONSTANTS.DATA_SOURCE_STORAGE_KEY, target);
+                this.setDataSourceToUrl(target);
                 return true;
             }
 
             this.applySourceSwitchUI(target);
-            const { ok, data } = await apiRequest('/api/data/source', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data_source: target })
-            });
+            TraderApp.state.currentDataSource = target;
+            this.setDataSourceToUrl(target);
+            await this.loadSymbolCatalog(target);
 
-            if (!ok) {
-                this.applySourceSwitchUI(previous);
-                TraderApp.state.currentDataSource = previous;
-                localStorage.setItem(TraderApp.CONSTANTS.DATA_SOURCE_STORAGE_KEY, previous);
-                if (!silent) showAlert(data.error || '数据源切换失败', 'danger');
-                return false;
+            // 切源后直接清空投资标的输入。
+            const buySymbolInput = $('buySymbol');
+            const buyNameInput = $('buyName');
+            if (buySymbolInput) {
+                buySymbolInput.value = '';
+                buySymbolInput.removeAttribute('data-last-symbol');
             }
-
-            const active = this.normalizeDataSource(data.data_source || target);
-            TraderApp.state.currentDataSource = active;
-            localStorage.setItem(TraderApp.CONSTANTS.DATA_SOURCE_STORAGE_KEY, active);
-            this.applySourceSwitchUI(active);
-            await this.loadSymbolCatalog(active);
-
-            if (active === 'miniqmt') {
-                const buySymbolInput = $('buySymbol');
-                if (buySymbolInput && !buySymbolInput.value.trim()) {
-                    buySymbolInput.value = '000001.SZ';
-                } else if (buySymbolInput) {
-                    buySymbolInput.value = '000001.SZ';
-                }
-                if ($('buyName')) $('buyName').value = this.resolveSymbolName('000001.SZ') || '平安银行';
-            }
+            if (buyNameInput) buyNameInput.value = '';
+            window.location.hash = '';
+            this.clearQuoteDisplay();
 
             Object.values(TraderApp.state.marketData).forEach(stock => {
                 stock.hasLoadedHistory = false;
                 stock.bids = null;
                 stock.asks = null;
             });
-
-            if (active === 'miniqmt') {
-                const symbol = '000001.SZ';
-                if (!TraderApp.state.marketData[symbol]) {
-                    TraderApp.state.marketData[symbol] = { symbol, latest_price: 0 };
-                }
-                const fallbackName = this.resolveSymbolName(symbol) || '平安银行';
-                TraderApp.state.marketData[symbol].name = fallbackName;
-                window.location.hash = symbol;
-            }
             await this.updateAll();
 
             const currentSymbol = $('quoteSymbol')?.textContent?.trim();
             if (currentSymbol && currentSymbol !== '--' && TraderApp.state.marketData[currentSymbol]) {
                 this.updateQuoteUI(TraderApp.state.marketData[currentSymbol]);
-            } else if (active === 'miniqmt') {
-                await this.loadStockInfo('buy');
             }
 
-            if (!silent) showAlert(`已切换数据源: ${active}`, 'success');
+            if (!silent) showAlert(`已切换数据源: ${target}`, 'success');
             return true;
+        },
+
+        clearQuoteDisplay() {
+            const setText = (id, text) => {
+                const el = $(id);
+                if (el) el.textContent = text;
+            };
+            setText('quoteSymbol', '--');
+            setText('quoteName', '--');
+            setText('quotePrice', '--');
+            setText('quoteOpen', '--');
+            setText('quoteHigh', '--');
+            setText('quoteLow', '--');
+            setText('quoteDailyReturn', '--');
+            const priceEl = $('quotePrice');
+            const dailyEl = $('quoteDailyReturn');
+            if (priceEl) priceEl.className = 'market-price text-muted';
+            if (dailyEl) dailyEl.className = 'text-muted';
+            this.updateQuoteBoard({ latest_price: 0 });
+            if (TraderApp.charts.instance.intraday?.data?.datasets?.[0]) {
+                TraderApp.charts.instance.intraday.data.datasets[0].label = '价格';
+            }
+            TraderApp.charts.resetData();
         },
 
         /** 启动行情定时轮询，拉取已订阅标的并刷新当前报价。 */
@@ -328,43 +437,17 @@ const TraderApp = {
             }, TraderApp.CONSTANTS.REFRESH_RATE_MARKET);
         },
 
-        /** 并发请求所有已订阅标的的 live 数据并更新 marketData、报价区。 */
+        /** 并发刷新已加载标的行情。 */
         async updateAll() {
             const symbols = Object.keys(TraderApp.state.marketData);
             const updatePromises = symbols.map(async (symbol) => {
                 try {
                     const stock = TraderApp.state.marketData[symbol];
                     const needHistory = !stock.hasLoadedHistory;
-                    const url = `/api/data/live/${symbol}${needHistory ? '?history=true' : ''}`;
-                    
-                    const response = await fetch(url);
-                    if (!response.ok) return;
-                    
-                    const data = await response.json();
-                    if (data && !data.error && data.status !== 'loading') {
-                        if (data.history) stock.hasLoadedHistory = true;
-                        
-                        stock.latest_price = data.price;
-                        stock.timestamp = data.timestamp;
-                        stock.minute = data.minute;
-                        if (data.open) stock.open = data.open;
-                        if (data.high) stock.high = data.high;
-                        if (data.low) stock.low = data.low;
-                        if (data.history) stock.history = data.history;
-                        if (data.volume != null) stock.volume = data.volume;
-                        if ('bids' in data) stock.bids = Array.isArray(data.bids) ? data.bids : [];
-                        if ('asks' in data) stock.asks = Array.isArray(data.asks) ? data.asks : [];
-                        if (data.data_source) {
-                            stock.data_source = data.data_source;
-                            TraderApp.state.currentDataSource = this.normalizeDataSource(data.data_source);
-                            this.applySourceSwitchUI(TraderApp.state.currentDataSource);
-                        }
-                        
-                        const currentSymbol = $('quoteSymbol')?.textContent;
-                        if (currentSymbol === symbol) {
-                            this.updateQuoteUI(stock);
-                        }
-                    }
+                    const merged = await this.fetchAndMergeLiveQuote(symbol, { includeHistory: needHistory });
+                    if (!merged) return;
+                    const currentSymbol = $('quoteSymbol')?.textContent;
+                    if (currentSymbol === symbol) this.updateQuoteUI(merged);
                 } catch (error) {
                     console.error(`Failed to fetch live data for ${symbol}:`, error);
                 }
@@ -372,9 +455,12 @@ const TraderApp = {
             await Promise.all(updatePromises);
         },
 
-        /** 根据买卖侧输入框加载标的信息并更新报价、价格输入、URL hash。 */
+        /** 加载标的并刷新买卖侧与报价区。 */
         async loadStockInfo(type) {
-            const symbolInput = $(type === 'buy' ? 'buySymbol' : 'sellSymbol');
+            const isBuy = type === 'buy';
+            const symbolInput = $(isBuy ? 'buySymbol' : 'sellSymbol');
+            const priceInput = $(isBuy ? 'buyPrice' : 'sellPrice');
+            const buyNameInput = isBuy ? $('buyName') : null;
             if (!symbolInput) return;
             
             const symbol = this.extractSymbolCode(symbolInput.value);
@@ -397,44 +483,29 @@ const TraderApp = {
             const resolvedName = stock.name || this.resolveSymbolName(symbol) || symbol;
             stock.name = resolvedName;
             
-            const priceInput = $(type === 'buy' ? 'buyPrice' : 'sellPrice');
             if (priceInput) {
                 if (symbolChanged) priceInput.value = price > 0 ? price.toFixed(2) : '';
                 else if (!priceInput.value && price > 0) priceInput.value = price.toFixed(2);
             }
-            if (type === 'buy' && $('buyName')) $('buyName').value = resolvedName;
+            if (buyNameInput) buyNameInput.value = resolvedName;
             TraderApp.ui.calculateEstimatedAmount(type);
             this.updateQuoteUI(stock);
-            if (type === 'buy') window.location.hash = symbol;
+            if (isBuy) window.location.hash = symbol;
 
             try {
-                const response = await fetch(`/api/data/live/${symbol}`);
-                if (!response.ok) return;
-                const data = await response.json();
-                if (!data || data.error || data.status === 'loading') return;
-                TraderApp.state.marketData[symbol] = {
-                    ...TraderApp.state.marketData[symbol],
-                    latest_price: data.price, timestamp: data.timestamp, minute: data.minute,
-                    open: data.open, high: data.high, low: data.low, name: data.name || resolvedName,
-                    volume: data.volume,
-                    bids: ('bids' in data) ? (Array.isArray(data.bids) ? data.bids : []) : (TraderApp.state.marketData[symbol]?.bids || []),
-                    asks: ('asks' in data) ? (Array.isArray(data.asks) ? data.asks : []) : (TraderApp.state.marketData[symbol]?.asks || []),
-                    data_source: data.data_source
-                };
-                if (data.data_source) {
-                    TraderApp.state.currentDataSource = this.normalizeDataSource(data.data_source);
-                    this.applySourceSwitchUI(TraderApp.state.currentDataSource);
+                const merged = await this.fetchAndMergeLiveQuote(symbol);
+                if (!merged) return;
+                this.updateQuoteUI(merged);
+                if (priceInput && (!priceInput.value || priceInput.value === '0.00')) {
+                    priceInput.value = merged.latest_price.toFixed(2);
                 }
-                this.updateQuoteUI(TraderApp.state.marketData[symbol]);
-                const priceEl = $(type === 'buy' ? 'buyPrice' : 'sellPrice');
-                if (priceEl && (!priceEl.value || priceEl.value === '0.00')) priceEl.value = data.price.toFixed(2);
                 TraderApp.ui.calculateEstimatedAmount(type);
             } catch (e) {
                 console.error('Failed to fetch quote during loadStockInfo:', e);
             }
         },
 
-        /** 将 stock 数据写入行情区（代码、名称、今开最高最低、现价、涨跌幅、盘口）并驱动分时/日 K。 */
+        /** 刷新行情区与图表。 */
         updateQuoteUI(stock) {
             if (!stock) return;
             
@@ -512,7 +583,8 @@ const TraderApp = {
             }
 
             if (stock.history && stock.history.length > 0) {
-                stock.history.forEach(tick => {
+                const filteredHistory = TraderApp.utils.filterHistoryToCurrentTradingDate(stock.symbol, stock.history);
+                filteredHistory.forEach(tick => {
                     TraderApp.charts.addIntradayPoint(tick.price, tick.volume, tick.timestamp, tick.minute);
                 });
                 stock.history = [];
@@ -521,7 +593,7 @@ const TraderApp = {
             TraderApp.charts.addIntradayPoint(stock.latest_price, stock.volume, stock.timestamp, stock.minute);
         },
 
-        /** 用 API 数据更新买卖五档盘口（bids/asks 或基于 price/volume 合成）。 */
+        /** 更新买卖五档盘口。 */
         updateQuoteBoard(stock) {
             if (!stock) return;
             const currentPrice = stock.latest_price || 0;
@@ -537,18 +609,19 @@ const TraderApp = {
                 if (p) p.textContent = price != null && price > 0 ? price.toFixed(2) : '--';
                 if (v) v.textContent = vol != null && vol > 0 ? Number(vol).toLocaleString() : '--';
             };
-
-            if (!currentPrice) {
+            const clearBoard = () => {
                 for (let i = 1; i <= 5; i++) {
                     ['quoteBid', 'quoteAsk'].forEach(prefix => setRow(prefix, i, null, null));
                 }
+            };
+
+            if (!currentPrice) {
+                clearBoard();
                 return;
             }
 
             if (!hasRealOrderBook) {
-                for (let i = 1; i <= 5; i++) {
-                    ['quoteBid', 'quoteAsk'].forEach(prefix => setRow(prefix, i, null, null));
-                }
+                clearBoard();
                 return;
             }
 
@@ -1689,20 +1762,13 @@ const TraderApp = {
         this.ui.initListeners();
         this.ui.syncChartCardHeight();
         this.market.bindSymbolAutocomplete();
-        await this.market.loadSymbolCatalog();
+        await this.market.initDataSourceState();
         this.charts.initIntraday();
         this.ui.startClock();
-        await this.market.syncDataSourceOnInit();
         await this.account.loadActive();
         this.state.timers.account = setInterval(() => {
             if (this.state.simulation) this.account.updateStatus();
         }, this.CONSTANTS.REFRESH_RATE_ACCOUNT);
-        const buySymbolInput = $('buySymbol');
-        if (buySymbolInput) {
-            const hashSymbol = window.location.hash.substring(1).toUpperCase().trim();
-            buySymbolInput.value = hashSymbol || buySymbolInput.value || 'BTC-USD';
-            this.market.loadStockInfo('buy');
-        }
         this.market.startUpdateLoop();
     }
 };

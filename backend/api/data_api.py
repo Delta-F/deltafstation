@@ -6,9 +6,7 @@
 - GET  /api/data/files/<filename>  文件详情/预览
 - DELETE /api/data/files/<filename>  删除文件
 - GET  /api/data/template        下载 CSV 模板
-- GET  /api/data/live/<symbol>    实时行情，?history=true 带当日历史
-- GET  /api/data/source         获取当前实时行情数据源
-- PUT  /api/data/source         切换实时行情数据源（yfinance|miniqmt）
+- GET  /api/data/live/<symbol>    实时行情，支持 ?source=&history=
 - GET  /api/data/symbols/<symbol>/files  该标的对应数据文件信息
 - POST /api/data/symbols/<symbol>/files  按标的拉取并创建/更新数据文件
 - GET  /api/data/symbols/catalog  获取标的目录（读取本地 symbol_code_name_dict.json）
@@ -213,43 +211,23 @@ def download_template():
 
 @data_bp.route('/live/<symbol>', methods=['GET'])
 def get_live_quote(symbol):
-    """获取实时行情 - GET /api/data/live/<symbol>"""
+    """获取实时行情 - GET /api/data/live/<symbol>?source=yfinance|miniqmt&history=true|false"""
     try:
+        source = live_data_manager.normalize_source(request.args.get('source'))
         include_history = request.args.get('history', 'false').lower() == 'true'
-        quote = live_data_manager.get_quote(symbol, include_history=include_history)
+        quote = live_data_manager.get_quote(symbol, include_history=include_history, source=source)
         
         if quote:
             return jsonify(quote)
             
         # 数据未就绪时返回 200 + loading 状态
-        live_data_manager.subscribe([symbol])
+        live_data_manager.subscribe([symbol], source=source)
         return jsonify({
             'symbol': symbol,
-            'data_source': live_data_manager.get_data_source(),
+            'data_source': source,
             'status': 'loading',
             'message': 'Quote not yet available, subscribing...'
         }), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@data_bp.route('/source', methods=['GET', 'PUT'])
-def handle_live_data_source():
-    """获取/切换实时行情数据源 - GET/PUT /api/data/source"""
-    try:
-        if request.method == 'GET':
-            return jsonify({'data_source': live_data_manager.get_data_source()})
-
-        payload = request.get_json() or {}
-        source = (payload.get('data_source') or '').strip().lower()
-        if source not in {'yfinance', 'miniqmt'}:
-            return jsonify({'error': 'data_source must be one of: yfinance, miniqmt'}), 400
-
-        ok, result = live_data_manager.set_data_source(source)
-        if not ok:
-            return jsonify({'error': result}), 500
-
-        return jsonify({'message': 'Data source switched successfully', 'data_source': result})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

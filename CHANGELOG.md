@@ -1,5 +1,15 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [1.2.1] - 2026-04-28
+
+### 🔧 多数据源行情按请求路由 + 交易页行情展示修正
+
+- **实时行情接口收敛**：`backend/api/data_api.py` 将实时行情入口统一为 `GET /api/data/live/<symbol>?source=&history=`，移除独立的 `GET/PUT /api/data/source` 切换接口，改为由单次请求显式指定数据源并在 loading 响应中回传 `data_source`。
+- **行情管理器重构为多运行态**：`backend/core/live_data_manager.py` 拆分为 `SourceLiveDataManager`（单源运行态）与 `MultiSourceLiveDataManager`（路由层），按 `source` 维护独立网关与缓存，降低切换数据源时的订阅/缓存串扰风险。
+- **交易页数据源状态改为 URL 驱动**：`frontend/static/js/trader.js` 将数据源状态初始化和切换逻辑改为读取/写入 URL `source` 参数，并统一通过 `fetchAndMergeLiveQuote` 拉取并合并行情，减少重复请求与分散更新逻辑。
+- **分时历史按交易日过滤**：`frontend/static/js/trader.js` 新增按资产类型映射时区的时间解析与日期过滤逻辑，仅渲染当前交易日分时数据，修复跨时区或无时区时间戳导致的分时图混入历史日数据问题。
+- **买入标的输入默认值调整**：`frontend/templates/trader.html` 移除买入代码输入框默认 `BTC-USD`，配合切源后清空输入与报价区逻辑，避免误沿用旧源标的。
+
 ## [1.2.0] - 2026-04-27
 
 ### 🚀 实时行情多数据源切换 + 交易/回测标的体验升级

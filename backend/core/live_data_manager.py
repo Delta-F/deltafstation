@@ -1,8 +1,10 @@
 """
-实时行情管理器。
+实时行情管理（按 source 独立运行）。
 
-LiveDataManager 方法说明：
+- SourceLiveDataManager: 单一 source 的行情运行态（一个网关 + 一套缓存）。
+- MultiSourceLiveDataManager: 对外路由层，按请求 source 选择对应运行态。
 
+SourceLiveDataManager 方法说明：
 公开方法：
   start            启动当前数据网关。
   stop             停止网关并清空订阅集合。
@@ -21,6 +23,17 @@ LiveDataManager 方法说明：
   _update_ohlc_cache   刷新/复用 OHLC 缓存（TTL）。
   _update_depth_cache  刷新/复用五档缓存（TTL）。
   _parse_depth_rows    将五档原始行标准化为 [price, volume]。
+
+MultiSourceLiveDataManager 方法说明：
+公开方法：
+  normalize_source  归一化 source（非法值默认 yfinance）。
+  start             启动全部 source 的网关。
+  stop              停止全部 source 的网关。
+  subscribe         按 source 将订阅请求路由到对应运行态。
+  get_quote         按 source 获取行情（支持 include_history）。
+
+私有方法：
+  _pick_manager     选择并返回目标 source 的运行态管理器。
 """
 
 import logging
@@ -35,15 +48,15 @@ from deltafq.live.gateway_registry import create_data_gateway
 logger = logging.getLogger(__name__)
 
 
-class LiveDataManager:
-    """管理实时 tick、历史预热数据与轻量行情缓存。"""
+class SourceLiveDataManager:
+    """单一 source 的实时行情运行态。"""
 
     OHLC_TTL = 60
     DEPTH_TTL = 3
     WARMUP_SOURCES = {"yf_warmup", "miniqmt_warmup"}
     REALTIME_MINIQMT_SOURCES = {"miniqmt", "miniqmt_push"}
 
-    def __init__(self):
+    def __init__(self, source: str = "yfinance"):
         self.event_engine = EventEngine()
         self.latest_ticks: Dict[str, dict] = {}
         self.history_ticks: Dict[str, list] = {}
@@ -52,7 +65,7 @@ class LiveDataManager:
         self.ohlc_last_update: Dict[str, float] = {}
         self.depth_cache: Dict[str, dict] = {}
         self.depth_last_update: Dict[str, float] = {}
-        self.data_source = "yfinance"
+        self.data_source = (source or "yfinance").strip().lower()
         self._gateway_params = {
             "yfinance": {"interval": 5},
             "miniqmt": {"interval": 5, "mode": "poll"},
@@ -300,4 +313,41 @@ class LiveDataManager:
         return parsed
 
 
-live_data_manager = LiveDataManager()
+class MultiSourceLiveDataManager:
+    """按 source 路由到独立运行态。"""
+
+    SUPPORTED_SOURCES = {"yfinance", "miniqmt"}
+
+    def __init__(self):
+        self._managers: Dict[str, SourceLiveDataManager] = {
+            "yfinance": SourceLiveDataManager("yfinance"),
+            "miniqmt": SourceLiveDataManager("miniqmt"),
+        }
+
+    @classmethod
+    def normalize_source(cls, source: str = None) -> str:
+        s = (source or "").strip().lower()
+        return s if s in cls.SUPPORTED_SOURCES else "yfinance"
+
+    def _pick_manager(self, source: str = None) -> SourceLiveDataManager:
+        selected = self.normalize_source(source)
+        return self._managers[selected]
+
+    def start(self):
+        """启动全部 source 网关。"""
+        for manager in self._managers.values():
+            manager.start()
+
+    def stop(self):
+        """停止全部 source 网关。"""
+        for manager in self._managers.values():
+            manager.stop()
+
+    def subscribe(self, symbols: list, source: str = None):
+        self._pick_manager(source).subscribe(symbols)
+
+    def get_quote(self, symbol: str, include_history: bool = False, source: str = None):
+        return self._pick_manager(source).get_quote(symbol, include_history=include_history)
+
+
+live_data_manager = MultiSourceLiveDataManager()
