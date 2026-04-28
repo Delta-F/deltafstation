@@ -214,21 +214,36 @@ def get_simulation_status(simulation_id):
 
 @simulation_bp.route('', methods=['POST'])
 def start_simulation():
-    """创建新仿真账户（可选自动启动，禁止同名）。"""
+    """创建新交易账户（可选自动启动，禁止同名）。"""
     data = request.get_json() or {}
-    if data.get('account_type') == 'broker':
-        return jsonify({'error': '券商实盘暂未开通此功能'}), 400
+    account_type = (data.get('account_type') or 'local_paper').strip().lower()
+    if account_type not in {'local_paper', 'broker'}:
+        return jsonify({'error': 'account_type must be one of: local_paper, broker'}), 400
     account_id = _generate_sim_id()
     name = (data.get('name') or '').strip() or account_id
     if _name_exists(name):
         return jsonify({'error': '账户名称已存在'}), 400
-    if not data.get('initial_capital'):
-        return jsonify({'error': 'Missing required field: initial_capital'}), 400
     if os.path.exists(_config_path(account_id)):
         return jsonify({'error': '账户 ID 冲突，请重试'}), 400
-    capital = float(data['initial_capital'])
-    commission = float(data.get('commission', 0.001))
-    slippage = float(data.get('slippage', 0.0005))
+
+    if account_type == 'broker':
+        broker_account = str(data.get('broker_account') or '').strip()
+        qmt_path = str(data.get('qmt_path') or '').strip()
+        if not broker_account:
+            return jsonify({'error': 'Missing required field: broker_account'}), 400
+        if not qmt_path:
+            return jsonify({'error': 'Missing required field: qmt_path'}), 400
+        # broker 账户仅保存连接信息；资金/手续费等由券商快照提供
+        capital = 0.0
+        commission = 0.0
+        slippage = 0.0
+    else:
+        if not data.get('initial_capital'):
+            return jsonify({'error': 'Missing required field: initial_capital'}), 400
+        capital = float(data['initial_capital'])
+        commission = float(data.get('commission', 0.001))
+        slippage = float(data.get('slippage', 0.0005))
+
     os.makedirs(_sim_folder(), exist_ok=True)
     auto_start = data.get('start', True)
     if auto_start:
@@ -238,12 +253,20 @@ def start_simulation():
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     cfg = {
-        'id': account_id, 'name': name, 'account_type': 'local_paper',
-        'initial_capital': capital, 'commission': commission, 'slippage': slippage,
+        'id': account_id, 'name': name, 'account_type': account_type,
         'status': 'running' if auto_start else 'stopped',
         'created_at': datetime.now().isoformat(),
-        'current_capital': capital, 'positions': {}, 'trades': [], 'orders': [],
+        'positions': {}, 'trades': [], 'orders': [],
     }
+    if account_type == 'broker':
+        cfg['broker_account'] = broker_account
+        cfg['qmt_path'] = qmt_path
+        cfg['current_capital'] = 0.0
+    else:
+        cfg['initial_capital'] = capital
+        cfg['commission'] = commission
+        cfg['slippage'] = slippage
+        cfg['current_capital'] = capital
     with open(_config_path(account_id), 'w', encoding='utf-8') as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
     return jsonify({'message': 'Simulation created successfully', 'simulation_id': account_id})

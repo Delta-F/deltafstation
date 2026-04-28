@@ -5,13 +5,17 @@
   "initial_capital": 1000000.0,
   "commission": 0.001,
   "slippage": 0.0005,
-  "status": "running",
+  "status": "stopped",
   "created_at": "2026-03-06T09:11:10.488103",
-  "current_capital": 852526.2730312494,
+  "current_capital": 851510.234019771,
   "positions": {
     "BTC-USD": {
       "quantity": 2,
       "avg_price": 70882.03515625
+    },
+    "159118.SZ": {
+      "quantity": 1000,
+      "avg_price": 1.0130000114440918
     }
   },
   "trades": [
@@ -313,6 +317,36 @@
       "timestamp": "2026-03-06T08:52:56.645407",
       "order_id": "ORD_000030",
       "commission": 70.8854140625,
+      "strategy_id": "manual"
+    },
+    {
+      "symbol": "159118.SZ",
+      "action": "buy",
+      "quantity": 1000,
+      "price": 1.0130000114440918,
+      "timestamp": "2026-04-28T06:41:29.264046",
+      "order_id": "ORD_000034",
+      "commission": 1.0130000114440918,
+      "strategy_id": "manual"
+    },
+    {
+      "symbol": "159118.SZ",
+      "action": "sell",
+      "quantity": 1000,
+      "price": 1.0130000114440918,
+      "timestamp": "2026-04-28T06:41:57.827423",
+      "order_id": "ORD_000035",
+      "commission": 1.0130000114440918,
+      "strategy_id": "manual"
+    },
+    {
+      "symbol": "159118.SZ",
+      "action": "buy",
+      "quantity": 1000,
+      "price": 1.0130000114440918,
+      "timestamp": "2026-04-28T06:42:19.623188",
+      "order_id": "ORD_000036",
+      "commission": 1.0130000114440918,
       "strategy_id": "manual"
     }
   ],
@@ -668,15 +702,63 @@
       "type": "limit",
       "time": "2026-03-06T16:53:11.915462",
       "strategy_id": "manual"
+    },
+    {
+      "id": "ORD_000033",
+      "symbol": "159118.SZ",
+      "action": "buy",
+      "quantity": 1000,
+      "price": 1.01,
+      "status": "pending",
+      "type": "limit",
+      "time": "2026-04-28T14:41:17.052899",
+      "strategy_id": "manual"
+    },
+    {
+      "id": "ORD_000034",
+      "symbol": "159118.SZ",
+      "action": "buy",
+      "quantity": 1000,
+      "price": 1.02,
+      "status": "executed",
+      "type": "limit",
+      "time": "2026-04-28T14:41:28.516329",
+      "strategy_id": "manual"
+    },
+    {
+      "id": "ORD_000035",
+      "symbol": "159118.SZ",
+      "action": "sell",
+      "quantity": 1000,
+      "price": 1.0,
+      "status": "executed",
+      "type": "limit",
+      "time": "2026-04-28T14:41:52.344318",
+      "strategy_id": "manual"
+    },
+    {
+      "id": "ORD_000036",
+      "symbol": "159118.SZ",
+      "action": "buy",
+      "quantity": 1000,
+      "price": 1.02,
+      "status": "executed",
+      "type": "limit",
+      "time": "2026-04-28T14:42:19.199587",
+      "strategy_id": "manual"
     }
   ],
-  "frozen_capital": 0.0,
+  "frozen_capital": 1010.0,
   "engine_state": {
-    "current_capital": 852526.2730312494,
+    "current_capital": 851510.234019771,
     "positions": {
       "BTC-USD": {
         "quantity": 2,
         "avg_price": 70882.03515625
+      },
+      "159118.SZ": {
+        "quantity": 1000,
+        "avg_price": 1.0130000114440918
       }
     },
     "trades": [
@@ -978,6 +1060,36 @@
         "timestamp": "2026-03-06T08:52:56.645407",
         "order_id": "ORD_000030",
         "commission": 70.8854140625,
+        "strategy_id": "manual"
+      },
+      {
+        "symbol": "159118.SZ",
+        "action": "buy",
+        "quantity": 1000,
+        "price": 1.0130000114440918,
+        "timestamp": "2026-04-28T06:41:29.264046",
+        "order_id": "ORD_000034",
+        "commission": 1.0130000114440918,
+        "strategy_id": "manual"
+      },
+      {
+        "symbol": "159118.SZ",
+        "action": "sell",
+        "quantity": 1000,
+        "price": 1.0130000114440918,
+        "timestamp": "2026-04-28T06:41:57.827423",
+        "order_id": "ORD_000035",
+        "commission": 1.0130000114440918,
+        "strategy_id": "manual"
+      },
+      {
+        "symbol": "159118.SZ",
+        "action": "buy",
+        "quantity": 1000,
+        "price": 1.0130000114440918,
+        "timestamp": "2026-04-28T06:42:19.623188",
+        "order_id": "ORD_000036",
+        "commission": 1.0130000114440918,
         "strategy_id": "manual"
       }
     ],
@@ -1333,12 +1445,54 @@
         "type": "limit",
         "time": "2026-03-06T16:53:11.915462",
         "strategy_id": "manual"
+      },
+      {
+        "id": "ORD_000033",
+        "symbol": "159118.SZ",
+        "action": "buy",
+        "quantity": 1000,
+        "price": 1.01,
+        "status": "pending",
+        "type": "limit",
+        "time": "2026-04-28T14:41:17.052899",
+        "strategy_id": "manual"
+      },
+      {
+        "id": "ORD_000034",
+        "symbol": "159118.SZ",
+        "action": "buy",
+        "quantity": 1000,
+        "price": 1.02,
+        "status": "executed",
+        "type": "limit",
+        "time": "2026-04-28T14:41:28.516329",
+        "strategy_id": "manual"
+      },
+      {
+        "id": "ORD_000035",
+        "symbol": "159118.SZ",
+        "action": "sell",
+        "quantity": 1000,
+        "price": 1.0,
+        "status": "executed",
+        "type": "limit",
+        "time": "2026-04-28T14:41:52.344318",
+        "strategy_id": "manual"
+      },
+      {
+        "id": "ORD_000036",
+        "symbol": "159118.SZ",
+        "action": "buy",
+        "quantity": 1000,
+        "price": 1.02,
+        "status": "executed",
+        "type": "limit",
+        "time": "2026-04-28T14:42:19.199587",
+        "strategy_id": "manual"
       }
     ],
-    "frozen_capital": 0.0
+    "frozen_capital": 1010.0
   },
-  "stopped_at": "2026-03-16T13:37:08.606068",
-  "signal_interval": "1m",
-  "strategy_id": "A0_Every2BarFlipStrategy",
-  "symbol": "BTC-USD"
+  "stopped_at": "2026-04-28T14:42:38.528390",
+  "signal_interval": "1m"
 }

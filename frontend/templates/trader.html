@@ -69,7 +69,7 @@
                                 <i class="fas fa-database me-1"></i>数据源
                             </label>
                             <div class="data-source-tabs" role="tablist" aria-label="数据源切换">
-                                <button type="button" class="data-source-tab-btn active" id="dataSourceYfinance" onclick="setGlobalDataSource('yfinance')">YF</button>
+                                <button type="button" class="data-source-tab-btn" id="dataSourceYfinance" onclick="setGlobalDataSource('yfinance')">YF</button>
                                 <button type="button" class="data-source-tab-btn" id="dataSourceMiniqmt" onclick="setGlobalDataSource('miniqmt')">QMT</button>
                             </div>
                         </div>
@@ -232,7 +232,7 @@
                             <span id="commissionDisplay">--</span>
                         </div>
                         <button class="btn btn-sm btn-outline-secondary w-100 mt-auto fw-bold d-flex align-items-center justify-content-center account-manage-btn"
-                                onclick="handleAccountAction()" id="accountActionBtn" type="button">
+                                onclick="showManageAccount()" id="accountActionBtn" type="button">
                             <i class="fas fa-sliders-h me-2"></i>管理账户
                         </button>
                     </div>
@@ -437,11 +437,35 @@
                 <div class="modal-body">
                     <!-- 视图1：选择已有账户 -->
                     <div id="manageAccountList">
-                        <p class="manage-list-subtitle">选择已有账户，点击即可切换并运行</p>
-                        <div id="manageAccountListBody" class="list-group list-group-flush"></div>
-                        <button type="button" class="btn btn-new-account w-100" onclick="switchManageView('form')">
-                            <i class="fas fa-plus me-2"></i>新建账户
-                        </button>
+                        <div class="manage-account-table-wrap">
+                            <table class="table table-borderless manage-account-table mb-0">
+                                <colgroup>
+                                    <col class="manage-col-id">
+                                    <col class="manage-col-name">
+                                    <col class="manage-col-type">
+                                    <col class="manage-col-status">
+                                    <col class="manage-col-actions">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th>账号ID</th>
+                                        <th>账户名称</th>
+                                        <th>账户类型</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="manageAccountListBody"></tbody>
+                            </table>
+                        </div>
+                        <p class="manage-list-subtitle">
+                            <i class="fas fa-info-circle me-1"></i>选择已有账户，点击即可切换并运行
+                        </p>
+                        <div class="manage-new-account-wrap">
+                            <button type="button" class="btn btn-new-account" onclick="switchManageView('form')">
+                                <i class="fas fa-plus me-1"></i>新建账户
+                            </button>
+                        </div>
                     </div>
                     <!-- 视图2：新建账户表单（与买卖卡片同行布局一致） -->
                     <div id="manageAccountForm" class="hide-initially">
@@ -452,31 +476,46 @@
                                     <input type="text" class="form-control form-control-sm" id="accountName" placeholder="sim_001" maxlength="32">
                                 </div>
                             </div>
-                            <div class="trade-form-row">
+                            <div class="trade-form-row account-type-row">
                                 <label class="form-label">账户类型</label>
-                                <div class="trade-form-content flex-row-nowrap">
+                                <div class="trade-form-content manage-account-type-stack">
+                                    <label class="manage-radio-option"><input type="radio" name="accountType" value="broker" id="accountTypeBroker"> 券商实盘（QMT）</label>
                                     <label class="manage-radio-option"><input type="radio" name="accountType" value="local_paper" id="accountTypeLocal" checked> 本地模拟</label>
-                                    <label class="manage-radio-option"><input type="radio" name="accountType" value="broker" id="accountTypeBroker"> 券商实盘</label>
                                 </div>
                             </div>
-                            <div class="trade-form-row">
+                            <div class="trade-form-row account-local-fields d-none">
                                 <label for="accountCapital" class="form-label">初始资金</label>
                                 <div class="trade-form-content">
                                     <input type="number" class="form-control form-control-sm" id="accountCapital" value="1000000">
                                 </div>
                             </div>
-                            <div class="trade-form-row">
+                            <div class="trade-form-row account-local-fields">
                                 <label for="accountCommission" class="form-label">手续费率</label>
                                 <div class="trade-form-content">
                                     <input type="number" class="form-control form-control-sm" id="accountCommission" value="0.001" step="0.0001">
                                 </div>
                             </div>
-                            <div class="trade-form-row">
+                            <div class="trade-form-row account-local-fields">
                                 <label for="accountSlippage" class="form-label">滑点</label>
                                 <div class="trade-form-content">
                                     <input type="number" class="form-control form-control-sm" id="accountSlippage" value="0.0005" step="0.0001">
                                 </div>
                             </div>
+                            <div class="trade-form-row account-broker-fields">
+                                <label for="brokerAccount" class="form-label">券商账号</label>
+                                <div class="trade-form-content">
+                                    <input type="text" class="form-control form-control-sm" id="brokerAccount" value="8886180407" placeholder="请输入券商账号">
+                                </div>
+                            </div>
+                            <div class="trade-form-row account-broker-fields">
+                                <label for="brokerQmtPath" class="form-label">QMT配置路径</label>
+                                <div class="trade-form-content broker-path-content">
+                                    <input type="text" class="form-control form-control-sm broker-path-input" id="brokerQmtPath" value="D:\\国金证券QMT交易端\\userdata_mini" placeholder="请选择本地文件夹">
+                                </div>
+                            </div>
+                            <p class="manage-list-subtitle broker-path-hint account-broker-fields">
+                                <i class="fas fa-info-circle me-1"></i>路径示例：D:\国金证券QMT交易端\userdata_mini
+                            </p>
                         </form>
                     </div>
                 </div>

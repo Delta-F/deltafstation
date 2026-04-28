@@ -1,5 +1,15 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [1.2.2] - 2026-04-28
+
+### 🚀 交易页券商账户打通（QMT）与账户管理改版
+
+- **新增券商交易 API**：新增 `backend/api/broker_api.py` 与 `backend/core/broker_engine.py`，提供 `connect/disconnect/orders/cancel/snapshot` 能力，统一 miniQMT 会话管理、订单状态映射、时间归一化与资金/持仓/委托/成交快照输出。
+- **后端路由注册与账户创建扩展**：`backend/app.py` 注册 `broker_bp`（`/api/broker`）；`backend/api/simulation_api.py` 的账户创建接口支持 `account_type=broker`，并校验 `broker_account` 与 `qmt_path`，实现本地模拟与券商账户双模式创建。
+- **交易页账户管理弹窗重构**：`frontend/templates/trader.html`、`frontend/static/css/trader.css` 将账户列表改为表格化展示，新增券商账号与 QMT 路径输入区，并按账户类型动态切换本地模拟字段/券商字段，提升多账户管理可读性与可操作性。
+- **交易页 broker 交易链路适配**：`frontend/static/js/trader.js` 新增/增强 broker 分支逻辑，券商账户下单走 `/api/broker/orders`、撤单走 `/api/broker/orders/<id>`，并在轮询刷新中覆盖账户资产、持仓盈亏、委托成交量等字段，保证页面状态与柜台快照一致。
+- **文档补充**：新增 `docs/broker-data-sync-plan.md`，明确 broker snapshot 的轮询覆盖策略、订单状态映射规范与联调验证清单，降低后续接入与排障成本。
+
 ## [1.2.1] - 2026-04-28
 
 ### 🔧 多数据源行情按请求路由 + 交易页行情展示修正

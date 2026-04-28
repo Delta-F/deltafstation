@@ -72,6 +72,7 @@ if not isinstance(sys.stdout, StdoutRedirector):
 
 from backend.api.ai_api import ai_bp
 from backend.api.backtest_api import backtest_bp
+from backend.api.broker_api import broker_bp
 from backend.api.data_api import data_bp
 from backend.api.gostrategy_api import gostrategy_bp
 from backend.api.simulation_api import simulation_bp
@@ -103,6 +104,7 @@ def create_app() -> Flask:
     app.register_blueprint(strategy_bp, url_prefix='/api/strategies')
     app.register_blueprint(backtest_bp, url_prefix='/api/backtests')
     app.register_blueprint(simulation_bp, url_prefix='/api/simulations')
+    app.register_blueprint(broker_bp, url_prefix='/api/broker')
     app.register_blueprint(gostrategy_bp, url_prefix='/api/gostrategy')
     app.register_blueprint(ai_bp, url_prefix='/api/ai')
     

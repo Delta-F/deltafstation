@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-1.2.1-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-1.2.2-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -34,7 +34,7 @@ python run.py
 
 - 📊 数据服务 - 行情数据管理与更新，统一回测、模拟与策略运行的数据入口
 - 📉 回测中心 - 策略创建、历史数据回测、绩效分析、结果落盘与可视化报告
-- 🧾 手动交易 - 管理账户（选择/新建）、本地模拟按 tick 撮合、买卖执行与持仓盈亏跟踪
+- 🧾 手动交易 - 管理账户（选择/新建）、支持 `local_paper`/`broker` 双模式、买卖执行与持仓盈亏跟踪
 - ⚡ 策略运行 - 自动交易流程编排、实时监控、信号执行与运行日志追踪
 - 🤖 AI Agent - 支持 LLM 配置、对话、工具（Tool）与技能（Skills）调用
 
@@ -44,7 +44,7 @@ python run.py
 - [Data] eastmoney ✅ - 场外基金（指数、QDII、股、债、混合）
 - [Data] miniQMT ✅ - A股、场内ETF、债券（详情见课程实盘章节）
 - [Trade] PaperTrade ✅ - 本地模拟交易、挂单按 Tick 撮合、持仓与订单管理
-- [Trade] miniQMT Trade ⏳ - A 股实盘交易（详情见课程实盘章节）
+- [Trade] miniQMT Trade ✅ - A 股实盘交易（详情见课程实盘章节）
 
 ## 🗂️ 项目结构
 
@@ -58,12 +58,14 @@ deltafstation/
 │   │   ├── backtest_api.py
 │   │   ├── ai_api.py          # AI Agent：LLM 对话（SSE 流式）；可选注入回测 SKILL
 │   │   ├── simulation_api.py   # 手动交易：账户、下单
+│   │   ├── broker_api.py       # 券商交易：connect/disconnect、下单撤单、快照
 │   │   └── gostrategy_api.py   # 策略运行：启动/停止、K 线
 │   ├── core/         # 核心引擎
 │   │   ├── data_manager.py
 │   │   ├── live_data_manager.py
 │   │   ├── backtest_engine.py
 │   │   ├── simulation_engine.py      # 手动交易 tick 撮合
+│   │   ├── broker_engine.py          # miniQMT 会话管理与快照标准化
 │   │   ├── strategy_engine.py     # 策略自动化 LiveEngine
 │   │   ├── agent/                   # AI Agent 编排层（OpenAI 兼容：DeepSeek / OpenAI / 通义等）
 │   │   │   ├── llm_client.py

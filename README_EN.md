@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-1.2.1-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-1.2.2-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -34,7 +34,7 @@ python run.py
 
 - 📊 Data Services - Market data management and updates as a unified data entry point for backtesting, simulation, and strategy running
 - 📉 Backtest Hub - Strategy creation, historical backtesting, performance analysis, persisted results, and visual reports
-- 🧾 Manual Trading - Manage accounts (select or create), local simulation with tick-level matching, buy/sell execution, and position & PnL tracking
+- 🧾 Manual Trading - Manage accounts (select or create), dual-mode trading (`local_paper`/`broker`), buy/sell execution, and position & PnL tracking
 - ⚡ Strategy Running - Automated trading workflow orchestration, real-time monitoring, signal execution, and runtime logs
 - 🤖 AI Agent - Supports LLM configuration, chat, tool calls, and skill injection
 
@@ -44,7 +44,7 @@ python run.py
 - [Data] eastmoney ✅ - Off-exchange funds (index, QDII, equity, bond, hybrid)
 - [Data] miniQMT ✅ - A-shares, indices, ETF (see the live-trading chapter in the course)
 - [Trade] PaperTrade ✅ - Local simulated trading, tick-level order matching, positions and order management
-- [Trade] miniQMT Trade ⏳ - A-share live trading (see the live-trading chapter in the course)
+- [Trade] miniQMT Trade ✅ - A-share live trading (see the live-trading chapter in the course)
 
 ## 🗂️ Project Structure
 
@@ -58,12 +58,14 @@ deltafstation/
 │   │   ├── backtest_api.py
 │   │   ├── ai_api.py          # AI Agent: LLM chat (SSE stream); optional backtest SKILL injection
 │   │   ├── simulation_api.py   # Manual trading: accounts, orders
+│   │   ├── broker_api.py       # Broker trading: connect/disconnect, order/cancel, snapshot
 │   │   └── gostrategy_api.py   # Strategy run: start/stop, charts
 │   ├── core/         # Core engines
 │   │   ├── data_manager.py
 │   │   ├── live_data_manager.py
 │   │   ├── backtest_engine.py
 │   │   ├── simulation_engine.py      # Manual tick matching
+│   │   ├── broker_engine.py          # miniQMT session management and snapshot normalization
 │   │   ├── strategy_engine.py     # Strategy automation (LiveEngine)
 │   │   ├── agent/                   # AI Agent orchestration layer (OpenAI-compatible: DeepSeek / OpenAI / Tongyi etc.)
 │   │   │   ├── llm_client.py

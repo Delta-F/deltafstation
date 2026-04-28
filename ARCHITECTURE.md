@@ -21,6 +21,7 @@
   ├── 策略 API        backend/api/strategy_api.py
   ├── 回测 API        backend/api/backtest_api.py
   ├── 仿真/账户 API   backend/api/simulation_api.py   # 创建、列表、状态、开启、停止、下单
+  ├── 券商交易 API    backend/api/broker_api.py       # connect/disconnect、下单、撤单、快照
   ├── 策略运行 API    backend/api/gostrategy_api.py   # 启动/停止策略、K 线图表（按 signal_interval）
   ├── AI Agent API    backend/api/ai_api.py          # LLM 对话（SSE 流式）；命中关键词时注入回测 SKILL；system 含 Server date（本地日）
   └── 日志流 (SSE)    backend/app.py (stdout pipe)
@@ -32,6 +33,7 @@
   ├── LiveDataManager       backend/core/live_data_manager.py
   ├── BacktestEngine*       backend/core/backtest_engine.py
   ├── SimulationEngine      backend/core/simulation_engine.py      # 手动交易（tick 撮合）
+  ├── BrokerEngine          backend/core/broker_engine.py          # miniQMT 会话与快照标准化
   ├── StrategyEngine*       backend/core/strategy_engine.py     # 策略自动化（deltafq LiveEngine）
   ├── agent/                backend/core/agent/                # AI Agent（LLM + 工具编排）
   │   ├── llm_client.py     backend/core/agent/llm_client.py
@@ -76,7 +78,17 @@
 - **SimulationEngine（仿真引擎）**
   - 基于 `deltafq`（EventEngine + yfinance 行情 + paper 交易网关），按 tick 撮合限价单
   - 用于**手动交易**（trading 页），账户配置持久化写入 `data/simulations/`
-  - 由 `simulation_api` 调用
+  - 由 `simulation_api` 调用（`local_paper` 模式）
+
+- **BrokerEngine（券商交易引擎）**
+  - 封装 miniQMT 交易会话管理（连接、断连、下单、撤单）
+  - 将柜台数据标准化为交易页统一结构：`asset / positions / orders / trades`
+  - 负责订单状态映射（pending/executed/cancelled）与时间字段归一化
+  - 由 `broker_api` 调用（`broker` 模式）
+
+- **Trading 页双链路（按 account_type）**
+  - `local_paper`：走 `simulation_api` + `SimulationEngine`，状态由本地仿真引擎维护
+  - `broker`：走 `broker_api` + `BrokerEngine`，状态以 `/api/broker/snapshot` 为准并前端定时覆盖
 
 - **StrategyEngine（策略运行器）**
   - 封装 `deltafq.live.LiveEngine`，负责策略自动化运行
