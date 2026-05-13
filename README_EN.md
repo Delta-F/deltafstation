@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-1.2.2-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-1.2.3-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -37,6 +37,7 @@ python run.py
 - 🧾 Manual Trading - Manage accounts (select or create), dual-mode trading (`local_paper`/`broker`), buy/sell execution, and position & PnL tracking
 - ⚡ Strategy Running - Automated trading workflow orchestration, real-time monitoring, signal execution, and runtime logs
 - 🤖 AI Agent - Supports LLM configuration, chat, tool calls, and skill injection
+- 🔗 MCP (stdio) - Connect Cursor / Claude Desktop to the same Agent tools; see [docs/mcp-client-config.md](docs/mcp-client-config.md)
 
 ### 🔌 Interface Integrations
 
@@ -51,6 +52,8 @@ python run.py
 ```
 deltafstation/
 ├── assets/           # Docs and presentation images
+├── docs/             # Integration and design notes (incl. MCP client config)
+├── mcp_server.py     # MCP stdio sidecar (aligned with TOOLS_MAP)
 ├── backend/
 │   ├── api/          # REST API
 │   │   ├── data_api.py

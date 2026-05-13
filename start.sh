@@ -4,13 +4,13 @@
 
 echo "=========================================="
 echo "DeltaFStation 量化交易系统"
-echo "Version: v1.2.1"
+echo "Version: v1.2.3"
 echo "=========================================="
 
 # 检查Python版本
 python_version=$(python3 --version 2>&1)
 if [[ $? -ne 0 ]]; then
-    echo "错误: 未找到Python3，请先安装Python 3.8+"
+    echo "错误: 未找到Python3，请先安装Python 3.10+"
     exit 1
 fi
 

@@ -30,3 +30,6 @@ openai>=1.40.0
 
 # Project core
 deltafq>=1.0.2
+
+# MCP (stdio sidecar: mcp_server.py)
+mcp>=1.2.0

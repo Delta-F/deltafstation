@@ -1,5 +1,13 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [1.2.3] - 2026-05-13
+
+### 🔌 MCP stdio 外接（与 Agent 工具对齐）
+
+- **侧车脚本**：新增仓库根目录 `mcp_server.py`，基于 FastMCP 以 stdio 暴露与 `backend.core.agent.tool_registry.TOOLS_MAP` 相同的工具（抽签、回测、自动回测、写策略等）；在导入与每次工具调用前将日志与 stdout Handler 迁到 stderr，避免破坏 JSON-RPC。
+- **依赖**：`requirements.txt` 增加 `mcp>=1.2.0`。
+- **文档**：新增 `docs/mcp-client-config.md`（Cursor / Claude Desktop 的 command、args、cwd、PYTHONPATH 示例与说明）、`docs/mcp-server-plan.md`（侧车方案与约束）。
+
 ## [1.2.2] - 2026-04-28
 
 ### 🚀 交易页券商账户打通（QMT）与账户管理改版

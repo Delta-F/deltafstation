@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-1.2.2-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-1.2.3-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -37,6 +37,7 @@ python run.py
 - 🧾 手动交易 - 管理账户（选择/新建）、支持 `local_paper`/`broker` 双模式、买卖执行与持仓盈亏跟踪
 - ⚡ 策略运行 - 自动交易流程编排、实时监控、信号执行与运行日志追踪
 - 🤖 AI Agent - 支持 LLM 配置、对话、工具（Tool）与技能（Skills）调用
+- 🔗 MCP（stdio）- Cursor / Claude Desktop 外接同一套 Agent 工具；配置见 [docs/mcp-client-config.md](docs/mcp-client-config.md)
 
 ### 🔌 接口集成
 
@@ -51,6 +52,8 @@ python run.py
 ```
 deltafstation/
 ├── assets/           # 文档与展示图片
+├── docs/             # 集成与设计说明（含 MCP 客户端配置）
+├── mcp_server.py     # MCP stdio 侧车（与 TOOLS_MAP 对齐）
 ├── backend/
 │   ├── api/          # REST API
 │   │   ├── data_api.py
