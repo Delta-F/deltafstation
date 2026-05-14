@@ -1,5 +1,12 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [1.2.4] - 2026-05-14
+
+### 📦 依赖约束与示例策略
+
+- **依赖**：`requirements.txt` 将主要依赖由固定版本改为兼容区间（`>=` / `<`），并注明区间用意；提升 `numpy`、`pandas`、`matplotlib`、`seaborn`、`scikit-learn` 等最低版本以与当前栈对齐。
+- **TA-Lib**：补充 `deltafq.indicators` 对 **TA-Lib** 的说明，并新增 `TA-Lib>=0.4.24` 直接依赖。
+
 ## [1.2.3] - 2026-05-13
 
 ### 🔌 MCP stdio 外接（与 Agent 工具对齐）

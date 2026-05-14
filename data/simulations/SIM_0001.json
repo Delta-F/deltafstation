@@ -5,7 +5,7 @@
   "initial_capital": 1000000.0,
   "commission": 0.001,
   "slippage": 0.0005,
-  "status": "stopped",
+  "status": "running",
   "created_at": "2026-03-06T09:11:10.488103",
   "current_capital": 851510.234019771,
   "positions": {
