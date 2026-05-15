@@ -1,4 +1,5 @@
 # 直接依赖：>= 为最低兼容版本，< 为保守主版本上限，减少将来大版本升级带来的破坏。
+# Python 推荐版本：3.12
 
 # Web / Server (Flask stack)
 blinker>=1.6.2,<2
@@ -17,7 +18,7 @@ python-dateutil>=2.8.2
 pytz>=2023.3
 
 # Market data
-yfinance>=0.2.18
+yfinance>=0.2.54 # fix too many requests error
 
 # Visualization
 matplotlib>=3.8,<4
