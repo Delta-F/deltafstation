@@ -41,6 +41,9 @@ const GoStrategyApp = {
         liveSignalHistory: [],
         lastLiveSignalRunId: null,
         monitorMarketData: {},
+        symbolCatalogItems: [],
+        symbolSuggestionIndex: -1,
+        symbolDataSource: 'yfinance',
         timers: { refresh: null, clock: null }
     },
 
@@ -52,6 +55,160 @@ const GoStrategyApp = {
     _monitorIndicator() {
         const btn = $('monitorIndicatorButtons')?.querySelector('.chart-type-btn.active');
         return btn?.dataset?.indicator || 'ma';
+    },
+
+    /** 是否为券商实盘（QMT）账户。 */
+    isBrokerAccount(sim) {
+        return (sim?.account_type || '').toLowerCase() === 'broker';
+    },
+
+    /** 投资标的：目录与联想（QMT / YF 随账户切换，逻辑对齐 trader 页）。 */
+    symbol: {
+        dataSource() {
+            const id = $('runAccountSelect')?.value;
+            const acc = GoStrategyApp.state.allSimulations.find(s => s.id === id);
+            return GoStrategyApp.isBrokerAccount(acc) ? 'miniqmt' : 'yfinance';
+        },
+
+        extractCode(raw) {
+            const input = (raw || '').trim().toUpperCase();
+            if (!input) return '';
+            const m = input.match(/[A-Z0-9]+(?:\.[A-Z]{2,3})?(?:-[A-Z]{3,4})?/);
+            return m ? m[0] : input.split(/\s|-/)[0];
+        },
+
+        resolveName(code) {
+            const sym = (code || '').toUpperCase();
+            return (GoStrategyApp.state.symbolCatalogItems || []).find(i => i.code === sym)?.name || '';
+        },
+
+        async loadCatalog(source) {
+            const src = source === 'miniqmt' ? 'miniqmt' : 'yfinance';
+            GoStrategyApp.state.symbolDataSource = src;
+            const { ok, data } = await apiRequest(`/api/data/symbols/catalog?source=${encodeURIComponent(src)}`);
+            if (ok && Array.isArray(data?.items)) {
+                GoStrategyApp.state.symbolCatalogItems = data.items
+                    .map(i => ({ code: String(i.code || '').trim().toUpperCase(), name: String(i.name || '').trim() }))
+                    .filter(i => i.code);
+            }
+        },
+
+        hideSuggestions() {
+            const panel = $('runSymbolSuggestions');
+            if (panel) panel.classList.add('d-none');
+            GoStrategyApp.state.symbolSuggestionIndex = -1;
+        },
+
+        renderSuggestions(keyword = '') {
+            const panel = $('runSymbolSuggestions');
+            const input = $('runSymbol');
+            if (!panel || !input) return;
+            const key = this.extractCode(keyword);
+            const list = GoStrategyApp.state.symbolCatalogItems || [];
+            if (!list.length) { this.hideSuggestions(); return; }
+            const filtered = key
+                ? list.filter(i => i.code.includes(key) || i.name.toUpperCase().includes(key))
+                : list;
+            const items = filtered.slice(0, 50);
+            if (!items.length) { this.hideSuggestions(); return; }
+            const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+            panel.innerHTML = items.map((item, idx) => `
+                <div class="symbol-suggestion-item${idx === GoStrategyApp.state.symbolSuggestionIndex ? ' active' : ''}"
+                     data-code="${esc(item.code)}" data-name="${esc(item.name)}">
+                    <span class="symbol-suggestion-code">${esc(item.code)}</span>
+                    <span class="symbol-suggestion-name">${esc(item.name || '--')}</span>
+                </div>`).join('');
+            panel.classList.remove('d-none');
+        },
+
+        applySelection(code, name = '') {
+            const input = $('runSymbol');
+            const nameEl = $('runSymbolName');
+            if (!input) return;
+            const sym = (code || '').toUpperCase();
+            input.value = sym;
+            if (nameEl) nameEl.value = name || this.resolveName(sym) || '';
+            if (sym) {
+                const q = GoStrategyApp.state.monitorMarketData[sym] || { symbol: sym, price: 0 };
+                if (name) q.name = name;
+                GoStrategyApp.state.monitorMarketData[sym] = q;
+            }
+            this.hideSuggestions();
+        },
+
+        async onAccountSelect(account) {
+            const isBroker = GoStrategyApp.isBrokerAccount(account);
+            const src = isBroker ? 'miniqmt' : 'yfinance';
+            const input = $('runSymbol');
+            const nameEl = $('runSymbolName');
+            if (GoStrategyApp.state.symbolDataSource !== src) {
+                if (input) { input.value = ''; input.removeAttribute('data-last-symbol'); }
+                if (nameEl) nameEl.value = '';
+            }
+            if (input) input.placeholder = '代码';
+            await this.loadCatalog(src);
+            this.hideSuggestions();
+        },
+
+        async syncName() {
+            const input = $('runSymbol');
+            const nameEl = $('runSymbolName');
+            if (!input) return;
+            const sym = this.extractCode(input.value);
+            if (!sym) { if (nameEl) nameEl.value = ''; return; }
+            input.value = sym;
+            let name = this.resolveName(sym);
+            const src = this.dataSource();
+            const { ok, data } = await apiRequest(`/api/data/live/${encodeURIComponent(sym)}?source=${src}`);
+            if (ok && data && data.status !== 'loading') {
+                name = data.name || name;
+                GoStrategyApp.state.monitorMarketData[sym] = { ...data, symbol: sym, price: data.price, name };
+            }
+            if (nameEl) nameEl.value = name || '';
+        },
+
+        bindAutocomplete() {
+            const input = $('runSymbol');
+            const panel = $('runSymbolSuggestions');
+            if (!input || !panel) return;
+            input.addEventListener('focus', () => this.renderSuggestions(input.value));
+            input.addEventListener('input', () => {
+                GoStrategyApp.state.symbolSuggestionIndex = -1;
+                this.renderSuggestions(input.value);
+            });
+            input.addEventListener('keydown', (e) => {
+                const items = panel.querySelectorAll('.symbol-suggestion-item');
+                if (panel.classList.contains('d-none') || !items.length) return;
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    GoStrategyApp.state.symbolSuggestionIndex = (GoStrategyApp.state.symbolSuggestionIndex + 1) % items.length;
+                    this.renderSuggestions(input.value);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const i = GoStrategyApp.state.symbolSuggestionIndex;
+                    GoStrategyApp.state.symbolSuggestionIndex = i <= 0 ? items.length - 1 : i - 1;
+                    this.renderSuggestions(input.value);
+                } else if (e.key === 'Enter' && GoStrategyApp.state.symbolSuggestionIndex >= 0) {
+                    e.preventDefault();
+                    const t = items[GoStrategyApp.state.symbolSuggestionIndex];
+                    this.applySelection(t.dataset.code, t.dataset.name);
+                } else if (e.key === 'Escape') this.hideSuggestions();
+            });
+            panel.addEventListener('mousedown', (e) => {
+                const t = e.target.closest('.symbol-suggestion-item');
+                if (!t) return;
+                e.preventDefault();
+                this.applySelection(t.dataset.code, t.dataset.name);
+            });
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !panel.contains(e.target)) this.hideSuggestions();
+            });
+        },
+
+        async init() {
+            this.bindAutocomplete();
+            await this.syncName();
+        }
     },
 
     /** 工具：从 simulation 推算持仓市值与标的当前价（供监控/总览/持仓表格共用）。 */
@@ -69,12 +226,98 @@ const GoStrategyApp = {
             return null;
         },
 
-        /** 计算 simulation 的持仓市值（仅用有当前价的持仓，无行情则该项不计入）。 */
+        /** 从柜台持仓行构建 positions 条目（与 trader 页一致）。 */
+        mapBrokerPositionRow(p) {
+            const sym = String(p.symbol || '').toUpperCase();
+            const qty = parseInt(p.can_use_volume ?? p.volume ?? 0, 10);
+            if (!sym || qty <= 0) return null;
+            return {
+                quantity: qty,
+                avg_price: parseFloat(p.avg_price || p.open_price || 0),
+                last_price: parseFloat(p.last_price || 0),
+                market_value: parseFloat(p.market_value || 0),
+                position_profit: parseFloat(p.position_profit || 0),
+                profit_rate: parseFloat(p.profit_rate || 0),
+            };
+        },
+
+        /** broker 持仓盈亏率：兼容 0.0123 小数与 1.23 百分数。 */
+        brokerProfitRatePercent(raw) {
+            const r = parseFloat(raw);
+            if (!Number.isFinite(r)) return 0;
+            return Math.abs(r) <= 1 ? r * 100 : r;
+        },
+
+        /**
+         * 总资产与盈亏（paper：initial_capital；broker：策略启动时 _brokerBaseline，不用单次投入）。
+         */
+        computeAccountTotals(run) {
+            if (!run) {
+                return { totalAssets: 0, available: 0, positionValue: 0, totalPnL: 0, totalReturnNum: 0, hasPnl: false };
+            }
+            const current = run.current_capital ?? 0;
+            const frozen = run.frozen_capital || 0;
+            const available = current - frozen;
+            const positionValue = GoStrategyApp.utils.getPositionValue(run);
+            const totalAssets = available + positionValue;
+            if (GoStrategyApp.isBrokerAccount(run)) {
+                const baseline = parseFloat(run._brokerBaseline);
+                const hasPnl = Number.isFinite(baseline) && baseline > 0;
+                const totalPnL = hasPnl ? totalAssets - baseline : 0;
+                const totalReturnNum = hasPnl ? (totalPnL / baseline) * 100 : 0;
+                return { totalAssets, available, positionValue, totalPnL, totalReturnNum, hasPnl, initial: hasPnl ? baseline : 0 };
+            }
+            const initial = run.initial_capital || 100000;
+            const totalPnL = totalAssets - initial;
+            const totalReturnNum = initial > 0 ? (totalPnL / initial) * 100 : 0;
+            return { totalAssets, available, positionValue, totalPnL, totalReturnNum, hasPnl: true, initial };
+        },
+
+        _brokerBaselineKey(accountId) {
+            return `gostrategy_broker_baseline_${accountId}`;
+        },
+        loadBrokerBaseline(run) {
+            if (!run?.id || !GoStrategyApp.isBrokerAccount(run)) return;
+            try {
+                const v = sessionStorage.getItem(GoStrategyApp.utils._brokerBaselineKey(run.id));
+                const n = parseFloat(v);
+                if (Number.isFinite(n) && n > 0) run._brokerBaseline = n;
+            } catch (_) { /* ignore */ }
+        },
+        saveBrokerBaseline(run) {
+            if (!run?.id || run._brokerBaseline == null || run._brokerBaseline <= 0) return;
+            try {
+                sessionStorage.setItem(GoStrategyApp.utils._brokerBaselineKey(run.id), String(run._brokerBaseline));
+            } catch (_) { /* ignore */ }
+        },
+        clearBrokerBaseline(accountId) {
+            try { sessionStorage.removeItem(GoStrategyApp.utils._brokerBaselineKey(accountId)); } catch (_) { /* ignore */ }
+        },
+        /** 记录 QMT 本轮策略启动时的总资产基准（仅记一次）。 */
+        ensureBrokerBaseline(run, totalAsset) {
+            if (!run || !GoStrategyApp.isBrokerAccount(run)) return;
+            if (run._brokerBaseline != null && run._brokerBaseline > 0) return;
+            const ta = parseFloat(totalAsset);
+            if (Number.isFinite(ta) && ta > 0) {
+                run._brokerBaseline = ta;
+                GoStrategyApp.utils.saveBrokerBaseline(run);
+            }
+        },
+
+        /** 计算 simulation 的持仓市值。 */
         getPositionValue(simulation) {
             if (!simulation?.positions) return 0;
             let total = 0;
+            const isBroker = GoStrategyApp.isBrokerAccount(simulation);
             Object.entries(simulation.positions).forEach(([sym, pos]) => {
                 const qty = Math.abs(pos.quantity || 0);
+                if (qty <= 0) return;
+                if (isBroker) {
+                    const mv = parseFloat(pos.market_value || 0);
+                    if (mv > 0) { total += mv; return; }
+                    const lp = parseFloat(pos.last_price || 0);
+                    if (lp > 0) { total += qty * lp; return; }
+                }
                 const price = GoStrategyApp.utils.getCurrentPriceForSymbol(simulation, sym);
                 if (price != null && price > 0) total += qty * price;
             });
@@ -104,23 +347,10 @@ const GoStrategyApp = {
         /** 前端全量指标计算：基于全量成交历史 (trades) 和当前实时资产。 */
         calculateAccountMetrics(run) {
             if (!run) return {};
-            const initial = run.initial_capital || 100000;
-            const currentCash = run.current_capital ?? initial;
+            const totals = GoStrategyApp.utils.computeAccountTotals(run);
+            const { totalAssets, totalPnL, totalReturnNum, hasPnl, initial } = totals;
+            const totalReturn = hasPnl && initial > 0 ? totalReturnNum / 100 : 0;
             const trades = run.trades || [];
-            
-            // 1. 计算实时市值与总资产
-            let posVal = 0;
-            Object.entries(run.positions || {}).forEach(([sym, pos]) => {
-                const qty = Math.abs(pos.quantity || 0);
-                if (qty <= 0) return;
-                // 从全局行情缓存获取价格
-                const q = GoStrategyApp.state.monitorMarketData[sym];
-                const price = q ? q.price : (pos.avg_price || 0);
-                posVal += qty * price;
-            });
-            const totalAssets = currentCash + posVal;
-            const totalPnL = totalAssets - initial;
-            const totalReturn = (totalPnL / initial);
 
             // 2. 遍历成交：统计笔数、佣金、成交额
             let totalCommission = 0;
@@ -279,7 +509,8 @@ const GoStrategyApp = {
                 data.simulations.forEach(sim => {
                     const opt = document.createElement('option');
                     opt.value = sim.id;
-                    const label = (sim.name || sim.id || '') + (sim.id ? ` (${sim.id})` : '');
+                    const typeTag = GoStrategyApp.isBrokerAccount(sim) ? ' [QMT]' : '';
+                    const label = (sim.name || sim.id || '') + typeTag + (sim.id ? ` (${sim.id})` : '');
                     opt.textContent = label;
                     if (sim.status === 'running') opt.classList.add('text-success', 'fw-bold');
                     select.appendChild(opt);
@@ -305,11 +536,23 @@ const GoStrategyApp = {
             const account = GoStrategyApp.state.allSimulations.find(s => s.id === accountId);
             if (account) {
                 preview.style.display = 'block';
+                const isBroker = GoStrategyApp.isBrokerAccount(account);
                 const balance = account.current_capital ?? account.initial_capital ?? 0;
-                if ($('previewBalance')) $('previewBalance').textContent = '¥' + balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 });
-                if ($('previewCommission')) $('previewCommission').textContent = account.commission ?? '0.0001';
+                if ($('previewBalance')) {
+                    $('previewBalance').textContent = isBroker && balance <= 0
+                        ? '（启动后同步柜台）'
+                        : '¥' + balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 });
+                }
+                if ($('previewCommission')) {
+                    $('previewCommission').textContent = isBroker ? '券商实盘' : (account.commission ?? '0.0001');
+                }
                 if ($('runInitialCapital')) $('runInitialCapital').value = account.initial_capital ?? 100000;
                 if ($('runCommission')) $('runCommission').value = account.commission ?? 0.0001;
+                GoStrategyApp.symbol.onAccountSelect(account);
+                const paperRow = $('runSizingPaper');
+                const brokerRow = $('runSizingBroker');
+                if (paperRow) paperRow.classList.toggle('d-none', isBroker);
+                if (brokerRow) brokerRow.classList.toggle('d-none', !isBroker);
             }
         },
 
@@ -326,11 +569,21 @@ const GoStrategyApp = {
             if (!ok2 || !simData.simulation) return;
             const sim = simData.simulation;
             GoStrategyApp.state.currentRun = { ...sim, id: running.id };
+            GoStrategyApp.utils.loadBrokerBaseline(GoStrategyApp.state.currentRun);
             const select = $('runAccountSelect');
             if (select) { select.value = running.id; this.handleAccountSelectChange(); }
             if (sim.strategy_id && $('runStrategySelect')) $('runStrategySelect').value = sim.strategy_id;
-            if (sim.symbol && $('runSymbol')) { $('runSymbol').value = sim.symbol; if ($('runSymbolName')) $('runSymbolName').value = sim.symbol; }
+            if (sim.symbol && $('runSymbol')) {
+                $('runSymbol').value = sim.symbol;
+                await GoStrategyApp.symbol.syncName();
+            }
             if ($('runSignalInterval')) $('runSignalInterval').value = sim.signal_interval || '1m';
+            const isBrokerSim = GoStrategyApp.isBrokerAccount(sim);
+            if (isBrokerSim && sim.order_quantity != null && $('runOrderQuantity')) {
+                $('runOrderQuantity').value = String(Math.trunc(sim.order_quantity));
+            } else if (!isBrokerSim && sim.order_amount != null && $('runSingleAmount')) {
+                $('runSingleAmount').value = Number(sim.order_amount).toLocaleString('zh-CN', { maximumFractionDigits: 0 });
+            }
             await GoStrategyApp.charts.loadChartData(running.id);
             GoStrategyApp.display.updateDisplay();
         }
@@ -840,11 +1093,23 @@ const GoStrategyApp = {
             if (!symbol) { showAlert('请填写投资标的', 'warning'); return; }
             const account = GoStrategyApp.state.allSimulations.find(s => s.id === accountId);
             if (account?.status === 'running' && !confirm(`该账户 (${accountId}) 正在运行另一个策略，启动新策略将覆盖旧记录，确定继续吗？`)) return;
+            if (GoStrategyApp.isBrokerAccount(account)) {
+                if (!confirm('券商实盘账户将断开交易页 QMT 连接并由策略自动真实下单，确定继续？')) return;
+            }
+            if (GoStrategyApp.isBrokerAccount(account)) {
+                GoStrategyApp.utils.clearBrokerBaseline(accountId);
+            }
 
-            const singleAmountRaw = ($('runSingleAmount')?.value || '').replace(/,/g, '').trim();
-            const orderAmount = singleAmountRaw ? parseFloat(singleAmountRaw) : null;
             const body = { strategy_id: strategyId, symbol, signal_interval: signalInterval, lookback_bars: 50 };
-            if (orderAmount != null && !isNaN(orderAmount) && orderAmount > 0) body.order_amount = orderAmount;
+            if (GoStrategyApp.isBrokerAccount(account)) {
+                const qtyRaw = ($('runOrderQuantity')?.value || '').replace(/,/g, '').trim();
+                const orderQuantity = qtyRaw ? parseInt(qtyRaw, 10) : null;
+                if (orderQuantity != null && !isNaN(orderQuantity) && orderQuantity > 0) body.order_quantity = orderQuantity;
+            } else {
+                const singleAmountRaw = ($('runSingleAmount')?.value || '').replace(/,/g, '').trim();
+                const orderAmount = singleAmountRaw ? parseFloat(singleAmountRaw) : null;
+                if (orderAmount != null && !isNaN(orderAmount) && orderAmount > 0) body.order_amount = orderAmount;
+            }
             addLog('正在向后端请求启动策略...', 'info');
             try {
                 const { ok, data: result } = await apiRequest(`/api/gostrategy/${accountId}/strategy`, {
@@ -861,7 +1126,17 @@ const GoStrategyApp = {
                         GoStrategyApp.state.equityChart.data.datasets[1].data = [];
                         GoStrategyApp.state.equityChart.update();
                     }
-                    GoStrategyApp.state.currentRun = { ...account, id: accountId, strategy_id: strategyId, symbol, status: 'running', positions: {}, trades: [] };
+                    GoStrategyApp.state.currentRun = {
+                        ...account,
+                        id: accountId,
+                        strategy_id: strategyId,
+                        symbol,
+                        status: 'running',
+                        account_type: account?.account_type || 'local_paper',
+                        positions: {},
+                        trades: [],
+                        _brokerBaseline: undefined
+                    };
                     addLog(`策略启动成功: ${strategyId} (账户: ${accountId})`, 'success');
                     addLog(`投资标的: ${symbol}`, 'info');
                     await GoStrategyApp.charts.loadChartData(accountId);
@@ -917,7 +1192,11 @@ const GoStrategyApp = {
             if (ok && data.simulation) {
                 const sim = data.simulation;
                 const oldCount = run.trades?.length ?? 0;
+                const savedBaseline = run._brokerBaseline;
                 Object.assign(run, sim);
+                if (GoStrategyApp.isBrokerAccount(run) && savedBaseline != null) {
+                    run._brokerBaseline = savedBaseline;
+                }
                 const newCount = sim.trades?.length ?? 0;
                 if (newCount > oldCount && sim.trades) {
                     sim.trades.slice(oldCount).forEach(t => {
@@ -928,9 +1207,40 @@ const GoStrategyApp = {
                 GoStrategyApp.display.updateDisplay();
                 const symbol = run.symbol || $('runSymbol')?.value?.trim();
                 if (symbol) {
-                    const { ok: qOk, data: quote } = await apiRequest(`/api/data/live/${encodeURIComponent(symbol)}`);
+                    const liveSource = GoStrategyApp.isBrokerAccount(run) ? 'miniqmt' : 'yfinance';
+                    const { ok: qOk, data: quote } = await apiRequest(
+                        `/api/data/live/${encodeURIComponent(symbol)}?source=${liveSource}`
+                    );
                     if (qOk && quote && quote.status !== 'loading')
                         GoStrategyApp.state.monitorMarketData[symbol] = quote;
+                }
+                if (GoStrategyApp.isBrokerAccount(run) && run.status === 'running') {
+                    const { ok: snapOk, data: snap } = await apiRequest('/api/broker/snapshot');
+                    if (snapOk && snap && !snap.error) {
+                        const cash = snap.asset?.cash ?? run.current_capital;
+                        run.current_capital = cash;
+                        run.frozen_capital = snap.asset?.frozen_cash ?? 0;
+                        if (snap.orders) run.orders = snap.orders;
+                        if (snap.trades) {
+                            run.trades = snap.trades.map(t => ({
+                                symbol: t.symbol,
+                                action: t.action,
+                                quantity: t.quantity,
+                                price: t.price,
+                                timestamp: t.timestamp,
+                                order_id: t.order_id,
+                                strategy_id: t.strategy_id
+                            }));
+                        }
+                        const posMap = {};
+                        (snap.positions || []).forEach(p => {
+                            const row = GoStrategyApp.utils.mapBrokerPositionRow(p);
+                            if (row) posMap[String(p.symbol || '').toUpperCase()] = row;
+                        });
+                        if (Object.keys(posMap).length) run.positions = posMap;
+                        GoStrategyApp.utils.ensureBrokerBaseline(run, snap.asset?.total_asset);
+                        GoStrategyApp.display.updateDisplay();
+                    }
                 }
                 if (run.status === 'running' && !GoStrategyApp.state.monitorDailyData.candles?.length) {
                     await GoStrategyApp.charts.loadChartData(run.id);
@@ -995,7 +1305,12 @@ const GoStrategyApp = {
             // 核心修改：使用前端计算出的全量指标，而非仅依赖后端的 run.metrics
             const m = GoStrategyApp.utils.calculateAccountMetrics(run);
             
-            const pct = (x) => (x == null || x === '') ? '0.00%' : (Math.abs(x) <= 2 ? (x * 100).toFixed(2) : Number(x).toFixed(2)) + '%';
+            const pct = (x) => {
+                if (x == null || x === '') return '0.00%';
+                const n = Number(x);
+                if (!isFinite(n)) return '0.00%';
+                return (Math.abs(n) <= 2 ? n * 100 : n).toFixed(2) + '%';
+            };
             const num = (x) => (x == null || x === '') ? '0' : String(Number(x).toFixed(0));
             const cur = (x) => {
                 if (x == null || x === '') return '¥0.00';
@@ -1033,35 +1348,36 @@ const GoStrategyApp = {
                 dailyEl.style.color = m.daily_avg_pnl >= 0 ? '#dc3545' : '#28a745';
             }
 
-            // 更新仪表盘顶部的总资产等（这些也要用前端计算出的实时值）
-            const initial = run.initial_capital || 100000;
-            const currentCash = run.current_capital ?? initial;
-            let posVal = 0;
-            Object.entries(run.positions || {}).forEach(([sym, pos]) => {
-                const qty = Math.abs(pos.quantity || 0);
-                const q = GoStrategyApp.state.monitorMarketData[sym];
-                const price = q ? q.price : (pos.avg_price || 0);
-                posVal += qty * price;
-            });
-            const totalAssets = currentCash + posVal;
-            const totalPnL = totalAssets - initial;
-            const totalReturnNum = (totalPnL / initial) * 100;
+            const totals = GoStrategyApp.utils.computeAccountTotals(run);
+            const { totalAssets, available, positionValue, totalPnL, totalReturnNum, hasPnl } = totals;
 
             if ($('totalAssets')) $('totalAssets').textContent = cur(totalAssets);
-            if ($('availableCapital')) $('availableCapital').textContent = cur(currentCash - (run.frozen_capital || 0));
-            if ($('positionValue')) $('positionValue').textContent = cur(posVal);
+            if ($('availableCapital')) $('availableCapital').textContent = cur(available);
+            if ($('positionValue')) $('positionValue').textContent = cur(positionValue);
             if ($('totalPnL')) {
-                $('totalPnL').textContent = (totalPnL >= 0 ? '+' : '') + cur(totalPnL);
-                $('totalPnL').style.color = totalPnL >= 0 ? '#dc3545' : '#28a745';
+                if (hasPnl) {
+                    $('totalPnL').textContent = (totalPnL >= 0 ? '+' : '') + cur(totalPnL);
+                    $('totalPnL').style.color = totalPnL >= 0 ? '#dc3545' : '#28a745';
+                } else {
+                    $('totalPnL').textContent = '--';
+                    $('totalPnL').style.color = '#6c757d';
+                }
             }
             if ($('totalReturn')) {
-                $('totalReturn').textContent = (totalReturnNum >= 0 ? '+' : '') + totalReturnNum.toFixed(2) + '%';
-                $('totalReturn').style.color = totalReturnNum >= 0 ? '#dc3545' : '#28a745';
+                if (hasPnl) {
+                    $('totalReturn').textContent = (totalReturnNum >= 0 ? '+' : '') + totalReturnNum.toFixed(2) + '%';
+                    $('totalReturn').style.color = totalReturnNum >= 0 ? '#dc3545' : '#28a745';
+                } else {
+                    $('totalReturn').textContent = '--';
+                    $('totalReturn').style.color = '#6c757d';
+                }
             }
 
             const eq = GoStrategyApp.state.equityData.values;
             const lastVal = eq.length ? eq[eq.length - 1] : 0;
-            if (Math.abs(totalAssets - lastVal) > 0.01 || eq.length === 0) GoStrategyApp.charts.updateEquityChart(totalAssets);
+            if (hasPnl && (Math.abs(totalAssets - lastVal) > 0.01 || eq.length === 0)) {
+                GoStrategyApp.charts.updateEquityChart(totalAssets);
+            }
             
             // 实时信号按钮状态更新
             const signalLabel = run.last_signal_label || (run.trades?.length ? null : '等待策略信号...');
@@ -1120,28 +1436,42 @@ const GoStrategyApp = {
             const status = run.status || 'stopped';
             const badge = $('runStatusBadge');
             if (badge) { badge.textContent = status === 'running' ? '运行中' : '已停止'; badge.className = 'status-badge ' + (status === 'running' ? 'running' : 'stopped'); }
-            const initial = run.initial_capital || 100000;
-            const current = run.current_capital || initial;
-            const frozen = run.frozen_capital || 0;
-            const available = current - frozen;
-            const positionValue = GoStrategyApp.utils.getPositionValue(run);
-            const totalAssets = available + positionValue;
-            const totalPnL = totalAssets - initial;
-            const totalReturnNum = initial > 0 ? (totalPnL / initial) * 100 : 0;
+            const totals = GoStrategyApp.utils.computeAccountTotals(run);
+            const { totalAssets, available, positionValue, totalPnL, totalReturnNum, hasPnl } = totals;
             const totalReturn = totalReturnNum.toFixed(2);
 
             if ($('totalAssets')) $('totalAssets').textContent = '¥' + totalAssets.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             if ($('availableCapital')) $('availableCapital').textContent = '¥' + available.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             if ($('positionValue')) $('positionValue').textContent = '¥' + positionValue.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const pnlEl = $('totalPnL');
-            if (pnlEl) { pnlEl.textContent = (totalPnL >= 0 ? '+' : '') + '¥' + totalPnL.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); pnlEl.className = 'account-value ' + (totalPnL > 0 ? 'text-danger' : totalPnL < 0 ? 'text-success' : ''); pnlEl.style.color = totalPnL > 0 ? '#dc3545' : (totalPnL < 0 ? '#28a745' : '#343a40'); }
+            if (pnlEl) {
+                if (hasPnl) {
+                    pnlEl.textContent = (totalPnL >= 0 ? '+' : '') + '¥' + totalPnL.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    pnlEl.style.color = totalPnL > 0 ? '#dc3545' : (totalPnL < 0 ? '#28a745' : '#343a40');
+                } else {
+                    pnlEl.textContent = '--';
+                    pnlEl.style.color = '#6c757d';
+                }
+            }
             const returnEl = $('totalReturn');
-            if (returnEl) { returnEl.textContent = (totalReturnNum >= 0 ? '+' : '') + totalReturn + '%'; returnEl.className = 'account-value ' + (totalReturnNum > 0 ? 'text-danger' : totalReturnNum < 0 ? 'text-success' : ''); returnEl.style.color = totalReturnNum > 0 ? '#dc3545' : (totalReturnNum < 0 ? '#28a745' : '#343a40'); }
+            if (returnEl) {
+                if (hasPnl) {
+                    returnEl.textContent = (totalReturnNum >= 0 ? '+' : '') + totalReturn + '%';
+                    returnEl.style.color = totalReturnNum > 0 ? '#dc3545' : (totalReturnNum < 0 ? '#28a745' : '#343a40');
+                } else {
+                    returnEl.textContent = '--';
+                    returnEl.style.color = '#6c757d';
+                }
+            }
             if ($('accountId')) {
                 const accLabel = (run.name || run.id || '--') + (run.id ? ` (${run.id})` : '');
                 $('accountId').textContent = accLabel;
             }
-            if ($('commissionDisplay')) $('commissionDisplay').textContent = ((run.commission || 0.001) * 100).toFixed(2) + '%';
+            if ($('commissionDisplay')) {
+                $('commissionDisplay').textContent = isBroker
+                    ? '券商实盘（QMT）'
+                    : ((run.commission || 0.001) * 100).toFixed(2) + '%';
+            }
             const startBtn = $('startStrategyBtn');
             const stopBtn = $('stopStrategyBtn');
             if (startBtn) startBtn.disabled = status === 'running';
@@ -1267,24 +1597,66 @@ const GoStrategyApp = {
             if (!tbody) return;
             const run = GoStrategyApp.state.currentRun;
             if (!run?.positions || Object.keys(run.positions).length === 0) { tbody.innerHTML = renderEmptyState(9, 'fa-inbox', '暂无持仓'); return; }
+            const isBroker = GoStrategyApp.isBrokerAccount(run);
             const list = [];
             Object.entries(run.positions).forEach(([symbol, pos]) => {
                 const qty = Math.abs(pos.quantity || 0);
                 if (qty <= 0) return;
                 const avgPrice = pos.avg_price || 0;
-                const currentPrice = GoStrategyApp.utils.getCurrentPriceForSymbol(run, symbol);
-                const hasPrice = currentPrice != null && currentPrice > 0;
-                const profit = hasPrice ? (currentPrice - avgPrice) * qty : null;
-                const profitRate = hasPrice && avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice * 100).toFixed(2) : null;
-                const marketValue = hasPrice ? qty * currentPrice : null;
-                list.push({ symbol, name: symbol, position: qty, avgPrice, currentPrice, profit, profitRate, marketValue, hasPrice });
+                const displayName = GoStrategyApp.symbol.resolveName(symbol) || symbol;
+                let currentPrice = 0;
+                let profit = 0;
+                let rateNum = 0;
+                let marketValue = 0;
+                let hasPrice = false;
+                if (isBroker) {
+                    currentPrice = parseFloat(pos.last_price || 0);
+                    marketValue = parseFloat(pos.market_value || 0);
+                    if (pos.position_profit != null && pos.position_profit !== '') {
+                        profit = parseFloat(pos.position_profit);
+                    }
+                    if (pos.profit_rate != null && pos.profit_rate !== '') {
+                        rateNum = GoStrategyApp.utils.brokerProfitRatePercent(pos.profit_rate);
+                    }
+                    if (currentPrice <= 0) {
+                        const fallback = GoStrategyApp.utils.getCurrentPriceForSymbol(run, symbol);
+                        if (fallback != null && fallback > 0) currentPrice = fallback;
+                    }
+                    if (marketValue <= 0 && currentPrice > 0) marketValue = qty * currentPrice;
+                    if ((pos.position_profit == null || pos.position_profit === '') && currentPrice > 0 && avgPrice > 0) {
+                        profit = (currentPrice - avgPrice) * qty;
+                    }
+                    if ((pos.profit_rate == null || pos.profit_rate === '') && avgPrice > 0 && currentPrice > 0) {
+                        rateNum = (currentPrice - avgPrice) / avgPrice * 100;
+                    }
+                    hasPrice = currentPrice > 0;
+                } else {
+                    const px = GoStrategyApp.utils.getCurrentPriceForSymbol(run, symbol);
+                    hasPrice = px != null && px > 0;
+                    currentPrice = hasPrice ? px : 0;
+                    profit = hasPrice ? (currentPrice - avgPrice) * qty : 0;
+                    rateNum = hasPrice && avgPrice > 0 ? (currentPrice - avgPrice) / avgPrice * 100 : 0;
+                    marketValue = hasPrice ? qty * currentPrice : 0;
+                }
+                list.push({
+                    symbol,
+                    name: displayName,
+                    position: qty,
+                    avgPrice,
+                    currentPrice,
+                    profit,
+                    profitRate: rateNum.toFixed(2),
+                    marketValue,
+                    hasPrice
+                });
             });
             tbody.innerHTML = list.map(p => {
                 const priceStr = p.hasPrice ? '¥' + p.currentPrice.toFixed(2) : '--';
-                const profitStr = p.profit != null ? (p.profit >= 0 ? '+' : '') + '¥' + p.profit.toFixed(2) : '--';
-                const rateStr = p.profitRate != null ? (p.profitRate >= 0 ? '+' : '') + p.profitRate + '%' : '--';
-                const valueStr = p.marketValue != null ? '¥' + p.marketValue.toFixed(2) : '--';
-                const cls = p.profit != null ? (p.profit >= 0 ? 'positive' : 'negative') : '';
+                const profitStr = p.hasPrice ? (p.profit >= 0 ? '+' : '') + '¥' + p.profit.toFixed(2) : '--';
+                const rateStr = p.hasPrice ? (parseFloat(p.profitRate) >= 0 ? '+' : '') + p.profitRate + '%' : '--';
+                const valueStr = p.hasPrice && p.marketValue > 0 ? '¥' + p.marketValue.toFixed(2) : (p.hasPrice ? '¥' + (p.position * p.currentPrice).toFixed(2) : '--');
+                const rateN = parseFloat(p.profitRate);
+                const cls = p.hasPrice ? (rateN >= 0 ? 'positive' : 'negative') : '';
                 return `<tr><td>${p.symbol}</td><td>${p.name}</td><td>${p.position}</td><td>¥${p.avgPrice.toFixed(2)}</td><td>${priceStr}</td><td class="position-profit ${cls}">${profitStr}</td><td class="position-profit ${cls}">${rateStr}</td><td>${valueStr}</td><td>--</td></tr>`;
             }).join('');
         },
@@ -1301,14 +1673,8 @@ const GoStrategyApp = {
 
     /** 界面：事件绑定、时钟、日志、模拟数据、清理。 */
     ui: {
-        /** 绑定标的输入与标的名称同步、单次投入失焦千分位格式化。 */
+        /** 绑定标的输入与标的名称同步；paper 单次投入千分位；broker 单次股数为整数。 */
         initListeners() {
-            const symbolInput = $('runSymbol');
-            const nameInput = $('runSymbolName');
-            if (symbolInput && nameInput) {
-                nameInput.value = symbolInput.value;
-                symbolInput.addEventListener('input', () => { nameInput.value = symbolInput.value.toUpperCase(); });
-            }
             const singleAmountEl = $('runSingleAmount');
             if (singleAmountEl) {
                 const formatWithSeparator = (v) => {
@@ -1318,6 +1684,15 @@ const GoStrategyApp = {
                 singleAmountEl.addEventListener('blur', () => {
                     const raw = singleAmountEl.value.replace(/,/g, '');
                     if (raw !== '') singleAmountEl.value = formatWithSeparator(raw);
+                });
+            }
+            const orderQtyEl = $('runOrderQuantity');
+            if (orderQtyEl) {
+                orderQtyEl.addEventListener('blur', () => {
+                    const raw = orderQtyEl.value.replace(/,/g, '').trim();
+                    if (raw === '') return;
+                    const n = parseInt(raw, 10);
+                    if (!isNaN(n) && n > 0) orderQtyEl.value = String(n);
                 });
             }
         },
@@ -1371,6 +1746,7 @@ const GoStrategyApp = {
         GoStrategyApp.ui.initListeners();                // 表单事件
         await GoStrategyApp.strategy.loadStrategies();   // 策略列表
         await GoStrategyApp.account.loadSimulations();    // 账户列表
+        await GoStrategyApp.symbol.init();
         await GoStrategyApp.account.restoreRunningState(); // 有在跑则恢复
         GoStrategyApp.display.updateDisplay();           // 总览+表格
         GoStrategyApp.display.updateMonitor();           // 刷新监控区：指标、净值、盘口等
@@ -1396,6 +1772,11 @@ function stopRunStrategy() { GoStrategyApp.run.stop(); } // 停止策略
 function switchDataView(view, btn) { GoStrategyApp.display.switchDataView(view, btn); } // 底部Tab
 function switchMonitorChart(type, btn) { GoStrategyApp.charts.switchMonitorChart(type, btn); } // 历史K线/净值
 function switchMonitorIndicator(indicator, btn) { GoStrategyApp.charts.switchMonitorIndicator(indicator, btn); } // MA/BOLL
+
+/** 失焦时同步标的代码与名称（对齐 trader.loadStockInfo）。 */
+function loadRunSymbolInfo() {
+    GoStrategyApp.symbol.syncName();
+}
 
 /** 从策略列表中选中指定策略并提示。 */
 function selectStrategyForRun(strategyId) {

@@ -246,15 +246,17 @@ def start_simulation():
 
     os.makedirs(_sim_folder(), exist_ok=True)
     auto_start = data.get('start', True)
-    if auto_start:
+    if auto_start and account_type != 'broker':
         _stop_others_except(account_id)
         try:
             SimulationEngine.start(account_id, capital, commission)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+    elif auto_start and account_type == 'broker':
+        auto_start = False
     cfg = {
         'id': account_id, 'name': name, 'account_type': account_type,
-        'status': 'running' if auto_start else 'stopped',
+        'status': 'running' if (auto_start and account_type != 'broker') else 'stopped',
         'created_at': datetime.now().isoformat(),
         'positions': {}, 'trades': [], 'orders': [],
     }
@@ -279,6 +281,32 @@ def start_existing(simulation_id):
         return jsonify({'error': 'Simulation not found'}), 404
     with open(_config_path(simulation_id), 'r', encoding='utf-8') as f:
         config = json.load(f)
+    account_type = (config.get('account_type') or 'local_paper').strip().lower()
+    if account_type == 'broker':
+        from backend.core.broker_engine import BrokerEngine
+
+        if SimulationEngine.is_running(simulation_id):
+            SimulationEngine.stop(simulation_id)
+        if StrategyEngine.is_running(simulation_id):
+            return jsonify({
+                'error': 'Broker account has strategy running; stop strategy on GoStrategy page first',
+            }), 409
+        broker_account = str(config.get('broker_account') or '').strip()
+        qmt_path = str(config.get('qmt_path') or '').strip()
+        if not broker_account or not qmt_path:
+            return jsonify({'error': 'Broker account missing broker_account or qmt_path'}), 400
+        if StrategyEngine.is_broker_strategy_running():
+            return jsonify({'error': 'Another broker strategy is running; stop it first'}), 409
+        try:
+            if BrokerEngine.is_connected():
+                BrokerEngine.disconnect()
+            BrokerEngine.connect(qmt_path=qmt_path, account_id=broker_account)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+        config['status'] = 'running'
+        with open(_config_path(simulation_id), 'w', encoding='utf-8') as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        return jsonify({'simulation': config, 'message': 'Broker connected for manual trading'})
     if SimulationEngine.is_running(simulation_id):
         state = SimulationEngine.get_state(simulation_id)
         if state:
@@ -328,10 +356,14 @@ def stop_simulation(simulation_id):
         state = StrategyEngine.stop(simulation_id)
     with open(_config_path(simulation_id), 'r', encoding='utf-8') as f:
         config = json.load(f)
-    if state:
+    is_broker = (config.get('account_type') or 'local_paper').strip().lower() == 'broker'
+    if state and not is_broker:
         inject_strategy_id(state, strategy_id)
         _apply_state_to_config(config, state)
         config['engine_state'] = state
+    elif state and is_broker:
+        inject_strategy_id(state, strategy_id)
+        _merge_running_orders_into_config(config, state)
     config['status'] = 'stopped'
     config.pop('strategy_id', None)
     config.pop('symbol', None)

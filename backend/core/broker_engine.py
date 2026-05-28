@@ -184,90 +184,20 @@ class BrokerEngine:
     @classmethod
     def snapshot(cls) -> Dict[str, Any]:
         """返回资金/持仓/委托/成交快照，供交易页轮询渲染。"""
+        from backend.core.utils.broker_snapshot import collect_broker_snapshot
+
         with cls._lock:
             trade_gw = cls._require_connected_locked()
-            client = trade_gw.client
-            asset = client.query_stock_asset()
-            positions = client.query_stock_positions() or []
-            orders = client.query_stock_orders(cancelable_only=False) or []
-            trades = client.query_stock_trades() or []
-
-            position_rows = []
-            for p in positions:
-                position_rows.append(
-                    {
-                        "symbol": getattr(p, "stock_code", ""),
-                        "volume": int(getattr(p, "volume", 0) or 0),
-                        "can_use_volume": int(getattr(p, "can_use_volume", 0) or 0),
-                        "avg_price": _as_float(getattr(p, "avg_price", 0)),
-                        "open_price": _as_float(getattr(p, "open_price", 0)),
-                        "last_price": _as_float(getattr(p, "last_price", 0)),
-                        "position_profit": _as_float(getattr(p, "position_profit", 0)),
-                        "profit_rate": _as_float(getattr(p, "profit_rate", 0)),
-                        "market_value": float(getattr(p, "market_value", 0) or 0),
-                    }
-                )
-
-            order_rows = []
-            for o in orders:
-                raw_status = getattr(o, "order_status", None)
-                action_raw = getattr(o, "order_type", None)
-                volume = _as_int(getattr(o, "order_volume", 0))
-                traded_volume = _as_int(getattr(o, "traded_volume", 0))
-                order_rows.append(
-                    {
-                        "id": str(getattr(o, "order_id", "") or ""),
-                        "symbol": str(getattr(o, "stock_code", "") or "").upper(),
-                        "action": _infer_action(action_raw),
-                        "price": _as_float(getattr(o, "price", 0)),
-                        "quantity": max(volume, 0),
-                        "filled_quantity": max(traded_volume, 0),
-                        "status": _normalize_order_status(raw_status),
-                        "raw_status": _as_int(raw_status, default=-1),
-                        "time": _normalize_time(
-                            getattr(o, "order_time", None)
-                            or getattr(o, "insert_time", None)
-                            or None
-                        ),
-                        "strategy_id": "manual",
-                    }
-                )
-
-            trade_rows = []
-            for t in trades:
-                action_raw = getattr(t, "order_type", None)
-                trade_rows.append(
-                    {
-                        "order_id": str(getattr(t, "order_id", "") or ""),
-                        "symbol": str(getattr(t, "stock_code", "") or "").upper(),
-                        "action": _infer_action(action_raw),
-                        "price": _as_float(getattr(t, "traded_price", 0)),
-                        "quantity": max(_as_int(getattr(t, "traded_volume", 0)), 0),
-                        "timestamp": _normalize_time(
-                            getattr(t, "traded_time", None)
-                            or getattr(t, "trade_time", None)
-                            or None
-                        ),
-                        "strategy_id": "manual",
-                    }
-                )
-
-            return {
-                "connected": True,
-                "account_id": cls._account_id,
-                "qmt_path": cls._qmt_path,
-                "asset": None
-                if asset is None
-                else {
-                    "cash": float(getattr(asset, "cash", 0) or 0),
-                    "frozen_cash": float(getattr(asset, "frozen_cash", 0) or 0),
-                    "market_value": float(getattr(asset, "market_value", 0) or 0),
-                    "total_asset": float(getattr(asset, "total_asset", 0) or 0),
-                },
-                "positions": position_rows,
-                "orders": order_rows,
-                "trades": trade_rows,
-            }
+            data = collect_broker_snapshot(trade_gw)
+            data["account_id"] = cls._account_id
+            data["qmt_path"] = cls._qmt_path
+            for o in data.get("orders") or []:
+                if not (o.get("strategy_id") or "").strip():
+                    o["strategy_id"] = "manual"
+            for t in data.get("trades") or []:
+                if not (t.get("strategy_id") or "").strip():
+                    t["strategy_id"] = "manual"
+            return data
 
     @classmethod
     def _require_connected_locked(cls):

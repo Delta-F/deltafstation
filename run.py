@@ -20,7 +20,7 @@ def main():
     debug = os.environ.get('FLASK_ENV') == 'development'
     
     print("=" * 50)
-    print("DeltaFStation 量化交易系统")
+    print("DeltaFStation 量化交易系统 v1.3.0")
     print("=" * 50)
     print(f"启动地址: http://{host}:{port}")
     print(f"调试模式: {'开启' if debug else '关闭'}")

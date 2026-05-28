@@ -136,7 +136,20 @@
                             <div class="trade-form-row">
                                 <label class="form-label">投资标的</label>
                                 <div class="trade-form-content">
-                                    <input type="text" class="form-control form-control-sm" id="runSymbol" placeholder="例如：BTC-USD" value="BTC-USD" required>
+                                    <div class="symbol-input-wrap">
+                                        <input type="text" class="form-control form-control-sm" id="runSymbol"
+                                               autocomplete="off" placeholder="代码" value="BTC-USD" required
+                                               onblur="loadRunSymbolInfo()"
+                                               onkeydown="if(event.key==='Enter') this.blur()">
+                                        <div id="runSymbolSuggestions" class="symbol-suggestions d-none"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="trade-form-row">
+                                <label class="form-label">标的名称</label>
+                                <div class="trade-form-content">
+                                    <input type="text" class="form-control form-control-sm bg-loading" id="runSymbolName"
+                                           readonly placeholder="自动显示">
                                 </div>
                             </div>
                             <div class="trade-form-row">
@@ -150,16 +163,16 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="trade-form-row">
-                                <label class="form-label">标的名称</label>
-                                <div class="trade-form-content">
-                                    <input type="text" class="form-control form-control-sm input-readonly-preview" id="runSymbolName" value="Bitcoin" readonly>
-                                </div>
-                            </div>
-                            <div class="trade-form-row">
+                            <div class="trade-form-row" id="runSizingPaper">
                                 <label class="form-label">单次投入</label>
                                 <div class="trade-form-content">
                                     <input type="text" class="form-control form-control-sm" id="runSingleAmount" value="100000" placeholder="不填则用账户全部资金" inputmode="numeric">
+                                </div>
+                            </div>
+                            <div class="trade-form-row d-none" id="runSizingBroker">
+                                <label class="form-label">单次股数</label>
+                                <div class="trade-form-content">
+                                    <input type="text" class="form-control form-control-sm" id="runOrderQuantity" value="100" placeholder="不填则用满可用资金，100股整数倍" inputmode="numeric">
                                 </div>
                             </div>
                             <input type="hidden" id="runInitialCapital" value="100000">

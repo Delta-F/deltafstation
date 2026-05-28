@@ -1,5 +1,18 @@
 # DeltaFStation 更新记录 / Changelog
 
+## [1.3.0] - 2026-05-28
+
+### 🚀 策略运行页支持 QMT 实盘
+
+- **StrategyEngine 扩展 broker 分支**：`backend/core/strategy_engine.py` 在 `account_type=broker` 时使用 `miniqmt` 行情（poll）+ `miniqmt` 交易网关；paper 仍为 `yfinance` + `paper`。支持 `order_quantity`（股数）与 `order_amount`（金额）分路径注入策略；`get_state` / `get_run_info` / `get_broker_snapshot_payload` 供策略页与快照代理使用。
+- **柜台快照适配层**：新增 `backend/core/utils/broker_snapshot.py`，将 miniQMT `query_*` 结果标准化为交易页快照 JSON，并转换为与 paper 一致的 `state`（资金/持仓/委托/成交）；`BrokerEngine.snapshot()` 与策略运行中的 `LiveEngine._trade_gw` 共用该映射。
+- **BrokerEngine 与 StrategyEngine 会话互斥**：策略占用 QMT 时，`broker_api` 的 connect/下单返回 409，snapshot 可代理策略引擎会话；启动 broker 策略前断开 `BrokerEngine`；`simulation_api` broker 账户创建/启动不再误启 `SimulationEngine`。
+- **GoStrategy API**：`backend/api/gostrategy_api.py` 按账户配置区分 paper/broker；broker 不传 paper `engine_state`；broker 解析/持久化 `order_quantity`，paper 仍用 `order_amount`。
+- **停机持久化**：`backend/core/utils/sim_persistence.py` 对 broker 账户停止策略时不把空 paper state 写入配置；paper 仍完整 `cfg.update(state)`。
+- **策略运行前端**：`frontend/templates/gostrategy.html`、`frontend/static/js/gostrategy.js`、`frontend/static/css/gostrategy.css` — QMT 账户标记、`miniqmt` 标的目录、broker 快照轮询刷新；持仓表对齐柜台 `last_price` / 盈亏字段；总盈亏/收益率 broker 用启动基准 `_brokerBaseline`（不用单次投入）；**单次股数**（broker）与**单次投入**（paper）分表单项；启动/恢复配置分字段传参。
+- **文档**：`ARCHITECTURE.md` 补充 broker 策略实盘与 `broker_snapshot` 说明；新增 `docs/qmt-strategy-live.md` 联调步骤与会话互斥表。
+- **数据**：`data/raw/symbols_dict_miniqmt.json` 按 QMT 全板块重生成（约 5.2k → 7.5 万条，含 ETF 等），供 `GET /api/data/symbols/catalog?source=miniqmt` 使用。
+
 ## [1.2.4] - 2026-05-14
 
 ### 📦 依赖约束与示例策略

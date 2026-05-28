@@ -7,6 +7,10 @@ isProject: false
 
 # 同步券商账户数据方案
 
+> **实现状态（1.3.0）**  
+> - **交易页**手动 broker：本文档描述的 snapshot 轮询链路 ✅，见 `BrokerEngine` + `broker_snapshot` + `trader.js`。  
+> - **策略运行页** QMT 自动交易：见 [qmt-strategy-live.md](qmt-strategy-live.md)（`StrategyEngine` 占用会话、与交易页互斥、`GET /api/broker/snapshot` 可代理策略会话）。
+
 ## 目标
 
 让交易页中的账户信息与 miniQMT 柜台保持一致，覆盖以下四类数据：
@@ -23,7 +27,9 @@ isProject: false
   - `query_stock_positions()`
   - `query_stock_orders(cancelable_only=False)`
   - `query_stock_trades()`
-- 工程内 broker 引擎文件 [c:\Users\leek_\Desktop\Delta\imooc\deltafstation\backend\core\broker_engine.py](c:\Users\leek_\Desktop\Delta\imooc\deltafstation\backend\core\broker_engine.py) 负责会话管理与快照组装。
+- [backend/core/broker_engine.py](backend/core/broker_engine.py)：miniQMT **会话**（connect / 下单 / 撤单）。
+- [backend/core/utils/broker_snapshot.py](backend/core/utils/broker_snapshot.py)：`query_*` → 标准化快照 JSON；`build_state_from_broker_snapshot` 供策略页 state。
+- `BrokerEngine.snapshot()` 调用 `collect_broker_snapshot`，不再在引擎类内重复组装字段。
 - API 文件 [c:\Users\leek_\Desktop\Delta\imooc\deltafstation\backend\api\broker_api.py](c:\Users\leek_\Desktop\Delta\imooc\deltafstation\backend\api\broker_api.py) 提供 `/api/broker/snapshot`。
 - 前端文件 [c:\Users\leek_\Desktop\Delta\imooc\deltafstation\frontend\static\js\trader.js](c:\Users\leek_\Desktop\Delta\imooc\deltafstation\frontend\static\js\trader.js) 已有 `updateStatus()` 定时刷新入口。
 
@@ -95,3 +101,13 @@ flowchart LR
   - 页面渲染状态
 
 三者一致即同步链路完成。
+
+## 与策略运行页的扩展（1.3.0）
+
+| 场景 | 行为 |
+|------|------|
+| `StrategyEngine` 以 broker 账户运行中 | `POST /api/broker/connect`、手动 `POST /api/broker/orders` 返回 **409** |
+| 策略占用会话时查快照 | `GET /api/broker/snapshot` 由 `StrategyEngine.get_broker_snapshot_payload()` **代理**同一柜台数据 |
+| 启动 broker 策略前 | `gostrategy_api` 会 `BrokerEngine.disconnect()`，避免双会话抢 QMT |
+
+策略页展示用 `GET /api/simulations/<id>` 合并 `StrategyEngine` 柜台 state，逻辑与交易页 snapshot 字段对齐，详见 [qmt-strategy-live.md](qmt-strategy-live.md)。

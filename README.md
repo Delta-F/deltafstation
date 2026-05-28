@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-1.2.4-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-1.3.0-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -34,8 +34,8 @@ python run.py
 
 - 📊 数据服务 - 行情数据管理与更新，统一回测、模拟与策略运行的数据入口
 - 📉 回测中心 - 策略创建、历史数据回测、绩效分析、结果落盘与可视化报告
-- 🧾 手动交易 - 管理账户（选择/新建）、支持 `local_paper`/`broker` 双模式、买卖执行与持仓盈亏跟踪
-- ⚡ 策略运行 - 自动交易流程编排、实时监控、信号执行与运行日志追踪
+- 🧾 手动交易 - 管理账户（选择/新建）、支持 `local_paper`/`broker` 双模式、买卖执行与持仓盈亏跟踪（broker 为交易页 **手动** miniQMT 实盘）
+- ⚡ 策略运行 - 自动交易流程编排、实时监控、信号执行与运行日志；**1.3.0 起** broker 账户支持 **QMT 策略实盘**（`miniqmt` 双网关，与交易页会话互斥），paper 仍为本地模拟
 - 🤖 AI Agent - 支持 LLM 配置、对话、工具（Tool）与技能（Skills）调用
 - 🔗 MCP（stdio）- Cursor / Claude Desktop 外接同一套 Agent 工具；配置见 [docs/mcp-client-config.md](docs/mcp-client-config.md)
 
@@ -45,14 +45,14 @@ python run.py
 - [Data] eastmoney ✅ - 场外基金（指数、QDII、股、债、混合）
 - [Data] miniQMT ✅ - A股、场内ETF、债券（详情见课程实盘章节）
 - [Trade] PaperTrade ✅ - 本地模拟交易、挂单按 Tick 撮合、持仓与订单管理
-- [Trade] miniQMT Trade ✅ - A 股实盘交易（详情见课程实盘章节）
+- [Trade] miniQMT Trade ✅ - A 股实盘：**交易页**手动下单 / **策略运行页**自动下单（见 [docs/qmt-strategy-live.md](docs/qmt-strategy-live.md)）
 
 ## 🗂️ 项目结构
 
 ```
 deltafstation/
 ├── assets/           # 文档与展示图片
-├── docs/             # 集成与设计说明（含 MCP 客户端配置）
+├── docs/             # 集成与设计说明（MCP、券商快照、QMT 策略实盘联调等）
 ├── mcp_server.py     # MCP stdio 侧车（与 TOOLS_MAP 对齐）
 ├── backend/
 │   ├── api/          # REST API
@@ -82,14 +82,15 @@ deltafstation/
 │   │   │       └── backtest_auto_tools.py
 │   │   ├── utils/
 │   │   │   ├── engine_snapshot.py
+│   │   │   ├── broker_snapshot.py
 │   │   │   ├── sim_persistence.py
 │   │   │   └── strategy_loader.py
 │   └── app.py        # Flask 入口
 ├── config/
 ├── data/
-│   ├── raw/          # 原始行情 CSV
+│   ├── raw/          # 原始行情 CSV；symbols_dict_*.json 标的目录（miniqmt 需本机 xtdata 维护）
 │   ├── results/      # 回测结果 JSON
-│   ├── simulations/  # 仿真账户配置 JSON
+│   ├── simulations/  # 账户配置 JSON（含 local_paper 与 broker，统一 SIM_*.json）
 │   └── strategies/   # 策略 Python 文件
 ├── frontend/
 │   ├── templates/    # index / backtest / trader / gostrategy

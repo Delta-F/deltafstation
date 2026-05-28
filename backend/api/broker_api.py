@@ -15,8 +15,19 @@
 from flask import Blueprint, jsonify, request
 
 from backend.core.broker_engine import BrokerEngine
+from backend.core.strategy_engine import StrategyEngine
 
 broker_bp = Blueprint("broker", __name__)
+
+_STRATEGY_RUNNING_MSG = (
+    "策略正在运行并占用 QMT 交易会话，请先停止策略后再连接或手动下单"
+)
+
+
+def _reject_if_strategy_using_qmt():
+    if StrategyEngine.is_broker_strategy_running():
+        return jsonify({"error": _STRATEGY_RUNNING_MSG}), 409
+    return None
 
 
 @broker_bp.route("/connect", methods=["POST"])
@@ -29,6 +40,9 @@ def connect_broker():
         return jsonify({"error": "Missing required field: account_id"}), 400
     if not qmt_path:
         return jsonify({"error": "Missing required field: qmt_path"}), 400
+    blocked = _reject_if_strategy_using_qmt()
+    if blocked:
+        return blocked
     try:
         BrokerEngine.connect(qmt_path=qmt_path, account_id=account_id)
         return jsonify({"message": "Broker connected"})
@@ -53,6 +67,9 @@ def submit_order():
     for key in ("symbol", "action", "quantity", "price"):
         if key not in data:
             return jsonify({"error": "Missing required fields: symbol, action, quantity, price"}), 400
+    blocked = _reject_if_strategy_using_qmt()
+    if blocked:
+        return blocked
     try:
         order_id = BrokerEngine.submit_order(
             symbol=str(data["symbol"]),
@@ -84,6 +101,11 @@ def cancel_order(order_id):
 @broker_bp.route("/snapshot", methods=["GET"])
 def get_snapshot():
     """获取券商快照：资金、持仓、委托、成交。"""
+    if StrategyEngine.is_broker_strategy_running():
+        data = StrategyEngine.get_broker_snapshot_payload()
+        if data is not None:
+            return jsonify(data)
+        return jsonify({"error": "broker strategy snapshot unavailable"}), 503
     try:
         return jsonify(BrokerEngine.snapshot())
     except ValueError as e:

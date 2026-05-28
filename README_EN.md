@@ -4,7 +4,7 @@
 
 [中文](README.md) | [English](README_EN.md)
 
-![Version](https://img.shields.io/badge/version-1.2.4-7C3AED.svg)
+![Version](https://img.shields.io/badge/version-1.3.0-7C3AED.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-D97706.svg)
 ![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-2563EB.svg)
 ![License](https://img.shields.io/badge/license-MIT-10B981.svg)
@@ -34,8 +34,8 @@ python run.py
 
 - 📊 Data Services - Market data management and updates as a unified data entry point for backtesting, simulation, and strategy running
 - 📉 Backtest Hub - Strategy creation, historical backtesting, performance analysis, persisted results, and visual reports
-- 🧾 Manual Trading - Manage accounts (select or create), dual-mode trading (`local_paper`/`broker`), buy/sell execution, and position & PnL tracking
-- ⚡ Strategy Running - Automated trading workflow orchestration, real-time monitoring, signal execution, and runtime logs
+- 🧾 Manual Trading - Manage accounts (select or create), dual-mode trading (`local_paper`/`broker`), buy/sell execution, and position & PnL tracking (broker = **manual** miniQMT live on the trading page)
+- ⚡ Strategy Running - Automated workflow, monitoring, signal execution, and logs; since **1.3.0**, broker accounts support **QMT strategy live** (`miniqmt` dual gateway, session mutex with the trading page); paper remains local simulation
 - 🤖 AI Agent - Supports LLM configuration, chat, tool calls, and skill injection
 - 🔗 MCP (stdio) - Connect Cursor / Claude Desktop to the same Agent tools; see [docs/mcp-client-config.md](docs/mcp-client-config.md)
 
@@ -45,14 +45,14 @@ python run.py
 - [Data] eastmoney ✅ - Off-exchange funds (index, QDII, equity, bond, hybrid)
 - [Data] miniQMT ✅ - A-shares, indices, ETF (see the live-trading chapter in the course)
 - [Trade] PaperTrade ✅ - Local simulated trading, tick-level order matching, positions and order management
-- [Trade] miniQMT Trade ✅ - A-share live trading (see the live-trading chapter in the course)
+- [Trade] miniQMT Trade ✅ - A-share live: **trading page** manual orders / **strategy page** automated orders (see [docs/qmt-strategy-live.md](docs/qmt-strategy-live.md))
 
 ## 🗂️ Project Structure
 
 ```
 deltafstation/
 ├── assets/           # Docs and presentation images
-├── docs/             # Integration and design notes (incl. MCP client config)
+├── docs/             # Integration and design notes (MCP, broker snapshot, QMT strategy live, etc.)
 ├── mcp_server.py     # MCP stdio sidecar (aligned with TOOLS_MAP)
 ├── backend/
 │   ├── api/          # REST API
@@ -82,14 +82,15 @@ deltafstation/
 │   │   │       └── backtest_auto_tools.py
 │   │   ├── utils/
 │   │   │   ├── engine_snapshot.py
+│   │   │   ├── broker_snapshot.py
 │   │   │   ├── sim_persistence.py
 │   │   │   └── strategy_loader.py
 │   └── app.py        # Flask entry
 ├── config/
 ├── data/
-│   ├── raw/          # Raw OHLCV CSV
+│   ├── raw/          # Raw OHLCV CSV; symbols_dict_*.json catalogs (miniqmt maintained via local xtdata)
 │   ├── results/      # Backtest results JSON
-│   ├── simulations/  # Simulation account config JSON
+│   ├── simulations/  # Account config JSON (local_paper and broker, unified SIM_*.json)
 │   └── strategies/   # Strategy Python files
 ├── frontend/
 │   ├── templates/    # index / backtest / trader / gostrategy

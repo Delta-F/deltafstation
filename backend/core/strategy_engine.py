@@ -5,6 +5,7 @@ StrategyEngine 类方法说明：
   start            启动指定账户的策略引擎，可选从 state 恢复资金/持仓/订单等。
   stop             停止指定账户的策略引擎，并返回当前资金/持仓/订单快照。
   is_running       判断指定 account_id 上是否有策略在运行。
+  is_any_running   是否有任意账户在跑策略（用于 broker 会话互斥）。
   get_running_ids  返回当前所有正在运行策略的 account_id 列表。
   get_state        获取当前策略运行中的底层引擎快照（不停止）。
   get_run_info     获取策略 id、标的、信号周期及最近一次信号信息。
@@ -24,6 +25,7 @@ except ImportError:
 
 from backend.core.utils.strategy_loader import load_strategy_class
 from backend.core.utils.engine_snapshot import build_state_from_engine, restore_engine_from_state
+from backend.core.utils.broker_snapshot import build_state_from_trade_gateway
 
 
 def _get_engine(run: Optional[dict]):
@@ -32,6 +34,10 @@ def _get_engine(run: Optional[dict]):
         return None
     gw = getattr(run.get("engine"), "_trade_gw", None)
     return getattr(gw, "_engine", None) if gw else None
+
+
+def _is_broker_run(run: Optional[dict]) -> bool:
+    return (run or {}).get("account_type") == "broker"
 
 
 def _to_json_serializable(obj: Any) -> Any:
@@ -70,42 +76,118 @@ class StrategyEngine:
     _runs: dict = {}
 
     @classmethod
-    def start(cls, account_id: str, strategy_id: str, symbol: str, initial_capital: float,
-              commission: float = 0.001, signal_interval: str = "1d", lookback_bars: int = 100,
-              interval: float = 10.0, order_amount: Optional[float] = None,
-              state: Optional[dict] = None) -> None:
-        """启动指定账户的策略引擎，可选从 state 恢复资金/持仓/订单等。"""
+    def start(
+        cls,
+        account_id: str,
+        strategy_id: str,
+        symbol: str,
+        initial_capital: float,
+        commission: float = 0.001,
+        signal_interval: str = "1d",
+        lookback_bars: int = 100,
+        interval: float = 10.0,
+        order_amount: Optional[float] = None,
+        order_quantity: Optional[int] = None,
+        state: Optional[dict] = None,
+        account_type: str = "local_paper",
+        qmt_path: Optional[str] = None,
+        broker_account: Optional[str] = None,
+    ) -> None:
+        """启动指定账户的策略引擎；broker 走 miniQMT 双网关，paper 走 yfinance + paper。"""
         if account_id in cls._runs:
             cls.stop(account_id)
+
+        at = (account_type or "local_paper").strip().lower()
+        is_broker = at == "broker"
+
+        if is_broker:
+            from backend.core.broker_engine import BrokerEngine
+
+            if BrokerEngine.is_connected():
+                BrokerEngine.disconnect()
+            qmt_path = (qmt_path or "").strip()
+            broker_account = (broker_account or "").strip()
+            if not qmt_path or not broker_account:
+                raise ValueError("broker account requires qmt_path and broker_account")
+            interval = float(interval) if interval else 5.0
+
         strat = load_strategy_class(strategy_id)(name=strategy_id)
-        if order_amount is not None:
+        if is_broker:
+            if order_quantity is not None:
+                strat.order_quantity = order_quantity
+        elif order_amount is not None:
             strat.order_amount = order_amount
-        engine = LiveEngine(symbol=symbol, interval=interval, lookback_bars=lookback_bars, signal_interval=signal_interval)
-        engine.set_trade_gateway("paper", initial_capital=initial_capital, commission=commission)
-        # deltafq 在 _ensure_gateways() 时才创建 _trade_gw/_engine，必须先调用再恢复，否则订单历史进不了引擎
-        if getattr(engine, "_ensure_gateways", None):
-            engine._ensure_gateways()
-        if state:
-            eng = _get_engine({"engine": engine})
-            if eng:
-                restore_engine_from_state(eng, state)
+
+        if is_broker:
+            engine = LiveEngine(
+                symbol=symbol,
+                interval=interval,
+                lookback_bars=lookback_bars,
+                signal_interval=signal_interval,
+                data_gateway_name="miniqmt",
+                trade_gateway_name="miniqmt",
+            )
+            engine.set_data_gateway("miniqmt", interval=interval, mode="poll")
+            engine.set_trade_gateway(
+                "miniqmt",
+                userdata_mini_path=qmt_path,
+                account_id=broker_account,
+                strategy_name=strategy_id,
+                lot_size=100,
+            )
+        else:
+            engine = LiveEngine(
+                symbol=symbol,
+                interval=interval,
+                lookback_bars=lookback_bars,
+                signal_interval=signal_interval,
+                data_gateway_name="yfinance",
+                trade_gateway_name="paper",
+            )
+            engine.set_data_gateway("yfinance", interval=interval)
+            engine.set_trade_gateway("paper", initial_capital=initial_capital, commission=commission)
+            if getattr(engine, "_ensure_gateways", None):
+                engine._ensure_gateways()
+            if state:
+                eng = _get_engine({"engine": engine})
+                if eng:
+                    restore_engine_from_state(eng, state)
+
         engine.add_strategy(strat)
         t = threading.Thread(target=lambda: engine.run_live(), daemon=True)
         t.start()
-        cls._runs[account_id] = {"engine": engine, "strategy_id": strategy_id, "symbol": symbol,
-                                "signal_interval": signal_interval, "thread": t}
+        cls._runs[account_id] = {
+            "engine": engine,
+            "strategy_id": strategy_id,
+            "symbol": symbol,
+            "signal_interval": signal_interval,
+            "thread": t,
+            "account_type": at,
+            "qmt_path": qmt_path if is_broker else None,
+            "broker_account": broker_account if is_broker else None,
+            "order_amount": order_amount if not is_broker else None,
+            "order_quantity": order_quantity if is_broker else None,
+        }
 
     @classmethod
     def stop(cls, account_id: str) -> Optional[dict]:
-        """停止指定账户的策略引擎，并返回当前资金/持仓/订单快照（可能为 None）。"""
+        """停止指定账户的策略引擎，并返回当前资金/持仓/订单快照（broker 可能为 None）。"""
         run = cls._runs.pop(account_id, None)
         if not run:
             return None
-        eng = _get_engine(run)
-        try:
-            state = build_state_from_engine(eng) if eng else None
-        except Exception:
-            state = None
+        state = None
+        if _is_broker_run(run):
+            try:
+                gw = getattr(run.get("engine"), "_trade_gw", None)
+                state = build_state_from_trade_gateway(gw)
+            except Exception:
+                state = None
+        else:
+            eng = _get_engine(run)
+            try:
+                state = build_state_from_engine(eng) if eng else None
+            except Exception:
+                state = None
         try:
             run["engine"].stop()
         except Exception:
@@ -118,10 +200,28 @@ class StrategyEngine:
         return account_id in cls._runs
 
     @classmethod
+    def is_any_running(cls) -> bool:
+        """是否有任意账户正在运行策略。"""
+        return bool(cls._runs)
+
+    @classmethod
+    def is_broker_strategy_running(cls) -> bool:
+        """是否有 broker 模式的策略在运行。"""
+        return any(_is_broker_run(r) for r in cls._runs.values())
+
+    @classmethod
     def get_state(cls, account_id: str) -> Optional[dict]:
         """获取当前策略运行中的底层引擎快照（不停止）。"""
         run = cls._runs.get(account_id)
-        eng = _get_engine(run) if run else None
+        if not run:
+            return None
+        if _is_broker_run(run):
+            try:
+                gw = getattr(run.get("engine"), "_trade_gw", None)
+                return build_state_from_trade_gateway(gw)
+            except Exception:
+                return None
+        eng = _get_engine(run)
         if not eng:
             return None
         try:
@@ -135,8 +235,16 @@ class StrategyEngine:
         run = cls._runs.get(account_id)
         if not run:
             return None
-        info = {"strategy_id": run["strategy_id"], "symbol": run["symbol"],
-                "signal_interval": run.get("signal_interval", "1d")}
+        info = {
+            "strategy_id": run["strategy_id"],
+            "symbol": run["symbol"],
+            "signal_interval": run.get("signal_interval", "1d"),
+            "account_type": run.get("account_type", "local_paper"),
+        }
+        if run.get("order_amount") is not None:
+            info["order_amount"] = run["order_amount"]
+        if run.get("order_quantity") is not None:
+            info["order_quantity"] = run["order_quantity"]
         eng = run["engine"]
         if hasattr(eng, "_last_signal"):
             sig = eng._last_signal
@@ -157,7 +265,6 @@ class StrategyEngine:
             result = engine.calculate_metrics()
             if result is None:
                 return None
-            # 与 BacktestEngine 一致：calculate_metrics() 返回 (values_metrics_df, metrics_dict)
             if isinstance(result, (list, tuple)) and len(result) >= 2:
                 metrics = result[1]
             elif isinstance(result, dict):
@@ -188,3 +295,31 @@ class StrategyEngine:
     def get_running_ids(cls) -> List[str]:
         """返回当前所有正在运行策略的 account_id 列表。"""
         return list(cls._runs.keys())
+
+    @classmethod
+    def get_broker_snapshot_payload(cls) -> Optional[Dict[str, Any]]:
+        """broker 策略运行中时返回柜台快照（供 /api/broker/snapshot 代理）。"""
+        from backend.core.utils.broker_snapshot import collect_broker_snapshot
+
+        for account_id, run in cls._runs.items():
+            if not _is_broker_run(run):
+                continue
+            engine = run.get("engine")
+            gw = getattr(engine, "_trade_gw", None) if engine else None
+            if gw is None:
+                continue
+            try:
+                data = collect_broker_snapshot(gw)
+                data["account_id"] = run.get("broker_account")
+                data["qmt_path"] = run.get("qmt_path")
+                sid = run.get("strategy_id") or ""
+                for o in data.get("orders") or []:
+                    if sid and not (o.get("strategy_id") or "").strip():
+                        o["strategy_id"] = sid
+                for t in data.get("trades") or []:
+                    if sid and not (t.get("strategy_id") or "").strip():
+                        t["strategy_id"] = sid
+                return data
+            except Exception:
+                return None
+        return None

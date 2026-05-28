@@ -1,5 +1,7 @@
 # DeltaFStation 系统架构
 
+> 文档对应版本：**1.3.0**
+
 ## 一图看懂
 
 ```
@@ -46,7 +48,8 @@
   │       ├── backtest_tools.py     backend/core/agent/tools/backtest_tools.py     # 回测（模糊匹配 + 结构化摘要 + 落盘复用）
   │       └── backtest_auto_tools.py backend/core/agent/tools/backtest_auto_tools.py # 自动拉数回测（run_backtest_auto）
   ├── sim_persistence    backend/core/utils/sim_persistence.py  # 仿真配置路径、同账户停机持久化
-  └── engine_snapshot    backend/core/utils/engine_snapshot.py  # 引擎快照构建/恢复、订单续号与策略 ID 注入
+  ├── engine_snapshot    backend/core/utils/engine_snapshot.py  # paper 引擎快照构建/恢复、订单续号与策略 ID 注入
+  └── broker_snapshot    backend/core/utils/broker_snapshot.py  # 柜台 query_* → 交易页快照 / gostrategy state
 
            │  读写文件
            ▼
@@ -64,7 +67,7 @@
 - **DataManager**
   - 处理 CSV 上传 / 下载 / 预览等数据管理
   - 支持回测链路按 `data_source`（`yfinance` / `miniqmt`）拉取数据
-  - 提供标的目录读取能力（`symbol_code_name_dict.json`），用于回测页代码-名称检索
+  - 提供标的目录读取能力（`data/raw/symbols_dict_yfinance.json`、`symbols_dict_miniqmt.json`），经 `GET /api/data/symbols/catalog?source=` 供回测/交易/策略页检索
   - 封装在 `backend/core/data_manager.py`，对外通过 `data_api` 暴露
 
 - **LiveDataManager**
@@ -82,9 +85,9 @@
 
 - **BrokerEngine（券商交易引擎）**
   - 封装 miniQMT 交易会话管理（连接、断连、下单、撤单）
-  - 将柜台数据标准化为交易页统一结构：`asset / positions / orders / trades`
-  - 负责订单状态映射（pending/executed/cancelled）与时间字段归一化
-  - 由 `broker_api` 调用（`broker` 模式）
+  - `snapshot()` 调用 `broker_snapshot.collect_broker_snapshot`，将柜台数据标准化为：`asset / positions / orders / trades`
+  - 订单状态映射（pending/executed/cancelled）与时间归一化在 `broker_engine` 工具函数中实现
+  - 由 `broker_api` 调用（交易页 **手动** `broker` 模式）
 
 - **Trading 页双链路（按 account_type）**
   - `local_paper`：走 `simulation_api` + `SimulationEngine`，状态由本地仿真引擎维护
@@ -93,14 +96,22 @@
 - **StrategyEngine（策略运行器）**
   - 封装 `deltafq.live.LiveEngine`，负责策略自动化运行
   - 用于**策略运行**（run/gostrategy 页）：选择策略、标的、周期（1d/1h/5m/1m）后启动
-  - 支持 `signal_interval`，K 线图表按所选周期拉取
-  - **绩效指标**：通过 `get_run_metrics` 实时调用 `deltafq` 提供指标计算能力（前端同步实现基于 FIFO 的全量指标统计）
-  - 由 `gostrategy_api` 调用，状态从 `StrategyEngine.get_state` / `get_run_info` 获取
+  - **paper 账户**：`yfinance` 行情 + `paper` 交易网关，支持 `engine_state` 恢复
+  - **broker 账户（QMT 策略实盘）**：`miniqmt` 双网关（行情 poll + 柜台下单），单次规模由页面「单次股数」→ `order_quantity` 控制；与 `BrokerEngine` **会话互斥**（策略运行中交易页不可 connect/手动下单）
+  - 支持 `signal_interval`，K 线图表按所选周期拉取；broker 状态经 `broker_snapshot` 从柜台映射为与 paper 一致的 state 结构
+  - **绩效指标**：通过 `get_run_metrics` 实时调用 `deltafq`（broker 下成交明细可能为空，权益曲线仍可由 `get_values_df` 提供）
+  - 由 `gostrategy_api` 调用，状态从 `StrategyEngine.get_state` / `get_run_info` 获取；联调见 [docs/qmt-strategy-live.md](docs/qmt-strategy-live.md)
+
+- **broker_snapshot（柜台适配）**
+  - `collect_broker_snapshot`：从 miniQMT 交易网关拉资金/持仓/委托/成交
+  - `build_state_from_broker_snapshot` / `build_state_from_trade_gateway`：转为与 paper 一致的 `state`，供 `StrategyEngine.get_state` 与策略页展示
 
 - **sim_persistence / engine_snapshot**
   - **停机持久化**：`sim_persistence.stop_same_account` 负责在启动新实例前，先安全停止同账户的旧实例并将 state 快照落盘
-  - **快照续号**：`engine_snapshot` 统一快照格式，包含资金、持仓、成交、所有订单，并恢复 `order_counter` 确保 ID 连续
-  - **策略标记**：支持 `strategy_id` 注入，手动交易自动标记为 `manual`，方便区分交易来源
+  - **paper 全量落盘**：`local_paper` 与 paper 策略停止时，`engine_snapshot` 写入 `engine_state` 及顶层 `trades`/`orders` 等
+  - **broker 不落 paper state**：`account_type=broker` 停止策略时**不**把柜台快照当作 `engine_state` 整包写入配置（避免污染）；实盘状态以运行时柜台查询为准
+  - **快照续号**：`engine_snapshot` 恢复 `order_counter`，确保 paper 重启后 `ORD_xxx` 连续
+  - **策略标记**：`inject_strategy_id`，手动交易为 `manual`
 
 - **策略管理**
   - 策略实现存放在 `data/strategies/*.py`，继承 `deltafq.BaseStrategy`
